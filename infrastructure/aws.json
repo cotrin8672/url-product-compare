@@ -1,0 +1,221 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Minimal comparison demo: HTTP API, Lambda, private auto-pausing Aurora. Storage/secret costs remain while paused.",
+  "Parameters": {
+    "EngineVersion": {
+      "Type": "String",
+      "Description": "Aurora PostgreSQL version available in this region supporting Data API and 0 ACU auto-pause (16.3+ on the 16 branch). No unverified default."
+    }
+  },
+  "Resources": {
+    "Vpc": {
+      "Type": "AWS::EC2::VPC",
+      "Properties": {
+        "CidrBlock": "10.72.0.0/16",
+        "EnableDnsSupport": true,
+        "EnableDnsHostnames": true
+      }
+    },
+    "SubnetA": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": { "Ref": "Vpc" },
+        "CidrBlock": "10.72.0.0/24",
+        "AvailabilityZone": { "Fn::Select": [0, { "Fn::GetAZs": "" }] }
+      }
+    },
+    "SubnetB": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": { "Ref": "Vpc" },
+        "CidrBlock": "10.72.1.0/24",
+        "AvailabilityZone": { "Fn::Select": [1, { "Fn::GetAZs": "" }] }
+      }
+    },
+    "DbSubnets": {
+      "Type": "AWS::RDS::DBSubnetGroup",
+      "Properties": {
+        "DBSubnetGroupDescription": "Private Aurora subnets",
+        "SubnetIds": [{ "Ref": "SubnetA" }, { "Ref": "SubnetB" }]
+      }
+    },
+    "DbSecurity": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "No inbound PostgreSQL access; Data API only",
+        "VpcId": { "Ref": "Vpc" }
+      }
+    },
+    "Database": {
+      "Type": "AWS::RDS::DBCluster",
+      "DeletionPolicy": "Snapshot",
+      "UpdateReplacePolicy": "Snapshot",
+      "Properties": {
+        "Engine": "aurora-postgresql",
+        "EngineVersion": { "Ref": "EngineVersion" },
+        "EngineMode": "provisioned",
+        "DatabaseName": "compare",
+        "MasterUsername": "compare_admin",
+        "ManageMasterUserPassword": true,
+        "EnableHttpEndpoint": true,
+        "StorageEncrypted": true,
+        "StorageType": "aurora",
+        "BackupRetentionPeriod": 7,
+        "DBSubnetGroupName": { "Ref": "DbSubnets" },
+        "VpcSecurityGroupIds": [{ "Ref": "DbSecurity" }],
+        "ServerlessV2ScalingConfiguration": {
+          "MinCapacity": 0,
+          "MaxCapacity": 1,
+          "SecondsUntilAutoPause": 300
+        }
+      }
+    },
+    "Writer": {
+      "Type": "AWS::RDS::DBInstance",
+      "Properties": {
+        "DBClusterIdentifier": { "Ref": "Database" },
+        "Engine": "aurora-postgresql",
+        "DBInstanceClass": "db.serverless",
+        "PubliclyAccessible": false
+      }
+    },
+    "AppSecret": {
+      "Type": "AWS::SecretsManager::Secret",
+      "Properties": {
+        "GenerateSecretString": {
+          "SecretStringTemplate": "{\"username\":\"compare_app\"}",
+          "GenerateStringKey": "password",
+          "PasswordLength": 32,
+          "ExcludePunctuation": true
+        }
+      }
+    },
+    "ApiRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": { "Service": "lambda.amazonaws.com" },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "ComparisonApi",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": ["logs:CreateLogStream", "logs:PutLogEvents"],
+                  "Resource": {
+                    "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${AWS::StackName}-api:*"
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": "rds-data:ExecuteStatement",
+                  "Resource": { "Fn::GetAtt": ["Database", "DBClusterArn"] }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": "secretsmanager:GetSecretValue",
+                  "Resource": { "Ref": "AppSecret" }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "ApiFunction": {
+      "Type": "AWS::Lambda::Function",
+      "DependsOn": ["ApiLogs", "Writer"],
+      "Properties": {
+        "FunctionName": { "Fn::Sub": "${AWS::StackName}-api" },
+        "Runtime": "nodejs24.x",
+        "Handler": "apps/api/src/index.handler",
+        "Role": { "Fn::GetAtt": ["ApiRole", "Arn"] },
+        "Code": "../apps/api/dist/lambda",
+        "MemorySize": 256,
+        "Timeout": 28,
+        "ReservedConcurrentExecutions": 2,
+        "Environment": {
+          "Variables": {
+            "DB_RESOURCE_ARN": { "Fn::GetAtt": ["Database", "DBClusterArn"] },
+            "DB_SECRET_ARN": { "Ref": "AppSecret" },
+            "DB_NAME": "compare"
+          }
+        }
+      }
+    },
+    "ApiLogs": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": { "Fn::Sub": "/aws/lambda/${AWS::StackName}-api" },
+        "RetentionInDays": 7
+      }
+    },
+    "HttpApi": {
+      "Type": "AWS::ApiGatewayV2::Api",
+      "Properties": { "Name": { "Fn::Sub": "${AWS::StackName}-api" }, "ProtocolType": "HTTP" }
+    },
+    "Integration": {
+      "Type": "AWS::ApiGatewayV2::Integration",
+      "Properties": {
+        "ApiId": { "Ref": "HttpApi" },
+        "IntegrationType": "AWS_PROXY",
+        "IntegrationUri": { "Fn::GetAtt": ["ApiFunction", "Arn"] },
+        "PayloadFormatVersion": "2.0",
+        "TimeoutInMillis": 29000
+      }
+    },
+    "InvestigateRoute": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": { "Ref": "HttpApi" },
+        "RouteKey": "POST /api/investigate",
+        "Target": { "Fn::Sub": "integrations/${Integration}" }
+      }
+    },
+    "HealthRoute": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": { "Ref": "HttpApi" },
+        "RouteKey": "GET /api/health",
+        "Target": { "Fn::Sub": "integrations/${Integration}" }
+      }
+    },
+    "Stage": {
+      "Type": "AWS::ApiGatewayV2::Stage",
+      "Properties": {
+        "ApiId": { "Ref": "HttpApi" },
+        "StageName": "$default",
+        "AutoDeploy": true,
+        "DefaultRouteSettings": { "ThrottlingBurstLimit": 2, "ThrottlingRateLimit": 1 }
+      }
+    },
+    "InvokePermission": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "FunctionName": { "Ref": "ApiFunction" },
+        "Action": "lambda:InvokeFunction",
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": {
+          "Fn::Sub": "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*/*/api/*"
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "ApiOrigin": { "Value": { "Fn::GetAtt": ["HttpApi", "ApiEndpoint"] } },
+    "ClusterArn": { "Value": { "Fn::GetAtt": ["Database", "DBClusterArn"] } },
+    "MasterSecretArn": { "Value": { "Fn::GetAtt": ["Database", "MasterUserSecret.SecretArn"] } },
+    "AppSecretArn": { "Value": { "Ref": "AppSecret" } },
+    "DatabaseName": { "Value": "compare" }
+  }
+}

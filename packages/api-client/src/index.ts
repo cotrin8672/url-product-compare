@@ -54,7 +54,14 @@ export function parseInvestigation(input: unknown): Investigation {
 }
 
 export async function investigateProduct(url: string): Promise<Investigation> {
-  const response = await fetch(`/api/investigate?url=${encodeURIComponent(url)}`);
+  const response = await fetch("/api/investigate", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ url }),
+  });
+  if (response.status >= 500) {
+    throw new Error("サーバーに接続できませんでした。時間をおいて再試行してください");
+  }
   const body: unknown = await response.json();
   return parseInvestigation(body);
 }

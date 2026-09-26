@@ -250,6 +250,11 @@ export default defineConfig(
                 ]),
               ],
             },
+            // Aurora transport uses the approved official SDK; core comparison stays independent.
+            {
+              from: { file: { path: "packages/backend/src/infrastructure/aws/aurora.ts" } },
+              allow: external("@aws-sdk/client-rds-data"),
+            },
             {
               from: { file: { categories: "bootstrap" } },
               allow: [
@@ -258,6 +263,11 @@ export default defineConfig(
               ],
             },
             // Tests use the same safety rules; only the runner dependency is added.
+            // Transport tests exercise bootstrap wiring and its infrastructure adapters.
+            {
+              from: { file: { path: "packages/backend/src/infrastructure/testing/aws.test.ts" } },
+              allow: [local("infrastructure"), { to: { file: { categories: "bootstrap" } } }],
+            },
             { from: { file: { path: "**/*.test.ts" } }, allow: external("vitest") },
             // Cross-package imports must go through the public entry point, including relative imports.
             {

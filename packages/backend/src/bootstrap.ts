@@ -14,8 +14,56 @@ import type {
 } from "./comparison/ranking.js";
 import { instant, permissions, valueOf } from "./comparison/values.js";
 import type { Instant } from "./comparison/values.js";
+import { createAuroraRunStore } from "./infrastructure/aws/aurora.js";
+import type { RunStore } from "./infrastructure/aws/aurora.js";
+import { apiResponse, parseApiRequest } from "./infrastructure/http/request.js";
+import type { ApiResponse } from "./infrastructure/http/request.js";
 import { createJevJudge } from "./providers/jev/index.js";
 import { rakutenProvider } from "./providers/rakuten/index.js";
+
+export function createApiHandler(
+  configuration: Readonly<{ resourceArn: string; secretArn: string; database: string }> | null,
+): (event: unknown) => Promise<ApiResponse> {
+  const store: RunStore | null =
+    configuration === null
+      ? null
+      : createAuroraRunStore(
+          configuration.resourceArn,
+          configuration.secretArn,
+          configuration.database,
+        );
+  return async (event) => {
+    try {
+      const request = parseApiRequest(event);
+      if (request.tag === "err") {
+        return apiResponse(400, request);
+      }
+      const { path, method, url } = request.value;
+      if (path === "/api/health" && method === "GET") {
+        return apiResponse(200, { status: "ok", mode: "demo" });
+      }
+      if (path !== "/api/investigate") {
+        return apiResponse(404, err({ code: "not_found" }));
+      }
+      if (method !== "GET" && method !== "POST") {
+        return apiResponse(405, err({ code: "method_not_allowed" }));
+      }
+      if (url === null) {
+        return apiResponse(400, err({ code: "invalid_url" }));
+      }
+      const result = await investigateDemo(url);
+      if (method === "POST" && store !== null) {
+        const saved = await store(result.tag === "ok" ? "succeeded" : "failed");
+        if (saved.tag === "err") {
+          return apiResponse(503, saved);
+        }
+      }
+      return apiResponse(result.tag === "ok" ? 200 : 422, result);
+    } catch {
+      return apiResponse(500, err({ code: "internal_error" }));
+    }
+  };
+}
 
 async function rankWithJev(
   candidates: readonly Candidate[],

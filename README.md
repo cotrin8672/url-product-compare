@@ -27,6 +27,8 @@ rtk mise run verify
 
 ## セットアップ
 
+AWSの公開構成・パッケージ作成・DB初期化は [infrastructure/README.md](infrastructure/README.md) にまとめています。Lambdaでも商品同定はデモです。Auroraには操作の成否だけを保存し、実商品データや入力URLは保存しません。
+
 ```sh
 mise trust
 mise install

@@ -1,40 +1,26 @@
-import { createServer } from "node:http";
-import type { ServerResponse, IncomingMessage } from "node:http";
+import { createApiHandler } from "../../../packages/backend/src/bootstrap.js";
 
-import { investigateDemo } from "../../../packages/backend/src/bootstrap.js";
-
-function send(response: ServerResponse, status: number, body: unknown): void {
-  response.writeHead(status, { "content-type": "application/json; charset=utf-8" });
-  response.end(JSON.stringify(body));
+const lambda = process.env["AWS_LAMBDA_FUNCTION_NAME"] !== undefined;
+const resourceArn = process.env["DB_RESOURCE_ARN"];
+const secretArn = process.env["DB_SECRET_ARN"];
+const database = process.env["DB_NAME"];
+const configured =
+  lambda || resourceArn !== undefined || secretArn !== undefined || database !== undefined;
+if (
+  configured &&
+  (resourceArn === undefined ||
+    !/^arn:aws(?:-cn|-us-gov)?:rds:[a-z0-9-]+:\d{12}:cluster:[a-zA-Z0-9-]+$/.test(resourceArn) ||
+    secretArn === undefined ||
+    !/^arn:aws(?:-cn|-us-gov)?:secretsmanager:[a-z0-9-]+:\d{12}:secret:[a-zA-Z0-9/_+=.@-]+$/.test(
+      secretArn,
+    ) ||
+    database === undefined ||
+    !/^[a-z][a-z0-9_]{0,62}$/.test(database))
+) {
+  throw new Error("Valid DB_RESOURCE_ARN, DB_SECRET_ARN and DB_NAME are required together");
 }
-
-async function handle(request: IncomingMessage, response: ServerResponse): Promise<void> {
-  const route = new URL(request.url ?? "/", "http://localhost");
-  if (route.pathname !== "/api/investigate") {
-    send(response, 404, { tag: "err", error: { code: "not_found" } });
-    return;
-  }
-  if (request.method !== "GET") {
-    send(response, 405, { tag: "err", error: { code: "method_not_allowed" } });
-    return;
-  }
-  const input = route.searchParams.get("url");
-  if (input === null || input.length > 2048) {
-    send(response, 400, { tag: "err", error: { code: "invalid_url" } });
-    return;
-  }
-  const result = await investigateDemo(input);
-  send(response, result.tag === "ok" ? 200 : 422, result);
-}
-
-const port = Number(process.env["PORT"] ?? "3001");
-const server = createServer((request, response) => {
-  handle(request, response).catch(() => {
-    if (!response.headersSent) {
-      send(response, 500, { tag: "err", error: { code: "internal_error" } });
-    } else {
-      response.end();
-    }
-  });
-});
-server.listen(port, "127.0.0.1");
+export const handler = createApiHandler(
+  resourceArn !== undefined && secretArn !== undefined && database !== undefined
+    ? { resourceArn, secretArn, database }
+    : null,
+);
