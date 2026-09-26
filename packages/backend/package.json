@@ -1,0 +1,10 @@
+{
+  "name": "@app/backend",
+  "private": true,
+  "type": "module",
+  "exports": "./src/bootstrap.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "tsc --noEmit false --outDir dist && node --test dist/infrastructure/testing/*.test.js"
+  }
+}

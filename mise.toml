@@ -1,0 +1,32 @@
+[tools]
+node = "24.21.0"
+pnpm = "10.34.5"
+
+[tasks.install]
+description = "Install locked workspace dependencies"
+run = "pnpm install --frozen-lockfile"
+
+[tasks.lint]
+run = "pnpm lint"
+
+[tasks."lint:fix"]
+run = "pnpm lint:fix"
+
+[tasks.format]
+run = "pnpm format"
+
+[tasks."format:check"]
+run = "pnpm format:check"
+
+[tasks.typecheck]
+run = "pnpm typecheck"
+
+[tasks.knip]
+run = "pnpm knip"
+
+[tasks."test:guardrails"]
+run = "pnpm test:guardrails"
+
+[tasks.verify]
+description = "Run all read-only quality checks"
+run = "pnpm verify"

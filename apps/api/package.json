@@ -1,0 +1,9 @@
+{
+  "name": "@app/api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "dev": "tsc --noEmit false && node dist/apps/api/src/index.js"
+  }
+}

@@ -1,0 +1,8 @@
+packages:
+  - apps/*
+  - packages/*
+saveExact: true
+autoInstallPeers: false
+minimumReleaseAge: 1440
+onlyBuiltDependencies:
+  - unrs-resolver

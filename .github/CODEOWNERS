@@ -1,0 +1,19 @@
+# Guardrail changes need the repository owner's review.
+/eslint.config.mjs @cotrin8672
+/.oxfmtrc.json @cotrin8672
+/.editorconfig @cotrin8672
+/.gitattributes @cotrin8672
+/.gitignore @cotrin8672
+/mise.toml @cotrin8672
+/**/tsconfig*.json @cotrin8672
+/**/package.json @cotrin8672
+/pnpm-lock.yaml @cotrin8672
+/pnpm-workspace.yaml @cotrin8672
+/knip.json @cotrin8672
+/tooling/ @cotrin8672
+/*config.ts @cotrin8672
+/tests/ @cotrin8672
+/**/*.test.ts @cotrin8672
+/.github/ @cotrin8672
+/AGENTS.md @cotrin8672
+/**/drizzle/ @cotrin8672

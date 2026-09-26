@@ -1,0 +1,9 @@
+{
+  "name": "@app/worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "demo": "tsc --noEmit false && node dist/apps/worker/src/index.js"
+  }
+}
