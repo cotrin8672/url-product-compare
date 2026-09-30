@@ -1,9 +1,9 @@
 /** @jsxImportSource solid-js */
-import { createEffect, createResource, createSignal, onCleanup, Show } from "solid-js";
+import { createEffect, createResource, createSignal, For, onCleanup, Show } from "solid-js";
 import type { JSX } from "solid-js";
 
-import { investigateProduct } from "@app/api-client";
-import type { Investigation } from "@app/api-client";
+import { investigateProduct, searchCandidates } from "@app/api-client";
+import type { CandidateSearch, Investigation } from "@app/api-client";
 
 type ViewResult =
   | Readonly<{ tag: "ok"; value: Investigation }>
@@ -150,10 +150,126 @@ function ProductResult(props: Readonly<{ data: Investigation }>): JSX.Element {
   );
 }
 
+function CandidateResults(props: Readonly<{ data: CandidateSearch }>): JSX.Element {
+  const [expired, setExpired] = createSignal(false);
+  const yen = new Intl.NumberFormat("ja-JP", { style: "currency", currency: "JPY" });
+  createEffect(() => {
+    setExpired(false);
+    const expiry = props.data.listings
+      .map((listing) => listing.expiresAt)
+      .toSorted((left, right) => left.localeCompare(right))[0];
+    if (expiry !== undefined) {
+      onCleanup(expireAt(expiry, () => setExpired(true)));
+    }
+  });
+  return (
+    <Show
+      when={!expired()}
+      fallback={
+        <p class="status" role="status">
+          表示期限が切れました。候補を再取得してください。
+        </p>
+      }
+    >
+      <div class="bar">
+        <h2>比較候補</h2>
+        <span class="count">{props.data.listings.length}件 · 製品・SKU未確認 / Jev未評価</span>
+      </div>
+      <div class="table-wrap">
+        <table class="candidates-table">
+          <thead>
+            <tr>
+              <th>商品</th>
+              <th>販売店</th>
+              <th class="number">掲載価格</th>
+              <th>送料</th>
+              <th>購入リンク</th>
+            </tr>
+          </thead>
+          <tbody>
+            <For
+              each={props.data.listings}
+              fallback={
+                <tr>
+                  <td colSpan={5} class="empty">
+                    候補が見つかりませんでした。用途・条件を変えてください。
+                  </td>
+                </tr>
+              }
+            >
+              {(listing) => (
+                <tr>
+                  <td>{listing.title}</td>
+                  <td>{listing.shopName}</td>
+                  <td class="number">
+                    {yen.format(listing.price.minimum)}
+                    {listing.price.maximum === listing.price.minimum
+                      ? ""
+                      : `〜${yen.format(listing.price.maximum)}`}
+                    <small>{listing.tax === "included" ? "税込" : "税別"}</small>
+                  </td>
+                  <td>
+                    {listing.shipping === "included" ? "API上は送料込み" : "送料別・金額未確認"}
+                  </td>
+                  <td>
+                    <a
+                      href={listing.affiliateUrl}
+                      target="_blank"
+                      rel="sponsored noopener noreferrer"
+                    >
+                      楽天で見る
+                    </a>
+                    <small>広告</small>
+                  </td>
+                </tr>
+              )}
+            </For>
+          </tbody>
+        </table>
+      </div>
+      <details class="details">
+        <summary>検索条件と確認日時</summary>
+        <p>検索語：{props.data.keyword}</p>
+        <For each={props.data.listings}>
+          {(listing) => (
+            <p>
+              <a href={listing.canonicalUrl} target="_blank" rel="noopener noreferrer">
+                {listing.listingId}
+              </a>{" "}
+              · {new Date(listing.observedAt).toLocaleString("ja-JP")}
+            </p>
+          )}
+        </For>
+      </details>
+    </Show>
+  );
+}
+
 export function App(): JSX.Element {
   const [url, setUrl] = createSignal("");
   const [keyword, setKeyword] = createSignal("");
   const [accessToken, setAccessToken] = createSignal("");
+  const [requirements, setRequirements] = createSignal("");
+  const [candidateQuery, setCandidateQuery] = createSignal<
+    Readonly<{ requirements: string; accessToken: string }> | undefined
+  >();
+  const [candidates] = createResource(
+    candidateQuery,
+    async (
+      input,
+    ): Promise<
+      Readonly<{ tag: "ok"; value: CandidateSearch }> | Readonly<{ tag: "err"; message: string }>
+    > => {
+      try {
+        return { tag: "ok", value: await searchCandidates(input.requirements, input.accessToken) };
+      } catch (error: unknown) {
+        return {
+          tag: "err",
+          message: error instanceof Error ? error.message : "通信に失敗しました",
+        };
+      }
+    },
+  );
   const [query, setQuery] = createSignal<
     Readonly<{ url: string; keyword: string; accessToken: string }> | undefined
   >();
@@ -180,6 +296,7 @@ export function App(): JSX.Element {
             class="search"
             onSubmit={(event) => {
               event.preventDefault();
+              setCandidateQuery(undefined);
               setQuery({ url: url().trim(), keyword: keyword(), accessToken: accessToken() });
             }}
           >
@@ -194,7 +311,7 @@ export function App(): JSX.Element {
               value={url()}
               onInput={(event) => setUrl(event.currentTarget.value)}
             />
-            <button type="submit" disabled={result.loading}>
+            <button type="submit" disabled={result.loading || candidates.loading}>
               調べる
             </button>
           </form>
@@ -202,6 +319,30 @@ export function App(): JSX.Element {
         </div>
       </header>
       <main>
+        <form
+          class="search candidate-search"
+          onSubmit={(event) => {
+            event.preventDefault();
+            setQuery(undefined);
+            setCandidateQuery({ requirements: requirements().trim(), accessToken: accessToken() });
+          }}
+        >
+          <label class="sr-only" for="requirements">
+            用途・条件
+          </label>
+          <input
+            id="requirements"
+            type="text"
+            placeholder="用途・条件（例：持ち歩ける65W USB-C充電器、2台同時充電）"
+            required
+            maxLength={1000}
+            value={requirements()}
+            onInput={(event) => setRequirements(event.currentTarget.value)}
+          />
+          <button type="submit" disabled={result.loading || candidates.loading}>
+            候補を探す
+          </button>
+        </form>
         <details class="details connection">
           <summary>接続設定</summary>
           <div class="connection-fields">
@@ -223,12 +364,12 @@ export function App(): JSX.Element {
             />
           </div>
         </details>
-        <Show when={result.loading}>
+        <Show when={result.loading || candidates.loading}>
           <p class="status" role="status">
             商品を確認しています…
           </p>
         </Show>
-        <Show when={result.loading ? undefined : result()}>
+        <Show when={query() === undefined || result.loading ? undefined : result()}>
           {(state) => {
             const current = state();
             return current.tag === "ok" ? (
@@ -240,7 +381,28 @@ export function App(): JSX.Element {
             );
           }}
         </Show>
-        <Show when={query() === undefined && !result.loading}>
+        <Show
+          when={candidateQuery() === undefined || candidates.loading ? undefined : candidates()}
+        >
+          {(state) => {
+            const current = state();
+            return current.tag === "ok" ? (
+              <CandidateResults data={current.value} />
+            ) : (
+              <p class="status error" role="alert">
+                {current.message}
+              </p>
+            );
+          }}
+        </Show>
+        <Show
+          when={
+            query() === undefined &&
+            candidateQuery() === undefined &&
+            !result.loading &&
+            !candidates.loading
+          }
+        >
           <p class="status">
             楽天の商品URLを入力してください。
             <button

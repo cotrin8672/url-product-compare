@@ -82,6 +82,12 @@ export function parseInvestigation(input: unknown): Investigation {
     const code = record(error) ? error["code"] : null;
     const messages: Readonly<Record<string, string>> = {
       unauthorized: "接続設定に動作確認用トークンを入力してください",
+      main_ai_not_configured: "メインAIが未設定です。サーバーのOPENAI_API_KEYを設定してください",
+      main_ai_unauthorized: "OpenAIのAPIキーとモデルの利用権限を確認してください",
+      main_ai_rate_limited: "OpenAIの利用制限に達しました。時間をおいて再試行してください",
+      main_ai_unavailable: "メインAIに接続できませんでした。時間をおいて再試行してください",
+      invalid_ai_response:
+        "メインAIの検索条件を検証できませんでした。条件を変えて再試行してください",
       provider_unauthorized: "楽天のアプリID・アクセスキー・許可ドメインを確認してください",
       provider_rate_limited: "楽天APIの利用制限に達しました。時間をおいて再試行してください",
       provider_unavailable: "楽天APIに接続できませんでした。時間をおいて再試行してください",
@@ -195,28 +201,91 @@ export async function investigateProduct(
   url: string,
   options: Readonly<{ keyword?: string; accessToken?: string }> = {},
 ): Promise<Investigation> {
+  return parseInvestigation(
+    await postApi(
+      "/api/investigate",
+      {
+        url,
+        keyword:
+          options.keyword === undefined || options.keyword.trim().length === 0
+            ? null
+            : options.keyword.trim(),
+      },
+      options.accessToken ?? "",
+    ),
+  );
+}
+
+async function postApi(
+  path: "/api/investigate" | "/api/candidates",
+  input: unknown,
+  accessToken: string,
+): Promise<unknown> {
   const headers: Record<string, string> = { "content-type": "application/json" };
-  if (options.accessToken !== undefined && options.accessToken.length > 0) {
-    if (!/^[a-zA-Z0-9_-]{32,256}$/.test(options.accessToken)) {
+  if (accessToken.length > 0) {
+    if (!/^[a-zA-Z0-9_-]{32,256}$/.test(accessToken)) {
       throw new Error("動作確認用トークンの形式を確認してください");
     }
-    headers["authorization"] = `Bearer ${options.accessToken}`;
+    headers["authorization"] = `Bearer ${accessToken}`;
   }
-  const response = await fetch("/api/investigate", {
+  const response = await fetch(path, {
     method: "POST",
     headers,
-    body: JSON.stringify({
-      url,
-      keyword:
-        options.keyword === undefined || options.keyword.trim().length === 0
-          ? null
-          : options.keyword.trim(),
-    }),
+    body: JSON.stringify(input),
     signal: AbortSignal.timeout(30_000),
   });
   if (response.headers.get("content-type")?.includes("application/json") !== true) {
     throw new Error("商品APIが未接続です。APIの公開と /api/* の接続設定を確認してください");
   }
   const body: unknown = await response.json();
-  return parseInvestigation(body);
+  return body;
+}
+
+export type CandidateSearch = Readonly<{
+  keyword: string;
+  listings: ReadonlyArray<Extract<Investigation, { mode: "live" }>>;
+}>;
+
+export function parseCandidateSearch(input: unknown): CandidateSearch {
+  if (record(input) && input["tag"] === "err") {
+    parseInvestigation(input);
+  }
+  const value = record(input) && input["tag"] === "ok" ? input["value"] : null;
+  if (
+    !record(value) ||
+    typeof value["keyword"] !== "string" ||
+    value["keyword"].trim().length === 0 ||
+    new TextEncoder().encode(value["keyword"]).length > 128 ||
+    !Array.isArray(value["listings"]) ||
+    value["listings"].length > 6
+  ) {
+    throw new Error("候補データを検証できませんでした");
+  }
+  const listings: readonly unknown[] = value["listings"];
+  const decoded = listings.map((entry) => {
+    const listing = parseInvestigation({ tag: "ok", value: entry });
+    if (listing.mode !== "live" || listing.availability !== "available") {
+      throw new Error("候補データを検証できませんでした");
+    }
+    return listing;
+  });
+  if (
+    new Set(decoded.map((entry) => entry.listingId)).size !== decoded.length ||
+    new Set(decoded.map((entry) => entry.canonicalUrl)).size !== decoded.length
+  ) {
+    throw new Error("候補データが重複しています");
+  }
+  return Object.freeze({ keyword: value["keyword"], listings: Object.freeze(decoded) });
+}
+
+export async function searchCandidates(
+  requirements: string,
+  accessToken: string,
+): Promise<CandidateSearch> {
+  if (requirements.trim().length === 0 || requirements.length > 1000) {
+    throw new Error("用途や条件を1000文字以内で入力してください");
+  }
+  return parseCandidateSearch(
+    await postApi("/api/candidates", { requirements: requirements.trim() }, accessToken),
+  );
 }

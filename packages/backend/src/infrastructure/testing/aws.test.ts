@@ -107,6 +107,182 @@ const liveItem = {
   availability: 1,
 };
 
+const openaiSettings = { apiKey: "sk-example-openai-key-1234567890", model: "gpt-6-luna" } as const;
+const candidateEvent = {
+  ...liveEvent,
+  rawPath: "/api/candidates",
+  body: JSON.stringify({ requirements: "持ち運び用の65W USB-C充電器" }),
+};
+const planned = {
+  status: "completed",
+  output: [
+    {
+      type: "message",
+      role: "assistant",
+      status: "completed",
+      content: [{ type: "output_text", text: JSON.stringify({ keyword: "65W USB-C 充電器" }) }],
+    },
+  ],
+};
+
+await test("main AI plans search from user input, then verified listings supply all product facts and monetized links", async (context) => {
+  const calls: string[] = [];
+  context.mock.method(globalThis, "fetch", (input: unknown, options: RequestInit) => {
+    if (input === "https://api.openai.com/v1/responses") {
+      calls.push("openai");
+      assert.equal(
+        new Headers(options.headers).get("Authorization"),
+        `Bearer ${openaiSettings.apiKey}`,
+      );
+      assert.equal(options.redirect, "error");
+      assert.equal(typeof options.body, "string");
+      assert.ok(typeof options.body === "string");
+      const body: unknown = JSON.parse(options.body);
+      assert.ok(
+        typeof body === "object" &&
+          body !== null &&
+          "store" in body &&
+          "input" in body &&
+          "model" in body,
+      );
+      assert.equal(body.store, false);
+      assert.equal(body.model, "gpt-6-luna");
+      assert.equal(body.input, "持ち運び用の65W USB-C充電器");
+      assert.equal(options.body.includes(liveItem.itemName), false);
+      assert.equal(options.body.includes(liveSettings.accessKey), false);
+      assert.equal(options.body.includes(liveSettings.affiliateId), false);
+      return Promise.resolve(new Response(JSON.stringify(planned)));
+    }
+    assert.ok(input instanceof URL);
+    calls.push("rakuten");
+    assert.equal(input.origin, "https://openapi.rakuten.co.jp");
+    assert.equal(input.searchParams.get("keyword"), "65W USB-C 充電器");
+    assert.equal(input.searchParams.get("shopCode"), null);
+    assert.equal(input.searchParams.get("hits"), "10");
+    assert.equal(input.searchParams.get("affiliateId"), liveSettings.affiliateId);
+    return Promise.resolve(
+      new Response(
+        JSON.stringify({ count: 3, Items: [liveItem, liveItem, { ...liveItem, availability: 0 }] }),
+      ),
+    );
+  });
+  const response = await createApiHandler(null, liveSettings, openaiSettings)(candidateEvent);
+  assert.equal(response.statusCode, 200);
+  const body: unknown = JSON.parse(response.body);
+  assert.ok(typeof body === "object" && body !== null && "value" in body);
+  assert.ok(
+    typeof body.value === "object" &&
+      body.value !== null &&
+      "listings" in body.value &&
+      "keyword" in body.value,
+  );
+  assert.equal(body.value.keyword, "65W USB-C 充電器");
+  const listings: unknown = body.value.listings;
+  assert.ok(Array.isArray(listings));
+  assert.equal(listings.length, 1);
+  const listing: unknown = listings[0];
+  assert.ok(
+    typeof listing === "object" &&
+      listing !== null &&
+      "affiliateUrl" in listing &&
+      "productId" in listing,
+  );
+  assert.equal(listing.affiliateUrl, liveItem.affiliateUrl);
+  assert.equal(listing.productId, null);
+  assert.deepEqual(calls, ["openai", "rakuten"]);
+  assert.equal(response.body.includes(openaiSettings.apiKey), false);
+  assert.equal(response.headers["cache-control"], "no-store");
+});
+
+await test("candidate authentication, missing key, expiry and invalid input stop paid calls", async (context) => {
+  context.mock.method(globalThis, "fetch", () => {
+    throw new Error("must not fetch");
+  });
+  const handler = createApiHandler(null, liveSettings, openaiSettings);
+  assert.equal((await handler({ ...candidateEvent, headers: {} })).statusCode, 401);
+  assert.equal(
+    (await handler({ ...candidateEvent, requestContext: { http: { method: "GET" } } })).statusCode,
+    405,
+  );
+  for (const requirements of [undefined, " ", "x".repeat(1001), 1]) {
+    assert.equal(
+      (await handler({ ...candidateEvent, body: JSON.stringify({ requirements }) })).statusCode,
+      400,
+    );
+  }
+  const unconfigured = await createApiHandler(null, liveSettings)(candidateEvent);
+  assert.equal(unconfigured.statusCode, 503);
+  assert.match(unconfigured.body, /main_ai_not_configured/);
+  assert.equal(
+    (
+      await createApiHandler(
+        null,
+        { ...liveSettings, authorizedUntil: "2026-01-01T00:00:00.000Z" },
+        openaiSettings,
+      )(candidateEvent)
+    ).statusCode,
+    422,
+  );
+  assert.throws(() =>
+    createApiHandler(null, liveSettings, { ...openaiSettings, model: "bad/model" }),
+  );
+});
+
+await test("incomplete, refused, invented and failed AI outputs never become product candidates", async (context) => {
+  let upstream = new Response("", { status: 429 });
+  context.mock.method(globalThis, "fetch", (input: unknown) => {
+    assert.equal(input, "https://api.openai.com/v1/responses");
+    return Promise.resolve(upstream);
+  });
+  const handler = createApiHandler(null, liveSettings, openaiSettings);
+  for (const [status, expected] of [
+    [429, 429],
+    [401, 503],
+    [500, 503],
+  ] as const) {
+    upstream = new Response("private provider diagnostic", { status });
+    const response = await handler(candidateEvent);
+    assert.equal(response.statusCode, expected);
+    assert.equal(response.body.includes("private provider diagnostic"), false);
+  }
+  for (const body of [
+    { ...planned, status: "incomplete" },
+    { ...planned, output: [] },
+    {
+      ...planned,
+      output: [
+        {
+          type: "message",
+          role: "assistant",
+          status: "completed",
+          content: [{ type: "refusal", refusal: "no" }],
+        },
+      ],
+    },
+    ...[
+      { keyword: "" },
+      { keyword: "あ".repeat(43) },
+      { keyword: "65W", products: ["invented"] },
+      { keyword: "bad\nquery" },
+    ].map((plan) => ({
+      ...planned,
+      output: [
+        {
+          type: "message",
+          role: "assistant",
+          status: "completed",
+          content: [{ type: "output_text", text: JSON.stringify(plan) }],
+        },
+      ],
+    })),
+  ]) {
+    upstream = new Response(JSON.stringify(body));
+    const response = await handler(candidateEvent);
+    assert.equal(response.statusCode, 503);
+    assert.match(response.body, /invalid_ai_response/);
+  }
+});
+
 await test("live lookup uses an exact URL, preserves SKU ranges and never invents product identity", async (context) => {
   let calls = 0;
   context.mock.method(globalThis, "fetch", (input: unknown, options: RequestInit) => {

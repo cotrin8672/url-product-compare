@@ -40,4 +40,7 @@ export const handler = createApiHandler(
         accessToken: process.env["API_ACCESS_TOKEN"],
       }
     : null,
+  process.env["OPENAI_API_KEY"] === undefined || process.env["OPENAI_API_KEY"].trim() === ""
+    ? null
+    : { apiKey: process.env["OPENAI_API_KEY"], model: process.env["OPENAI_MODEL"] ?? "gpt-6-luna" },
 );

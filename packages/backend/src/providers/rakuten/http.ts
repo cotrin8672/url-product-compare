@@ -196,6 +196,9 @@ function parseItem(input: unknown, affiliateId: string): Result<RakutenItem, Sch
       if (valueOf(readReference(parsed.value.value).canonicalUrl) !== affiliate.destination) {
         return err({ code: "invalid_data", field: "rakuten_affiliate_destination" });
       }
+      if (new URL(affiliate.destination).pathname.split("/")[1] !== shopCode) {
+        return err({ code: "invalid_data", field: "rakuten_item_shop" });
+      }
       return ok(
         Object.freeze({
           itemCode,
@@ -231,30 +234,20 @@ export type RakutenLookupError =
     }>
   | SchemaError;
 
-export function createRakutenLookup(
+export function createRakutenSearch(
   configuration: RakutenConfiguration,
   clock: () => Instant,
   fetcher: typeof fetch = fetch,
-): (input: string, keyword: string | null) => Promise<Result<RakutenListing, RakutenLookupError>> {
-  return async (input, keyword) => {
+): (
+  keyword: string,
+  shopCode: string | null,
+) => Promise<
+  Result<Readonly<{ count: number; listings: readonly RakutenListing[] }>, RakutenLookupError>
+> {
+  return async (search, shopCode) => {
     try {
-      const url = httpsUrl(input);
-      if (url.tag === "err") {
-        return err({ code: "invalid_url" });
-      }
-      const parsed = parseRakutenUrl(url.value);
-      if (parsed.tag === "err") {
-        return parsed;
-      }
-      if (parsed.value.tag === "none") {
-        return err({ code: "unsupported_url" });
-      }
-      const canonicalUrl = valueOf(readReference(parsed.value.value).canonicalUrl);
-      const [shopCode, slug] = new URL(canonicalUrl).pathname.split("/").slice(1);
-      const search = keyword?.trim() ?? slug;
       if (
-        shopCode === undefined ||
-        search === undefined ||
+        (shopCode !== null && !/^[a-zA-Z0-9_-]+$/.test(shopCode)) ||
         search.length === 0 ||
         new TextEncoder().encode(search).length > 128
       ) {
@@ -278,10 +271,10 @@ export function createRakutenLookup(
         affiliateId: configuration.affiliateId,
         format: "json",
         formatVersion: "2",
-        shopCode,
+        ...(shopCode === null ? {} : { shopCode }),
         keyword: search,
         availability: "0",
-        hits: "30",
+        hits: shopCode === null ? "10" : "30",
         page: "1",
         elements:
           "count,itemCode,itemName,itemUrl,affiliateUrl,shopCode,shopName,itemPriceBaseField,itemPriceMin1,itemPriceMax1,itemPriceMin2,itemPriceMax2,itemPriceMin3,itemPriceMax3,taxFlag,postageFlag,availability",
@@ -327,18 +320,6 @@ export function createRakutenLookup(
       if (decoded.tag === "err") {
         return decoded;
       }
-      const matches = decoded.value.filter(
-        (item) => item.itemUrl === canonicalUrl && item.shopCode === shopCode,
-      );
-      if (matches.length > 1) {
-        return err({ code: "ambiguous_listing" });
-      }
-      const [item] = matches;
-      if (item === undefined) {
-        return err({
-          code: body["count"] > items.length ? "lookup_incomplete" : "listing_not_found",
-        });
-      }
       const now = clock();
       if (
         !permitted(configuration.rights.fetch, now) ||
@@ -348,23 +329,22 @@ export function createRakutenLookup(
       ) {
         return err({ code: "source_not_authorized" });
       }
-      return ok(
+      const displayExpiry = configuration.rights.display.expiresAt;
+      const listings = decoded.value.map((item): RakutenListing =>
         Object.freeze({
           mode: "live",
-          notice: "掲載URLを確認しました。製品・バリエーション・配送先別の総額は未確認です。",
+          notice:
+            "楽天APIから取得した掲載情報です。製品・バリエーション・配送先別の総額は未確認です。",
           provider: "rakuten",
           listingId: item.itemCode,
           productId: null,
           title: item.itemName,
-          canonicalUrl,
+          canonicalUrl: item.itemUrl,
           affiliateUrl: item.affiliateUrl,
           matchMethod: null,
           observedAt: valueOf(now),
           expiresAt: new Date(
-            Math.min(
-              Date.parse(valueOf(now)) + 900_000,
-              Date.parse(valueOf(configuration.rights.display.expiresAt)),
-            ),
+            Math.min(Date.parse(valueOf(now)) + 900_000, Date.parse(valueOf(displayExpiry))),
           ).toISOString(),
           shopName: item.shopName,
           price: Object.freeze({ minimum: item.minimum, maximum: item.maximum, currency: "JPY" }),
@@ -373,8 +353,54 @@ export function createRakutenLookup(
           availability: item.availability === 1 ? "available" : "unavailable",
         }),
       );
+      return ok(Object.freeze({ count: body["count"], listings: Object.freeze(listings) }));
     } catch {
       return err({ code: "provider_unavailable" });
     }
+  };
+}
+
+export function createRakutenLookup(
+  configuration: RakutenConfiguration,
+  clock: () => Instant,
+  fetcher: typeof fetch = fetch,
+): (input: string, keyword: string | null) => Promise<Result<RakutenListing, RakutenLookupError>> {
+  const search = createRakutenSearch(configuration, clock, fetcher);
+  return async (input, keyword) => {
+    const url = httpsUrl(input);
+    if (url.tag === "err") {
+      return err({ code: "invalid_url" });
+    }
+    const parsed = parseRakutenUrl(url.value);
+    if (parsed.tag === "err") {
+      return parsed;
+    }
+    if (parsed.value.tag === "none") {
+      return err({ code: "unsupported_url" });
+    }
+    const canonicalUrl = valueOf(readReference(parsed.value.value).canonicalUrl);
+    const [shopCode, slug] = new URL(canonicalUrl).pathname.split("/").slice(1);
+    if (shopCode === undefined || slug === undefined) {
+      return err({ code: "unsupported_url" });
+    }
+    const result = await search(keyword?.trim() ?? slug, shopCode);
+    if (result.tag === "err") {
+      return result;
+    }
+    const matches = result.value.listings.filter(
+      (item) => item.canonicalUrl === canonicalUrl && item.listingId.startsWith(`${shopCode}:`),
+    );
+    if (matches.length > 1) {
+      return err({ code: "ambiguous_listing" });
+    }
+    const [item] = matches;
+    return item === undefined
+      ? err({
+          code:
+            result.value.count > result.value.listings.length
+              ? "lookup_incomplete"
+              : "listing_not_found",
+        })
+      : ok(item);
   };
 }

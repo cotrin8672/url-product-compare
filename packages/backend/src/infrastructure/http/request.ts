@@ -6,6 +6,7 @@ type ApiRequest = Readonly<{
   path: string;
   url: string | null;
   keyword: string | null;
+  requirements: string | null;
   authorization: string | null;
 }>;
 type RequestError = Readonly<{ code: "invalid_request" | "invalid_url" }>;
@@ -39,8 +40,12 @@ export function parseApiRequest(input: unknown): Result<ApiRequest, RequestError
   ) {
     return err({ code: "invalid_request" });
   }
-  if (path !== "/api/investigate" || (method !== "GET" && method !== "POST")) {
-    return ok({ method, path, url: null, keyword: null, authorization });
+  if (
+    (path !== "/api/investigate" && path !== "/api/candidates") ||
+    (method !== "GET" && method !== "POST") ||
+    (path === "/api/candidates" && method !== "POST")
+  ) {
+    return ok({ method, path, url: null, keyword: null, requirements: null, authorization });
   }
   let url: unknown;
   let keyword: unknown = null;
@@ -61,6 +66,26 @@ export function parseApiRequest(input: unknown): Result<ApiRequest, RequestError
     }
     try {
       const decoded: unknown = JSON.parse(body);
+      if (path === "/api/candidates") {
+        const requirements = record(decoded) ? decoded["requirements"] : null;
+        if (
+          typeof requirements !== "string" ||
+          requirements.trim().length === 0 ||
+          requirements.length > 1000
+        ) {
+          return err({ code: "invalid_request" });
+        }
+        return ok(
+          Object.freeze({
+            method,
+            path,
+            url: null,
+            keyword: null,
+            requirements: requirements.trim(),
+            authorization,
+          }),
+        );
+      }
       url = record(decoded) ? decoded["url"] : null;
       keyword = record(decoded) ? (decoded["keyword"] ?? null) : null;
     } catch {
@@ -78,7 +103,7 @@ export function parseApiRequest(input: unknown): Result<ApiRequest, RequestError
   ) {
     return err({ code: "invalid_request" });
   }
-  return ok(Object.freeze({ method, path, url, keyword, authorization }));
+  return ok(Object.freeze({ method, path, url, keyword, requirements: null, authorization }));
 }
 
 export function authorized(authorization: string | null, token: string): boolean {

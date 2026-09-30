@@ -73,6 +73,8 @@ Lambdaの「設定 → 環境変数」に `.env.example` の6項目（`RAKUTEN_A
 
 Lambdaのコード更新やCloudFormationによる再デプロイでは手動設定した環境変数が維持されるかを確認してください。テンプレート内のデフォルト環境変数はDB設定だけです。実商品設定の一部だけが残ると起動を停止します。
 
+OpenAIによる候補取得を使う場合は、Lambdaの環境変数に `OPENAI_API_KEY` と任意の `OPENAI_MODEL`（初期値 `gpt-6-luna`）を設定します。`POST /api/candidates` も同じAPIプロキシ・Bearerトークンを使用します。OpenAIキーの未設定では既存の商品URL確認を続けられます。Jevへの実商品評価はまだ接続していません。
+
 ## レビュー対象・未確認事項
 
 - 承認済みSDKとlockfile、AWS SDKを当該adapterだけに許可したESLint設定、transportテストの限定依存、ローカル起動のscript変更、Knipへの実行入口の明示はレビュー対象です。検査は無効化していません。

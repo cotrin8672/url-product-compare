@@ -12,19 +12,25 @@ import type {
   RankingPolicy,
   Requirement,
 } from "./comparison/ranking.js";
-import { instant, permissions, record, valueOf } from "./comparison/values.js";
+import { instant, permitted, permissions, record, valueOf } from "./comparison/values.js";
 import type { Instant } from "./comparison/values.js";
 import { createAuroraRunStore } from "./infrastructure/aws/aurora.js";
 import type { RunStore } from "./infrastructure/aws/aurora.js";
 import { apiResponse, authorized, parseApiRequest } from "./infrastructure/http/request.js";
 import type { ApiResponse } from "./infrastructure/http/request.js";
 import { createJevJudge } from "./providers/jev/index.js";
-import { createRakutenLookup, rakutenConfigurationSchema } from "./providers/rakuten/http.js";
+import { createSearchPlanner, openaiConfigurationSchema } from "./providers/openai/index.js";
+import {
+  createRakutenLookup,
+  createRakutenSearch,
+  rakutenConfigurationSchema,
+} from "./providers/rakuten/http.js";
 import { rakutenProvider } from "./providers/rakuten/index.js";
 
 export function createApiHandler(
   configuration: Readonly<{ resourceArn: string; secretArn: string; database: string }> | null,
   rakutenConfiguration: unknown = null,
+  openaiConfiguration: unknown = null,
 ): (event: unknown) => Promise<ApiResponse> {
   const rakuten =
     rakutenConfiguration === null ? null : rakutenConfigurationSchema.parse(rakutenConfiguration);
@@ -38,6 +44,13 @@ export function createApiHandler(
     throw new Error("Valid Rakuten settings and an API access token are required together");
   }
   const lookup = rakuten?.tag === "ok" ? createRakutenLookup(rakuten.value, systemTime) : null;
+  const search = rakuten?.tag === "ok" ? createRakutenSearch(rakuten.value, systemTime) : null;
+  const openai =
+    openaiConfiguration === null ? null : openaiConfigurationSchema.parse(openaiConfiguration);
+  if (openai?.tag === "err") {
+    throw new Error("Valid OpenAI API key and model are required together");
+  }
+  const planner = openai?.tag === "ok" ? createSearchPlanner(openai.value) : null;
   const store: RunStore | null =
     configuration === null
       ? null
@@ -52,9 +65,86 @@ export function createApiHandler(
       if (request.tag === "err") {
         return apiResponse(400, request);
       }
-      const { path, method, url, keyword, authorization } = request.value;
+      const { path, method, url, keyword, requirements, authorization } = request.value;
       if (path === "/api/health" && method === "GET") {
-        return apiResponse(200, { status: "ok", mode: lookup === null ? "demo" : "live" });
+        return apiResponse(200, {
+          status: "ok",
+          mode: lookup === null ? "demo" : "live",
+          mainAiConfigured: planner !== null,
+        });
+      }
+      if (path === "/api/candidates") {
+        if (method !== "POST") {
+          return apiResponse(405, err({ code: "method_not_allowed" }));
+        }
+        if (typeof accessToken !== "string" || !authorized(authorization, accessToken)) {
+          return apiResponse(401, err({ code: "unauthorized" }));
+        }
+        if (planner === null) {
+          return apiResponse(503, err({ code: "main_ai_not_configured" }));
+        }
+        if (search === null || rakuten?.tag !== "ok") {
+          return apiResponse(503, err({ code: "provider_unavailable" }));
+        }
+        const now = systemTime();
+        if (
+          ![
+            rakuten.value.rights.fetch,
+            rakuten.value.rights.display,
+            rakuten.value.rights.affiliate,
+          ].every((permission) => permitted(permission, now))
+        ) {
+          return apiResponse(422, err({ code: "source_not_authorized" }));
+        }
+        if (requirements === null) {
+          return apiResponse(400, err({ code: "invalid_request" }));
+        }
+        // Send only user-authored requirements to OpenAI. Provider data keeps its AI permission denied.
+        const plan = await planner(requirements);
+        if (plan.tag === "err") {
+          return apiResponse(plan.error.code === "main_ai_rate_limited" ? 429 : 503, plan);
+        }
+        const found = await search(plan.value, null);
+        if (found.tag === "err") {
+          return apiResponse(
+            found.error.code === "provider_rate_limited"
+              ? 429
+              : found.error.code === "provider_unavailable" ||
+                  found.error.code === "provider_unauthorized"
+                ? 503
+                : 422,
+            found,
+          );
+        }
+        const unique = new Map<string, (typeof found.value.listings)[number]>();
+        const urls = new Set<string>();
+        for (const listing of found.value.listings) {
+          if (listing.availability !== "available") {
+            continue;
+          }
+          const previous = unique.get(listing.listingId);
+          if (previous !== undefined) {
+            if (previous.canonicalUrl !== listing.canonicalUrl) {
+              return apiResponse(422, err({ code: "ambiguous_listing" }));
+            }
+            continue;
+          }
+          if (urls.has(listing.canonicalUrl)) {
+            return apiResponse(422, err({ code: "ambiguous_listing" }));
+          }
+          urls.add(listing.canonicalUrl);
+          unique.set(listing.listingId, listing);
+        }
+        // ponytail: one AI call and one search page; expand retrieval after identity/specification checks exist.
+        return apiResponse(
+          200,
+          ok(
+            Object.freeze({
+              keyword: plan.value,
+              listings: Object.freeze([...unique.values()].slice(0, 6)),
+            }),
+          ),
+        );
       }
       if (path !== "/api/investigate") {
         return apiResponse(404, err({ code: "not_found" }));

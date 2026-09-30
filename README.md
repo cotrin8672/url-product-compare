@@ -2,7 +2,7 @@
 
 商品URLから比較候補を探し、AIで条件に合う商品を比較するサービス。
 
-現在はURL検査・製品同定・価格比較条件・成果リンクの検証境界と、Jevを使う候補評価ロジック、Solid.jsの動作確認UIとAPIを実装しています。楽天の実商品APIから掲載を取得する接続を追加しました。他店との同一製品比較、ライバル探索、実データに基づくJev評価は未実装です。
+現在はURL検査・製品同定・価格比較条件・成果リンクの検証境界と、Jevを使う候補評価ロジック、Solid.jsの動作確認UIとAPIを実装しています。楽天の実商品取得と、OpenAIが要望から検索条件を作って実商品の候補を取得する接続があります。他店との同一製品比較、候補の製品・仕様の確認、実データに基づくJev評価は未実装です。
 
 ## 商品同定ロジック
 
@@ -75,6 +75,32 @@ URLの末尾をAPIの `itemCode` として送信しません。ショップ内�
 実APIモードはPOSTとBearerトークンを要求します。これは少人数の動作確認用です。一般公開には利用者認証・利用者別上限が必要です。AWS側はまだAPI・DBのデプロイとAmplifyの `/api/*` 接続が必要です。
 
 API仕様: [楽天市場商品検索API 2026-07-01](https://webservice.rakuten.co.jp/documentation/ichiba-item-search)。実キーを使う疎通確認は設定後に行います。
+
+### OpenAIで実商品の候補を探す
+
+サーバーの `.env` に追加します。キーが未設定でも既存の商品URL確認は起動でき、候補取得は未設定エラーを返します。キーはフロントやGitに置きません。
+
+```dotenv
+OPENAI_API_KEY=YOUR_OPENAI_API_KEY
+OPENAI_MODEL=gpt-6-luna
+```
+
+OpenAIのResponses APIとStructured Outputsを使い、利用者が入力した用途・条件から検索語を1つ作ります。楽天APIを1回呼び、最大10件から重複と購入不可の掲載を除き、最大6件を表示します。AIが商品URL・価格・在庫を生成する経路はありません。単一の検索語による検索候補であり、全条件への適合・同一製品・SKU・最安値を確認した結果ではありません。
+
+現在は楽天情報のAI送信権限を許可していないため、OpenAIには利用者自身の要望だけを送ります。楽天の商品名・価格・説明などをOpenAIやJevへ送らず、Jevの評価結果やAIによる推薦理由は表示しません。Responses APIは `store: false`、出力256トークン以内、12秒のタイムアウトです。APIキー・モデルの権限・利用制限・拒否・未完了・不正な応答では候補を生成しません。
+
+APIをdotenvx経由で起動する場合（このPCではCLI導入済み）、プロジェクトルートで実行します。
+
+```powershell
+rtk mise exec -- pnpm --filter @app/api exec tsc --noEmit false
+rtk mise exec -- dotenvx run -f .env --overload --strict -- node apps/api/dist/apps/api/src/local.js
+```
+
+`--overload` は既存の環境変数よりプロジェクトの `.env` を優先します。この実行環境から継承されたOpenAIキーはローカル起動時に除外しており、プロジェクト用キーの設定待ちです。
+
+画面の「接続設定」に動作確認用トークンを入力し、「用途・条件」に商品カテゴリを含めて「候補を探す」を押します。APIは認証付き `POST /api/candidates` です。表示期限後は再取得が必要です。キー設定後の再起動で有効になります。実OpenAIキーでの疎通・課金は設定後に確認します。
+
+公式仕様：[Responses APIのStructured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs)、[GPT-6 Luna](https://developers.openai.com/api/docs/models/gpt-6-luna)。
 
 Node.js / pnpm は `mise.toml` に固定。workspace対象は `apps/*` と `packages/*` です。パッケージは必要になった時点で追加し、各tsconfigから `tsconfig.base.json` の厳格設定を継承します。
 

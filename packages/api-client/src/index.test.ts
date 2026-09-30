@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { parseInvestigation } from "./index.js";
+import { parseCandidateSearch, parseInvestigation } from "./index.js";
 
 await test("accepts a complete demo result and rejects incomplete data", () => {
   const value = {
@@ -43,6 +43,24 @@ await test("live listing is distinct from identified products and validates its 
     availability: "available",
   };
   assert.equal(parseInvestigation({ tag: "ok", value }).productId, null);
+  assert.equal(
+    parseCandidateSearch({ tag: "ok", value: { keyword: "充電器", listings: [value] } }).listings
+      .length,
+    1,
+  );
+  for (const search of [
+    { keyword: "", listings: [value] },
+    { keyword: "充電器", listings: [value, value] },
+    { keyword: "充電器", listings: [{ ...value, availability: "unavailable" }] },
+    { keyword: "充電器", listings: [{ ...value, affiliateUrl: "https://evil.example/" }] },
+    { keyword: "充電器", listings: Array.from({ length: 7 }, () => value) },
+  ]) {
+    assert.throws(() => parseCandidateSearch({ tag: "ok", value: search }));
+  }
+  assert.throws(
+    () => parseCandidateSearch({ tag: "err", error: { code: "main_ai_not_configured" } }),
+    /OPENAI_API_KEY/,
+  );
   for (const patch of [
     { productId: "invented" },
     { matchMethod: "invented" },
