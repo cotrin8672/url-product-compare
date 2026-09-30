@@ -2,7 +2,7 @@
 
 構成: Amplify Hosting（Solidの静的ファイル）→ 同一オリジンの `/api/*` プロキシ → HTTP API → Node.js 24 Lambda → Aurora PostgreSQL Data API。
 
-アプリはデモのままです。楽天・Jevへの本番リクエストは送信しません。DBには実行日時・成功/失敗・demoという区分だけを保存し、入力URL、商品、価格、AI評価は保存しません。商品データの保存は許諾と期限の確認を実装してから追加します。
+設定なしではデモです。楽天のサーバー設定をすべて追加した場合だけ実商品APIを呼びます。Jevへの本番リクエストは送信しません。DBにはデモの実行日時・成功/失敗・demoという区分だけを保存し、入力URL、商品、価格、AI評価は保存しません。実商品取得はDBに保存しません。
 
 ## ローカルで検証・ビルド
 
@@ -14,9 +14,11 @@ rtk mise exec -- node tooling/check-aws.mjs
 
 Lambda用にアプリと承認済みSDKを `apps/api/dist/lambda` に配置します。画面のアップロード用ZIPは `apps/api/dist/web.zip` です。どちらもGit対象外です。
 
+ローカルでAurora接続も確認する場合は、依存を含むパッケージを作成した後、`rtk mise exec -- node --env-file=.env apps/api/dist/lambda/apps/api/src/local.js` で起動します。デモと楽天の商品取得だけなら通常のローカル起動で確認できます。
+
 ## 1. 先に公開URLを作る
 
-新しいAWSアカウント、東京リージョンで Amplify → 新しいアプリ → Gitプロバイダーなしでデプロイを選びます。アプリ名は `url-product-compare`、ブランチ名は `main` とし、`apps/api/dist/web.zip` をアップロードします。
+公開済みURL: `https://main.d3f6j2d66bsp2x.amplifyapp.com/`。AmplifyはGitHubの `main` と接続し、モノレポのアプリルートを `apps/web` に設定しています。ビルドはリポジトリルートで `mise.toml` のNode/pnpmを使用し、`apps/web/dist` を公開します。コンソールのYMLに設定したビルド設定を維持してください。
 
 初回は画面だけが公開され、商品検索APIは未接続です。表示されたHTTPS URLを楽天の Application URL、ホスト名を Allowed websites に使用します。実際のURLはAmplifyが発行するため、事前に推測して入力しません。
 
@@ -61,12 +63,20 @@ Amplify → リダイレクトと書き換えで、下記の200書き換えを�
 
 API応答には `Cache-Control: no-store` を設定します。`/api/health` はDBを起動せずに200を返します。画面のデモ商品を検索し、DBの `investigation_runs` に記録されたことを管理者で確認します。保存障害時は503を返し、保存できたようには扱いません。
 
-このデモは匿名で呼び出せます。実商品/有料AIを接続する前に利用者認証・利用者別上限を追加します。今回のスロットリングだけでは不正利用を防げません。
+デモは匿名で呼び出せます。実商品モードは動作確認用BearerトークンとPOSTを要求し、GETでは外部APIを呼びません。これは少人数の検証用で、一般公開・有料AI接続には利用者認証・利用者別上限が必要です。
+
+## 5. 楽天の実商品取得を有効にする
+
+先にローカルの `.env` で [READMEの実商品接続手順](../README.md#楽天の実商品を確認する) を確認します。登録済みアプリの Application URL は公開済みURL、Allowed websites は `main.d3f6j2d66bsp2x.amplifyapp.com` です。
+
+Lambdaの「設定 → 環境変数」に `.env.example` の5項目を設定します。キーとトークンをAmplifyのフロント環境変数やGitに設定しません。すべて設定した場合だけ `/api/health` のmodeが `live` になります。画面の「接続設定」には楽天のキーではなく `API_ACCESS_TOKEN` を入力します。API・DB未デプロイの段階ではフロントだけから楽天へアクセスできません。
+
+Lambdaのコード更新やCloudFormationによる再デプロイでは手動設定した環境変数が維持されるかを確認してください。テンプレート内のデフォルト環境変数はDB設定だけです。実商品設定の一部だけが残ると起動を停止します。
 
 ## レビュー対象・未確認事項
 
 - 承認済みSDKとlockfile、AWS SDKを当該adapterだけに許可したESLint設定、transportテストの限定依存、ローカル起動のscript変更、Knipへの実行入口の明示はレビュー対象です。検査は無効化していません。
 - ローカル検証とパッケージ作成は行いますが、実AWSアカウントへの作成・Data API接続・Amplifyのプロキシはデプロイ後に確認する必要があります。
-- GitHub連携による自動デプロイはまだ設定しません。最初の公開URLは上記の手動アップロードで確定できます。
+- フロントはGitHub連携で公開済みです。今回のバックエンドの変更はLambdaのパッケージ作成・デプロイが別途必要です。
 
 公式資料: [Data API](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/data-api.html)、[Aurora自動停止](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/aurora-serverless-v2-auto-pause.html)、[CloudFormation package](https://docs.aws.amazon.com/cli/latest/reference/cloudformation/package.html)、[Amplifyプロキシ](https://docs.aws.amazon.com/amplify/latest/userguide/redirect-rewrite-examples.html)。

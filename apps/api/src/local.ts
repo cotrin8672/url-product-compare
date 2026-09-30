@@ -20,6 +20,7 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
     version: "2.0",
     rawPath: route.pathname,
     rawQueryString: route.search.slice(1),
+    headers: request.headers,
     requestContext: { http: { method: request.method ?? "GET" } },
     body: Buffer.concat(chunks).toString("utf8"),
     isBase64Encoded: false,

@@ -202,6 +202,45 @@ th:nth-child(7) {
 .number {
   text-align: right;
 }
+td {
+  padding-top: 12px;
+  padding-bottom: 12px;
+  overflow-wrap: anywhere;
+}
+td small {
+  display: block;
+  margin-top: 4px;
+  color: #647386;
+  font-size: 11px;
+}
+td a,
+.text-button {
+  color: #1463bd;
+}
+.text-button {
+  background: none;
+  border: 0;
+  margin-left: 12px;
+  padding: 0;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.connection {
+  margin-bottom: 16px;
+}
+.connection-fields {
+  display: grid;
+  grid-template-columns: 140px minmax(0, 420px);
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+.connection-fields input {
+  min-width: 0;
+  padding: 7px 10px;
+  border: 1px solid #cbd3dc;
+  border-radius: 5px;
+}
 .empty {
   height: 88px;
   text-align: center;

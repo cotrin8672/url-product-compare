@@ -12,18 +12,32 @@ import type {
   RankingPolicy,
   Requirement,
 } from "./comparison/ranking.js";
-import { instant, permissions, valueOf } from "./comparison/values.js";
+import { instant, permissions, record, valueOf } from "./comparison/values.js";
 import type { Instant } from "./comparison/values.js";
 import { createAuroraRunStore } from "./infrastructure/aws/aurora.js";
 import type { RunStore } from "./infrastructure/aws/aurora.js";
-import { apiResponse, parseApiRequest } from "./infrastructure/http/request.js";
+import { apiResponse, authorized, parseApiRequest } from "./infrastructure/http/request.js";
 import type { ApiResponse } from "./infrastructure/http/request.js";
 import { createJevJudge } from "./providers/jev/index.js";
+import { createRakutenLookup, rakutenConfigurationSchema } from "./providers/rakuten/http.js";
 import { rakutenProvider } from "./providers/rakuten/index.js";
 
 export function createApiHandler(
   configuration: Readonly<{ resourceArn: string; secretArn: string; database: string }> | null,
+  rakutenConfiguration: unknown = null,
 ): (event: unknown) => Promise<ApiResponse> {
+  const rakuten =
+    rakutenConfiguration === null ? null : rakutenConfigurationSchema.parse(rakutenConfiguration);
+  const accessToken = record(rakutenConfiguration) ? rakutenConfiguration["accessToken"] : null;
+  if (
+    rakuten !== null &&
+    (rakuten.tag === "err" ||
+      typeof accessToken !== "string" ||
+      !/^[a-zA-Z0-9_-]{32,256}$/.test(accessToken))
+  ) {
+    throw new Error("Valid Rakuten settings and an API access token are required together");
+  }
+  const lookup = rakuten?.tag === "ok" ? createRakutenLookup(rakuten.value, systemTime) : null;
   const store: RunStore | null =
     configuration === null
       ? null
@@ -38,9 +52,9 @@ export function createApiHandler(
       if (request.tag === "err") {
         return apiResponse(400, request);
       }
-      const { path, method, url } = request.value;
+      const { path, method, url, keyword, authorization } = request.value;
       if (path === "/api/health" && method === "GET") {
-        return apiResponse(200, { status: "ok", mode: "demo" });
+        return apiResponse(200, { status: "ok", mode: lookup === null ? "demo" : "live" });
       }
       if (path !== "/api/investigate") {
         return apiResponse(404, err({ code: "not_found" }));
@@ -50,6 +64,27 @@ export function createApiHandler(
       }
       if (url === null) {
         return apiResponse(400, err({ code: "invalid_url" }));
+      }
+      if (lookup !== null) {
+        if (method !== "POST") {
+          return apiResponse(405, err({ code: "method_not_allowed" }));
+        }
+        if (typeof accessToken !== "string" || !authorized(authorization, accessToken)) {
+          return apiResponse(401, err({ code: "unauthorized" }));
+        }
+        const result = await lookup(url, keyword);
+        if (result.tag === "ok") {
+          return apiResponse(200, result);
+        }
+        return apiResponse(
+          result.error.code === "provider_rate_limited"
+            ? 429
+            : result.error.code === "provider_unavailable" ||
+                result.error.code === "provider_unauthorized"
+              ? 503
+              : 422,
+          result,
+        );
       }
       const result = await investigateDemo(url);
       if (method === "POST" && store !== null) {

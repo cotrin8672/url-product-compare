@@ -23,4 +23,19 @@ export const handler = createApiHandler(
   resourceArn !== undefined && secretArn !== undefined && database !== undefined
     ? { resourceArn, secretArn, database }
     : null,
+  [
+    "RAKUTEN_APPLICATION_ID",
+    "RAKUTEN_ACCESS_KEY",
+    "RAKUTEN_ALLOWED_ORIGIN",
+    "RAKUTEN_DATA_AUTHORIZED_UNTIL",
+    "API_ACCESS_TOKEN",
+  ].some((name) => process.env[name] !== undefined)
+    ? {
+        applicationId: process.env["RAKUTEN_APPLICATION_ID"],
+        accessKey: process.env["RAKUTEN_ACCESS_KEY"],
+        allowedOrigin: process.env["RAKUTEN_ALLOWED_ORIGIN"],
+        authorizedUntil: process.env["RAKUTEN_DATA_AUTHORIZED_UNTIL"],
+        accessToken: process.env["API_ACCESS_TOKEN"],
+      }
+    : null,
 );

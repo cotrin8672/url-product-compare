@@ -1,7 +1,13 @@
 import { err, ok } from "../../comparison/algebra.js";
 import type { Result } from "../../comparison/algebra.js";
 
-type ApiRequest = Readonly<{ method: string; path: string; url: string | null }>;
+type ApiRequest = Readonly<{
+  method: string;
+  path: string;
+  url: string | null;
+  keyword: string | null;
+  authorization: string | null;
+}>;
 type RequestError = Readonly<{ code: "invalid_request" | "invalid_url" }>;
 
 function record(input: unknown): input is Record<string, unknown> {
@@ -19,10 +25,25 @@ export function parseApiRequest(input: unknown): Result<ApiRequest, RequestError
   }
   const method = http["method"];
   const path = input["rawPath"];
+  const headers = input["headers"];
+  if (headers !== undefined && !record(headers)) {
+    return err({ code: "invalid_request" });
+  }
+  const authorizationHeaders = record(headers)
+    ? Object.entries(headers).filter(([name]) => name.toLowerCase() === "authorization")
+    : [];
+  const authorization = authorizationHeaders[0]?.[1] ?? null;
+  if (
+    authorizationHeaders.length > 1 ||
+    (authorization !== null && (typeof authorization !== "string" || authorization.length > 1024))
+  ) {
+    return err({ code: "invalid_request" });
+  }
   if (path !== "/api/investigate" || (method !== "GET" && method !== "POST")) {
-    return ok({ method, path, url: null });
+    return ok({ method, path, url: null, keyword: null, authorization });
   }
   let url: unknown;
+  let keyword: unknown = null;
   if (method === "GET") {
     const query = input["rawQueryString"];
     if (typeof query !== "string" || query.length > 8192) {
@@ -41,6 +62,7 @@ export function parseApiRequest(input: unknown): Result<ApiRequest, RequestError
     try {
       const decoded: unknown = JSON.parse(body);
       url = record(decoded) ? decoded["url"] : null;
+      keyword = record(decoded) ? (decoded["keyword"] ?? null) : null;
     } catch {
       return err({ code: "invalid_request" });
     }
@@ -48,7 +70,21 @@ export function parseApiRequest(input: unknown): Result<ApiRequest, RequestError
   if (typeof url !== "string" || url.length === 0 || url.length > 2048) {
     return err({ code: "invalid_url" });
   }
-  return ok(Object.freeze({ method, path, url }));
+  if (
+    keyword !== null &&
+    (typeof keyword !== "string" ||
+      keyword.trim().length === 0 ||
+      new TextEncoder().encode(keyword).length > 128)
+  ) {
+    return err({ code: "invalid_request" });
+  }
+  return ok(Object.freeze({ method, path, url, keyword, authorization }));
+}
+
+export function authorized(authorization: string | null, token: string): boolean {
+  const actual = new TextEncoder().encode(authorization ?? "");
+  const expected = new TextEncoder().encode(`Bearer ${token}`);
+  return actual.length === expected.length && timingSafeEqual(actual, expected);
 }
 
 export type ApiResponse = Readonly<{
@@ -68,3 +104,4 @@ export function apiResponse(statusCode: number, body: unknown): ApiResponse {
     body: JSON.stringify(body),
   });
 }
+import { timingSafeEqual } from "node:crypto";

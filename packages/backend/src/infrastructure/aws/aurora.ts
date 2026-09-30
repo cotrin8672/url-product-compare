@@ -1,4 +1,3 @@
-import { ExecuteStatementCommand, RDSDataClient } from "@aws-sdk/client-rds-data";
 import type { ExecuteStatementCommandInput } from "@aws-sdk/client-rds-data";
 
 import { err, ok } from "../../comparison/algebra.js";
@@ -14,6 +13,7 @@ export function createAuroraRunStore(
   secretArn: string,
   database: string,
   execute: (input: ExecuteStatementCommandInput) => Promise<unknown> = async (input) => {
+    const { ExecuteStatementCommand, RDSDataClient } = await import("@aws-sdk/client-rds-data");
     const client = new RDSDataClient({ maxAttempts: 3 });
     return await client.send(new ExecuteStatementCommand(input), {
       abortSignal: AbortSignal.timeout(20_000),

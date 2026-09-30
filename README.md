@@ -2,7 +2,7 @@
 
 商品URLから比較候補を探し、AIで条件に合う商品を比較するサービス。
 
-現在はURL検査・製品同定・価格比較条件・成果リンクの検証境界と、Jevを使う候補評価ロジック、Solid.jsの動作確認UIとローカルAPIを実装しています。実商品API接続、ライバル探索、実データに基づくJev評価は未実装です。
+現在はURL検査・製品同定・価格比較条件・成果リンクの検証境界と、Jevを使う候補評価ロジック、Solid.jsの動作確認UIとAPIを実装しています。楽天の実商品APIから掲載を取得する接続を追加しました。他店との同一製品比較、ライバル探索、実データに基づくJev評価は未実装です。
 
 ## 商品同定ロジック
 
@@ -27,7 +27,7 @@ rtk mise run verify
 
 ## セットアップ
 
-AWSの公開構成・パッケージ作成・DB初期化は [infrastructure/README.md](infrastructure/README.md) にまとめています。Lambdaでも商品同定はデモです。Auroraには操作の成否だけを保存し、実商品データや入力URLは保存しません。
+AWSの公開構成・パッケージ作成・DB初期化は [infrastructure/README.md](infrastructure/README.md) にまとめています。設定なしではデモです。Auroraにはデモ操作の成否だけを保存し、実商品データや入力URLは保存しません。実商品取得は保存しません。
 
 ```sh
 mise trust
@@ -45,7 +45,28 @@ rtk mise exec -- pnpm --filter @app/api dev
 rtk mise exec -- pnpm --filter @app/web dev --host 127.0.0.1
 ```
 
-入力済みの `https://item.rakuten.co.jp/demo-shop/demo-product/` は架空データで商品同定まで確認できます。他のURLではエラーを表示します。価格・送料・在庫のAPIは未実装で、画面にも架空の比較結果は出しません。
+「架空データのURLを入力」で `https://item.rakuten.co.jp/demo-shop/demo-product/` を入れると、デモモードで商品同定まで確認できます。画面に架空の価格比較結果は出しません。
+
+### 楽天の実商品を確認する
+
+`.env.example` を参考に、Git対象外の `.env` に楽天のアプリID・アクセスキー・登録済みオリジン、確認した取得/表示許諾の期限（UTCの `2026-10-01T00:00:00.000Z` のような形式）、ランダムな動作確認用トークン（base64url、32文字以上）を設定します。アプリ登録だけで保存・AI送信・成果リンクの許諾を付与した扱いにはしません。設定が一部だけの場合は起動を停止します。
+
+APIを次のコマンドで起動します。画面の起動方法は上記と同じです。
+
+```powershell
+rtk mise exec -- pnpm --filter @app/api exec tsc --noEmit false
+rtk mise exec -- node --env-file=.env apps/api/dist/apps/api/src/local.js
+```
+
+画面の「接続設定」に動作確認用トークンを入れ、楽天の商品URLを入力して「調べる」を押します。トークンは画面のメモリーだけに保持し、保存しません。楽天のアクセスキーはサーバーだけに置きます。許諾が期限切れなら外部APIを呼ばずに停止します。
+
+URLの末尾をAPIの `itemCode` として送信しません。ショップ内をURL末尾または補助の商品名で検索し、結果の `itemUrl` が入力の正規URLに完全一致した掲載だけを返します。見つからない場合は「接続設定」に商品名を入力します。検索は1ページ30件に限定しているため、候補が多い場合は商品名を絞ります。商品名の一致だけで同一製品と判断しません。
+
+実商品モードでは、楽天が返した実 `itemCode`、店名、SKUの掲載価格幅、税込/税別、送料込み/別、購入可否を表示します。メーカー・型番・JAN・選択SKU・配送先別送料は確認できないので、製品IDと同定方法は `null`、総額は未確認です。表示は取得から15分または許諾期限までに限り、期限後は再取得を案内します。DBへの保存・AI送信・アフィリエイトURL発行は行いません。
+
+実APIモードはPOSTとBearerトークンを要求します。これは少人数の動作確認用です。一般公開には利用者認証・利用者別上限が必要です。AWS側はまだAPI・DBのデプロイとAmplifyの `/api/*` 接続が必要です。
+
+API仕様: [楽天市場商品検索API 2026-07-01](https://webservice.rakuten.co.jp/documentation/ichiba-item-search)。実キーを使う疎通確認は設定後に行います。
 
 Node.js / pnpm は `mise.toml` に固定。workspace対象は `apps/*` と `packages/*` です。パッケージは必要になった時点で追加し、各tsconfigから `tsconfig.base.json` の厳格設定を継承します。
 
