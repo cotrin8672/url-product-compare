@@ -79,6 +79,7 @@ await test("Aurora writes bound metadata only and contains storage errors", asyn
 const liveSettings = {
   applicationId: "example-app-1234",
   accessKey: "example-access-key-1234567890",
+  affiliateId: "11111111.22222222.33333333.44444444",
   allowedOrigin: "https://main.d3f6j2d66bsp2x.amplifyapp.com/",
   authorizedUntil: new Date(Date.now() + 3_600_000).toISOString(),
   accessToken: "example-test-token-12345678901234567890",
@@ -95,6 +96,7 @@ const liveItem = {
   itemCode: "example-shop:10001234",
   itemName: "Example product",
   itemUrl: "https://item.rakuten.co.jp/example-shop/url-slug/?scid=tracking",
+  affiliateUrl: `https://hb.afl.rakuten.co.jp/hgc/${liveSettings.affiliateId}/?${new URLSearchParams({ pc: "https://item.rakuten.co.jp/example-shop/url-slug/", m: "https://item.rakuten.co.jp/example-shop/url-slug/" }).toString()}`,
   shopCode: "example-shop",
   shopName: "Example shop",
   itemPriceBaseField: "item_price_min3",
@@ -113,7 +115,8 @@ await test("live lookup uses an exact URL, preserves SKU ranges and never invent
     assert.equal(input.origin, "https://openapi.rakuten.co.jp");
     assert.equal(input.pathname, "/ichibams/api/IchibaItem/Search/20260701");
     assert.equal(input.searchParams.get("itemCode"), null);
-    assert.equal(input.searchParams.get("affiliateId"), null);
+    assert.equal(input.searchParams.get("affiliateId"), liveSettings.affiliateId);
+    assert.equal(input.searchParams.get("elements")?.split(",").includes("affiliateUrl"), true);
     assert.equal(input.searchParams.get("keyword"), "Example product");
     assert.equal(input.searchParams.get("shopCode"), "example-shop");
     assert.equal(input.searchParams.get("formatVersion"), "2");
@@ -121,7 +124,11 @@ await test("live lookup uses an exact URL, preserves SKU ranges and never invent
     assert.equal(headers.get("accessKey"), liveSettings.accessKey);
     assert.equal(headers.get("Origin"), "https://main.d3f6j2d66bsp2x.amplifyapp.com");
     assert.equal(options.redirect, "error");
-    return Promise.resolve(new Response(JSON.stringify({ count: 1, Items: [liveItem] })));
+    return Promise.resolve(
+      new Response(
+        JSON.stringify({ count: 1, Items: [{ ...liveItem, itemUrl: liveItem.affiliateUrl }] }),
+      ),
+    );
   });
   const handler = createApiHandler(null, liveSettings);
   const response = await handler(liveEvent);
@@ -135,12 +142,14 @@ await test("live lookup uses an exact URL, preserves SKU ranges and never invent
       "productId" in value &&
       "listingId" in value &&
       "price" in value &&
+      "affiliateUrl" in value &&
       "matchMethod" in value,
   );
   assert.equal(value.productId, null);
   assert.equal(value.matchMethod, null);
   assert.equal(value.listingId, "example-shop:10001234");
   assert.deepEqual(value.price, { minimum: 1000, maximum: 2000, currency: "JPY" });
+  assert.equal(value.affiliateUrl, liveItem.affiliateUrl);
   assert.equal(calls, 1);
   assert.equal(response.body.includes(liveSettings.accessKey), false);
   assert.equal(response.body.includes(liveSettings.accessToken), false);
@@ -202,6 +211,8 @@ await test("live authorization, expiry and URL validation prevent external calls
   assert.match(denied.body, /source_not_authorized/);
   assert.throws(() => createApiHandler(null, {}));
   assert.throws(() => createApiHandler(null, { ...liveSettings, accessToken: "short" }));
+  assert.throws(() => createApiHandler(null, { ...liveSettings, affiliateId: undefined }));
+  assert.throws(() => createApiHandler(null, { ...liveSettings, affiliateId: "bad/id" }));
 });
 
 await test("live lookup rejects wrong listings, invalid prices and upstream failures", async (context) => {
@@ -227,6 +238,26 @@ await test("live lookup rejects wrong listings, invalid prices and upstream fail
     { ...liveItem, itemPriceMax3: 999 },
     { ...liveItem, taxFlag: 9 },
     { ...liveItem, itemCode: "wrong-shop:1234" },
+    { ...liveItem, affiliateUrl: undefined },
+    {
+      ...liveItem,
+      affiliateUrl: liveItem.affiliateUrl.replace(
+        liveSettings.affiliateId,
+        "aaaaaaaa.bbbbbbbb.cccccccc.dddddddd",
+      ),
+    },
+    {
+      ...liveItem,
+      affiliateUrl: liveItem.affiliateUrl.replace("hb.afl.rakuten.co.jp", "evil.example"),
+    },
+    { ...liveItem, affiliateUrl: `${liveItem.affiliateUrl}&pc=https%3A%2F%2Fevil.example%2F` },
+    {
+      ...liveItem,
+      affiliateUrl: liveItem.affiliateUrl.replace(
+        "m=https%3A%2F%2Fitem.rakuten.co.jp%2Fexample-shop%2Furl-slug%2F",
+        "m=https%3A%2F%2Fevil.example%2F",
+      ),
+    },
   ]) {
     upstream = new Response(JSON.stringify({ count: 1, Items: [item] }));
     assert.equal((await handler(liveEvent)).statusCode, 422);

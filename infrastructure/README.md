@@ -69,7 +69,7 @@ API応答には `Cache-Control: no-store` を設定します。`/api/health` は
 
 先にローカルの `.env` で [READMEの実商品接続手順](../README.md#楽天の実商品を確認する) を確認します。登録済みアプリの Application URL は公開済みURL、Allowed websites は `main.d3f6j2d66bsp2x.amplifyapp.com` です。
 
-Lambdaの「設定 → 環境変数」に `.env.example` の5項目を設定します。キーとトークンをAmplifyのフロント環境変数やGitに設定しません。すべて設定した場合だけ `/api/health` のmodeが `live` になります。画面の「接続設定」には楽天のキーではなく `API_ACCESS_TOKEN` を入力します。API・DB未デプロイの段階ではフロントだけから楽天へアクセスできません。
+Lambdaの「設定 → 環境変数」に `.env.example` の6項目（`RAKUTEN_AFFILIATE_ID` を含む）を設定します。キーとトークンをAmplifyのフロント環境変数やGitに設定しません。すべて設定した場合だけ `/api/health` のmodeが `live` になります。画面の「接続設定」には楽天のキーではなく `API_ACCESS_TOKEN` を入力します。API・DB未デプロイの段階ではフロントだけから楽天へアクセスできません。
 
 Lambdaのコード更新やCloudFormationによる再デプロイでは手動設定した環境変数が維持されるかを確認してください。テンプレート内のデフォルト環境変数はDB設定だけです。実商品設定の一部だけが残ると起動を停止します。
 

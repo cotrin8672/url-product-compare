@@ -15,6 +15,7 @@ export type Investigation = InvestigationFields &
         productId: null;
         matchMethod: null;
         expiresAt: string;
+        affiliateUrl: string;
         shopName: string;
         price: Readonly<{ minimum: number; maximum: number; currency: "JPY" }>;
         tax: "included" | "excluded";
@@ -25,6 +26,51 @@ export type Investigation = InvestigationFields &
 
 function record(input: unknown): input is Record<string, unknown> {
   return typeof input === "object" && input !== null && !Array.isArray(input);
+}
+
+function listingAffiliateUrl(input: unknown, canonicalUrl: string): input is string {
+  if (typeof input !== "string" || input.length > 8192 || !URL.canParse(input)) {
+    return false;
+  }
+  const url = new URL(input);
+  const pc = url.searchParams.getAll("pc");
+  const mobile = url.searchParams.getAll("m");
+  const [destination] = pc;
+  if (
+    url.origin !== "https://hb.afl.rakuten.co.jp" ||
+    url.username !== "" ||
+    url.password !== "" ||
+    !/^\/hgc\/[a-fA-F0-9]{8}(?:\.[a-fA-F0-9]{8}){3}\/$/.test(url.pathname) ||
+    url.hash !== "" ||
+    pc.length !== 1 ||
+    mobile.length > 1 ||
+    destination === undefined ||
+    !URL.canParse(destination) ||
+    [...url.searchParams.keys()].some((key) => !["pc", "m", "scid", "link_type"].includes(key)) ||
+    mobile.some((entry) => entry !== destination)
+  ) {
+    return false;
+  }
+  const item = new URL(destination);
+  return (
+    item.origin === "https://item.rakuten.co.jp" &&
+    item.username === "" &&
+    item.password === "" &&
+    item.hash === "" &&
+    /^\/[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+\/?$/.test(item.pathname) &&
+    `${item.origin}${item.pathname.replace(/\/?$/, "/")}` === canonicalUrl &&
+    [...item.searchParams.keys()].every((key) =>
+      [
+        "scid",
+        "s-id",
+        "utm_source",
+        "utm_medium",
+        "utm_campaign",
+        "utm_term",
+        "utm_content",
+      ].includes(key),
+    )
+  );
 }
 
 export function parseInvestigation(input: unknown): Investigation {
@@ -102,12 +148,14 @@ export function parseInvestigation(input: unknown): Investigation {
   const shipping = value["shipping"];
   const availability = value["availability"];
   const expiresAt = value["expiresAt"];
+  const affiliateUrl = value["affiliateUrl"];
   if (
     value["mode"] !== "live" ||
     value["productId"] !== null ||
     value["matchMethod"] !== null ||
     value["provider"] !== "rakuten" ||
     new URL(common.canonicalUrl).hostname !== "item.rakuten.co.jp" ||
+    !listingAffiliateUrl(affiliateUrl, common.canonicalUrl) ||
     typeof value["shopName"] !== "string" ||
     value["shopName"].trim().length === 0 ||
     !record(price) ||
@@ -139,6 +187,7 @@ export function parseInvestigation(input: unknown): Investigation {
     shipping,
     availability,
     expiresAt,
+    affiliateUrl,
   });
 }
 

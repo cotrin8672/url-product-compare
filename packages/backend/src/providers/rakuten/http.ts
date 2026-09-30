@@ -8,6 +8,7 @@ import { parseRakutenUrl } from "./index.js";
 type RakutenConfiguration = Readonly<{
   applicationId: string;
   accessKey: string;
+  affiliateId: string;
   allowedOrigin: string;
   rights: Permissions;
 }>;
@@ -19,11 +20,14 @@ export const rakutenConfigurationSchema: Schema<RakutenConfiguration> = Object.f
     }
     const applicationId = input["applicationId"];
     const accessKey = input["accessKey"];
+    const affiliateId = input["affiliateId"];
     if (
       typeof applicationId !== "string" ||
       !/^[a-zA-Z0-9-]{8,128}$/.test(applicationId) ||
       typeof accessKey !== "string" ||
-      !/^[a-zA-Z0-9_-]{16,512}$/.test(accessKey)
+      !/^[a-zA-Z0-9_-]{16,512}$/.test(accessKey) ||
+      typeof affiliateId !== "string" ||
+      !/^[a-fA-F0-9]{8}(?:\.[a-fA-F0-9]{8}){3}$/.test(affiliateId)
     ) {
       return err({ code: "invalid_data", field: "rakuten_credentials" });
     }
@@ -39,9 +43,16 @@ export const rakutenConfigurationSchema: Schema<RakutenConfiguration> = Object.f
           display: { status: "granted", expiresAt },
           store: { status: "denied" },
           ai: { status: "denied" },
-          affiliate: { status: "denied" },
+          affiliate: { status: "granted", expiresAt },
         }),
-        (rights) => Object.freeze({ applicationId, accessKey, allowedOrigin: url.origin, rights }),
+        (rights) =>
+          Object.freeze({
+            applicationId,
+            accessKey,
+            affiliateId,
+            allowedOrigin: url.origin,
+            rights,
+          }),
       );
     });
   },
@@ -55,6 +66,7 @@ export type RakutenListing = Readonly<{
   productId: null;
   title: string;
   canonicalUrl: string;
+  affiliateUrl: string;
   matchMethod: null;
   observedAt: string;
   expiresAt: string;
@@ -69,6 +81,7 @@ type RakutenItem = Readonly<{
   itemCode: string;
   itemName: string;
   itemUrl: string;
+  affiliateUrl: string;
   shopCode: string;
   shopName: string;
   minimum: number;
@@ -84,67 +97,111 @@ function price(input: unknown): input is number {
   );
 }
 
-const itemSchema: Schema<RakutenItem> = Object.freeze({
-  parse(input: unknown): Result<RakutenItem, SchemaError> {
-    if (!record(input)) {
-      return err({ code: "invalid_data", field: "rakuten_item" });
-    }
-    const itemCode = input["itemCode"];
-    const itemName = input["itemName"];
-    const shopCode = input["shopCode"];
-    const shopName = input["shopName"];
-    const field = input["itemPriceBaseField"];
-    const minimum =
-      field === "item_price_min1"
-        ? input["itemPriceMin1"]
-        : field === "item_price_min2"
-          ? input["itemPriceMin2"]
-          : field === "item_price_min3"
-            ? input["itemPriceMin3"]
-            : undefined;
-    const maximum =
-      field === "item_price_min1"
-        ? input["itemPriceMax1"]
-        : field === "item_price_min2"
-          ? input["itemPriceMax2"]
-          : field === "item_price_min3"
-            ? input["itemPriceMax3"]
-            : undefined;
-    const taxFlag = input["taxFlag"];
-    const postageFlag = input["postageFlag"];
-    const availability = input["availability"];
+function affiliateLink(
+  input: unknown,
+  affiliateId: string,
+): Result<Readonly<{ url: string; destination: string }>, SchemaError> {
+  return andThen(httpsUrl(input), (link) => {
+    const url = new URL(valueOf(link));
+    const pc = url.searchParams.getAll("pc");
+    const mobile = url.searchParams.getAll("m");
     if (
-      typeof itemCode !== "string" ||
-      !/^[a-zA-Z0-9_-]+:[a-zA-Z0-9_-]+$/.test(itemCode) ||
-      itemCode.length > 256 ||
-      typeof itemName !== "string" ||
-      itemName.trim().length === 0 ||
-      itemName.length > 2000 ||
-      typeof shopCode !== "string" ||
-      !/^[a-zA-Z0-9_-]+$/.test(shopCode) ||
-      !itemCode.startsWith(`${shopCode}:`) ||
-      typeof shopName !== "string" ||
-      shopName.trim().length === 0 ||
-      shopName.length > 1000 ||
-      !price(minimum) ||
-      !price(maximum) ||
-      minimum > maximum ||
-      (taxFlag !== 0 && taxFlag !== 1) ||
-      (postageFlag !== 0 && postageFlag !== 1) ||
-      (availability !== 0 && availability !== 1)
+      url.origin !== "https://hb.afl.rakuten.co.jp" ||
+      url.pathname !== `/hgc/${affiliateId}/` ||
+      url.hash !== "" ||
+      pc.length !== 1 ||
+      mobile.length > 1 ||
+      [...url.searchParams.keys()].some((key) => !["pc", "m", "scid", "link_type"].includes(key))
     ) {
-      return err({ code: "invalid_data", field: "rakuten_item" });
+      return err({ code: "invalid_data", field: "rakuten_affiliate_url" });
     }
-    return andThen(httpsUrl(input["itemUrl"]), (itemUrl) => {
-      const parsed = parseRakutenUrl(itemUrl);
+    return andThen(httpsUrl(pc[0]), (destination) => {
+      const parsed = parseRakutenUrl(destination);
+      if (parsed.tag === "err" || parsed.value.tag === "none") {
+        return err({ code: "invalid_data", field: "rakuten_affiliate_destination" });
+      }
+      const canonical = valueOf(readReference(parsed.value.value).canonicalUrl);
+      // ponytail: accept mobile destinations only when they are the same modern item URL;
+      // legacy mobile URLs need an explicit mapping before they can become purchase links.
+      if (mobile.some((entry) => entry !== valueOf(destination))) {
+        return err({ code: "invalid_data", field: "rakuten_affiliate_mobile" });
+      }
+      return ok(Object.freeze({ url: valueOf(link), destination: canonical }));
+    });
+  });
+}
+
+function parseItem(input: unknown, affiliateId: string): Result<RakutenItem, SchemaError> {
+  if (!record(input)) {
+    return err({ code: "invalid_data", field: "rakuten_item" });
+  }
+  const itemCode = input["itemCode"];
+  const itemName = input["itemName"];
+  const shopCode = input["shopCode"];
+  const shopName = input["shopName"];
+  const field = input["itemPriceBaseField"];
+  const minimum =
+    field === "item_price_min1"
+      ? input["itemPriceMin1"]
+      : field === "item_price_min2"
+        ? input["itemPriceMin2"]
+        : field === "item_price_min3"
+          ? input["itemPriceMin3"]
+          : undefined;
+  const maximum =
+    field === "item_price_min1"
+      ? input["itemPriceMax1"]
+      : field === "item_price_min2"
+        ? input["itemPriceMax2"]
+        : field === "item_price_min3"
+          ? input["itemPriceMax3"]
+          : undefined;
+  const taxFlag = input["taxFlag"];
+  const postageFlag = input["postageFlag"];
+  const availability = input["availability"];
+  if (
+    typeof itemCode !== "string" ||
+    !/^[a-zA-Z0-9_-]+:[a-zA-Z0-9_-]+$/.test(itemCode) ||
+    itemCode.length > 256 ||
+    typeof itemName !== "string" ||
+    itemName.trim().length === 0 ||
+    itemName.length > 2000 ||
+    typeof shopCode !== "string" ||
+    !/^[a-zA-Z0-9_-]+$/.test(shopCode) ||
+    !itemCode.startsWith(`${shopCode}:`) ||
+    typeof shopName !== "string" ||
+    shopName.trim().length === 0 ||
+    shopName.length > 1000 ||
+    !price(minimum) ||
+    !price(maximum) ||
+    minimum > maximum ||
+    (taxFlag !== 0 && taxFlag !== 1) ||
+    (postageFlag !== 0 && postageFlag !== 1) ||
+    (availability !== 0 && availability !== 1)
+  ) {
+    return err({ code: "invalid_data", field: "rakuten_item" });
+  }
+  return andThen(affiliateLink(input["affiliateUrl"], affiliateId), (affiliate) =>
+    andThen(httpsUrl(input["itemUrl"]), (itemUrl) => {
+      // Rakuten replaces itemUrl with affiliateUrl when affiliateId is supplied.
+      const source =
+        valueOf(itemUrl) === affiliate.url ? httpsUrl(affiliate.destination) : ok(itemUrl);
+      if (source.tag === "err") {
+        return source;
+      }
+      const parsed = parseRakutenUrl(source.value);
       if (parsed.tag === "err" || parsed.value.tag === "none") {
         return err({ code: "invalid_data", field: "rakuten_item_url" });
+      }
+      if (valueOf(readReference(parsed.value.value).canonicalUrl) !== affiliate.destination) {
+        return err({ code: "invalid_data", field: "rakuten_affiliate_destination" });
       }
       return ok(
         Object.freeze({
           itemCode,
           itemName: itemName.trim(),
           itemUrl: valueOf(readReference(parsed.value.value).canonicalUrl),
+          affiliateUrl: affiliate.url,
           shopCode,
           shopName: shopName.trim(),
           minimum,
@@ -154,9 +211,9 @@ const itemSchema: Schema<RakutenItem> = Object.freeze({
           availability,
         }),
       );
-    });
-  },
-});
+    }),
+  );
+}
 
 export type RakutenLookupError =
   | Readonly<{
@@ -206,7 +263,8 @@ export function createRakutenLookup(
       const startedAt = clock();
       if (
         !permitted(configuration.rights.fetch, startedAt) ||
-        !permitted(configuration.rights.display, startedAt)
+        !permitted(configuration.rights.display, startedAt) ||
+        !permitted(configuration.rights.affiliate, startedAt)
       ) {
         return err({ code: "source_not_authorized" });
       }
@@ -217,6 +275,7 @@ export function createRakutenLookup(
       );
       endpoint.search = new URLSearchParams({
         applicationId: configuration.applicationId,
+        affiliateId: configuration.affiliateId,
         format: "json",
         formatVersion: "2",
         shopCode,
@@ -225,7 +284,7 @@ export function createRakutenLookup(
         hits: "30",
         page: "1",
         elements:
-          "count,itemCode,itemName,itemUrl,shopCode,shopName,itemPriceBaseField,itemPriceMin1,itemPriceMax1,itemPriceMin2,itemPriceMax2,itemPriceMin3,itemPriceMax3,taxFlag,postageFlag,availability",
+          "count,itemCode,itemName,itemUrl,affiliateUrl,shopCode,shopName,itemPriceBaseField,itemPriceMin1,itemPriceMax1,itemPriceMin2,itemPriceMax2,itemPriceMin3,itemPriceMax3,taxFlag,postageFlag,availability",
       }).toString();
       const response = await fetcher(endpoint, {
         headers: { accessKey: configuration.accessKey, Origin: configuration.allowedOrigin },
@@ -264,7 +323,7 @@ export function createRakutenLookup(
         return err({ code: "invalid_data", field: "rakuten_response" });
       }
       const items: readonly unknown[] = body["Items"];
-      const decoded = sequence(items.map((item) => itemSchema.parse(item)));
+      const decoded = sequence(items.map((item) => parseItem(item, configuration.affiliateId)));
       if (decoded.tag === "err") {
         return decoded;
       }
@@ -284,6 +343,7 @@ export function createRakutenLookup(
       if (
         !permitted(configuration.rights.fetch, now) ||
         !permitted(configuration.rights.display, now) ||
+        !permitted(configuration.rights.affiliate, now) ||
         configuration.rights.display.status !== "granted"
       ) {
         return err({ code: "source_not_authorized" });
@@ -297,6 +357,7 @@ export function createRakutenLookup(
           productId: null,
           title: item.itemName,
           canonicalUrl,
+          affiliateUrl: item.affiliateUrl,
           matchMethod: null,
           observedAt: valueOf(now),
           expiresAt: new Date(

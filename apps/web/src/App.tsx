@@ -72,7 +72,7 @@ function ProductResult(props: Readonly<{ data: Investigation }>): JSX.Element {
               <th class="number">送料</th>
               <th>在庫・配送</th>
               <th>確認日時</th>
-              <th>出典</th>
+              <th>購入リンク</th>
             </tr>
           </thead>
           <tbody>
@@ -106,9 +106,14 @@ function ProductResult(props: Readonly<{ data: Investigation }>): JSX.Element {
                   </td>
                   <td>{new Date(data().observedAt).toLocaleTimeString("ja-JP")}</td>
                   <td>
-                    <a href={data().canonicalUrl} target="_blank" rel="noopener noreferrer">
-                      楽天
+                    <a
+                      href={data().affiliateUrl}
+                      target="_blank"
+                      rel="sponsored noopener noreferrer"
+                    >
+                      楽天で見る
                     </a>
+                    <small>広告</small>
                   </td>
                 </tr>
               )}

@@ -34,6 +34,7 @@ await test("live listing is distinct from identified products and validates its 
     title: "Example",
     shopName: "Example shop",
     canonicalUrl: "https://item.rakuten.co.jp/shop/url-slug/",
+    affiliateUrl: `https://hb.afl.rakuten.co.jp/hgc/11111111.22222222.33333333.44444444/?${new URLSearchParams({ pc: "https://item.rakuten.co.jp/shop/url-slug/", m: "https://item.rakuten.co.jp/shop/url-slug/" }).toString()}`,
     observedAt: "2026-09-30T00:00:00.000Z",
     expiresAt: "2026-09-30T00:15:00.000Z",
     price: { minimum: 1000, maximum: 2000, currency: "JPY" },
@@ -52,6 +53,16 @@ await test("live listing is distinct from identified products and validates its 
     { observedAt: "2026-02-30T00:00:00.000Z" },
     { canonicalUrl: "https://evil.example/item/" },
     { tax: "unknown" },
+    { affiliateUrl: undefined },
+    { affiliateUrl: value.affiliateUrl.replace("hb.afl.rakuten.co.jp", "evil.example") },
+    { affiliateUrl: value.affiliateUrl.replaceAll("url-slug", "another-item") },
+    { affiliateUrl: `${value.affiliateUrl}&pc=https%3A%2F%2Fevil.example%2F` },
+    {
+      affiliateUrl: value.affiliateUrl.replace(
+        "m=https%3A%2F%2Fitem.rakuten.co.jp%2Fshop%2Furl-slug%2F",
+        "m=https%3A%2F%2Fevil.example%2F",
+      ),
+    },
   ]) {
     assert.throws(() => parseInvestigation({ tag: "ok", value: { ...value, ...patch } }));
   }

@@ -26,6 +26,7 @@ export const handler = createApiHandler(
   [
     "RAKUTEN_APPLICATION_ID",
     "RAKUTEN_ACCESS_KEY",
+    "RAKUTEN_AFFILIATE_ID",
     "RAKUTEN_ALLOWED_ORIGIN",
     "RAKUTEN_DATA_AUTHORIZED_UNTIL",
     "API_ACCESS_TOKEN",
@@ -33,6 +34,7 @@ export const handler = createApiHandler(
     ? {
         applicationId: process.env["RAKUTEN_APPLICATION_ID"],
         accessKey: process.env["RAKUTEN_ACCESS_KEY"],
+        affiliateId: process.env["RAKUTEN_AFFILIATE_ID"],
         allowedOrigin: process.env["RAKUTEN_ALLOWED_ORIGIN"],
         authorizedUntil: process.env["RAKUTEN_DATA_AUTHORIZED_UNTIL"],
         accessToken: process.env["API_ACCESS_TOKEN"],
