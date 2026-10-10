@@ -130,11 +130,15 @@ export function readRakutenConsumerInformation(
   listing: RakutenListing,
   category: ConsumerCategory,
 ): ConsumerInformation {
+  const description =
+    specificationEvidence.get(listing)?.listing ?? descriptions.get(listing) ?? "";
   return readConsumerInformation(
     category,
     listing.listingId,
     listing.canonicalUrl,
-    specificationEvidence.get(listing)?.listing ?? descriptions.get(listing) ?? "",
+    category.fields.some((field) => field.extraction?.kind === "attribute")
+      ? `${listing.title}\n${description}`
+      : description,
     specificationEvidence.get(listing)?.product ?? "",
     { listing: "rakuten_item_api", product: "rakuten_product_api" },
   );

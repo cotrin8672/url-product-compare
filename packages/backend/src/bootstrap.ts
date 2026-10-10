@@ -64,6 +64,7 @@ import {
 import {
   createJevExtraction,
   createJevCategorySelection,
+  createJevConsumerScoring,
   jevExtractionConfigurationSchema,
 } from "./providers/jev/extraction.js";
 import { createJevJudge } from "./providers/jev/index.js";
@@ -105,6 +106,7 @@ function createConfiguredConsumerService(
   extraction: ReturnType<typeof createJevExtraction> | null,
   clock: () => Instant,
   selectCategory: ReturnType<typeof createJevCategorySelection> | undefined,
+  score: ReturnType<typeof createJevConsumerScoring> | undefined,
 ): ReturnType<typeof createConsumerComparisonService> | null {
   const providers =
     rakuten?.tag === "ok"
@@ -112,7 +114,7 @@ function createConfiguredConsumerService(
       : [];
   return providers.length === 0
     ? null
-    : createConsumerComparisonService(providers, extraction ?? undefined, clock);
+    : createConsumerComparisonService(providers, extraction ?? undefined, clock, undefined, score);
 }
 function configuredHttpDependencies(input: unknown): BootstrapDependencies {
   if (input === null || input === undefined) {
@@ -235,6 +237,7 @@ export function createApiHandler(
       consumerExtract,
       clock,
       jev?.tag === "ok" ? createJevCategorySelection(jev.value) : undefined,
+      jev?.tag === "ok" ? createJevConsumerScoring(jev.value) : undefined,
     );
   const jobStore =
     dependencies.jobStore ??
@@ -1007,6 +1010,7 @@ function createPersistedComparisonJobRunner(
     consumerExtract,
     clock,
     jev?.tag === "ok" ? createJevCategorySelection(jev.value) : undefined,
+    jev?.tag === "ok" ? createJevConsumerScoring(jev.value) : undefined,
   );
   const jobStore = createFirestoreComparisonJobStore(clock);
   const runner: ConsumerComparisonRunner = Object.freeze({

@@ -31,6 +31,9 @@ export function comparisonStageLabel(
     if (stage === "extract") {
       return "仕様を確認しています…";
     }
+    if (stage === "score") {
+      return "100点満点で比較しています…";
+    }
     return "比較を実行しています…";
   }
   if (phase === "failed") {

@@ -169,20 +169,25 @@ function ConsumerResults(
   );
   const [detailsOpen, setDetailsOpen] = createSignal(data.categorySelectionStatus === "applied");
   const hasDetails = layout.detailAxes.length > 0 || layout.specificationFields.length > 0;
-  const highestScore = Math.max(
-    ...data.products.map((product) => product.recommendationPercent ?? -1),
-  );
   const emphasized = (product: ConsumerComparison["products"][number]): boolean =>
-    product.rank === 1 ||
-    (data.sort === "recommendation" &&
-      product.recommendationPercent !== null &&
-      product.recommendationPercent === highestScore);
+    product.rank === 1;
   return (
     <section class="consumer-results" aria-label="比較結果">
       <div class="bar consumer-result-heading">
         <h1>{data.status === "ranked" ? "類似商品のおすすめランキング" : "類似商品の比較"}</h1>
         <span class="consumer-category-label">{data.categoryDefinition.label}</span>
       </div>
+      <Show when={data.scoreBasis !== undefined && data.scoreBasis.length > 0}>
+        <p class="muted">
+          総合評価の対象：
+          {data.categoryDefinition.axes
+            .filter((axis) => data.scoreBasis?.includes(axis.id) === true)
+            .map((axis) => axis.label)
+            .join("・")}
+          （{data.products.filter((product) => product.recommendationPercent !== null).length}
+          商品で共通）。未確認の値は採点に含みません。
+        </p>
+      </Show>
       <div class="table-wrap" tabindex="0" role="region" aria-label="商品比較表">
         <table
           class="comparison-table consumer-comparison-table"

@@ -1590,6 +1590,7 @@ await test("comparison jobs honor idempotency, abort, revision and capability he
 
 await test("comparison UI helpers expose stable stage labels and poll rules", () => {
   assert.match(comparisonStageLabel("running", "search"), /探索/);
+  assert.match(comparisonStageLabel("running", "score"), /100点満点/);
   assert.equal(phaseFromJobState("running"), "running");
   assert.equal(shouldPollJob("queued"), true);
   assert.equal(shouldPollJob("succeeded"), false);
@@ -1605,6 +1606,149 @@ await test("public compare routes restore category and sort", () => {
     category: "air_purifier",
     sort: null,
   });
+});
+
+await test("automatic Jev scores validate evidence, normalization, a shared total basis and call bounds", () => {
+  const fixture = genericFixture();
+  const catalog = {
+    ...fixture.catalog,
+    providers: fixture.catalog.providers.map((provider) => ({
+      ...provider,
+      automaticCategories: true,
+    })),
+  };
+  const category = {
+    id: "different_303017",
+    label: "コーヒー",
+    description: "コーヒーを比較",
+    allowUnknownCondition: true,
+    fields: [
+      {
+        id: "attribute1",
+        label: "重量",
+        unit: "",
+        kind: "text",
+        filter: null,
+        minimum: 0,
+        maximum: 0,
+        presets: [],
+      },
+    ],
+    mainFields: ["attribute1"],
+    axes: [
+      { id: "price", label: "価格", lowerIsBetter: true, weight: 1 },
+      { id: "attribute1", label: "重量", lowerIsBetter: false, weight: 1, method: "jev" },
+    ],
+  } satisfies ProductCatalog["categories"][number];
+  const products = fixture.comparison.products.map((product, index) => {
+    const value = index === 0 ? "2g" : "200g";
+    return {
+      ...product,
+      rank: index === 0 ? 2 : 1,
+      recommendationPercent: index === 0 ? 25 : 100,
+      consumerInformation: {
+        specs: { attribute1: value },
+        facts: [
+          {
+            field: "attribute1",
+            value,
+            quote: `重量: ${value}`,
+            sourceUrl: product.canonicalUrl,
+            source: "different_item_api",
+            method: "jev_choice",
+          },
+        ],
+        conflicts: [],
+      },
+      axes: [
+        { id: "price", label: "価格", score: index === 0 ? 50 : 100 },
+        {
+          id: "attribute1",
+          label: "重量",
+          score: index === 0 ? 0 : 100,
+          assessment: { model: "jev-1.13.0", index: index === 0 ? 0 : 4, confidence: 0.9 },
+        },
+      ],
+    };
+  });
+  const source = products[0];
+  assert.ok(source !== undefined);
+  const result = {
+    ...fixture.comparison,
+    category: category.id,
+    categoryDefinition: category,
+    providerDefinitions: catalog.providers,
+    conditions: {},
+    source,
+    products,
+    scoreBasis: ["price", "attribute1"],
+    aiCalls: { openai: 0, jev: 5 },
+  };
+  const parsed = parseConsumerComparison({ tag: "ok", value: result }, catalog);
+  assert.equal(parsed.products[0]?.axes[1]?.score, 0);
+  assert.equal(parsed.products[1]?.recommendationPercent, 100);
+  assert.deepEqual(parsed.scoreBasis, ["price", "attribute1"]);
+  assert.deepEqual(
+    comparisonDetailLayout(parsed.categoryDefinition, parsed.products).primaryAxes.map(
+      (axis) => axis.id,
+    ),
+    ["attribute1"],
+  );
+  for (const patch of [
+    { aiCalls: { openai: 0, jev: 9 } },
+    { scoreBasis: ["price"] },
+    { scoreBasis: ["price", "invented"] },
+    { scoreBasis: ["price", "attribute1", "attribute1"] },
+    { scoreBasis: undefined },
+    { products: products.map((product) => ({ ...product, recommendationPercent: 99 })) },
+    {
+      products: products.map((product) => ({
+        ...product,
+        axes: product.axes.map((axis) => ({ ...axis, assessment: undefined })),
+      })),
+    },
+    ...[
+      { model: "other", index: 2, confidence: 0.9 },
+      { model: "jev-1.13.0", index: 5, confidence: 0.9 },
+      { model: "jev-1.13.0", index: 2, confidence: 0.59 },
+      { model: "jev-1.13.0", index: 2, confidence: 0.9 },
+    ].map((assessment) => ({
+      products: products.map((product) => ({
+        ...product,
+        axes: product.axes.map((axis) => (axis.id === "price" ? axis : { ...axis, assessment })),
+      })),
+    })),
+  ]) {
+    assert.throws(() =>
+      parseConsumerComparison({ tag: "ok", value: { ...result, ...patch } }, catalog),
+    );
+  }
+  const missing = {
+    ...source,
+    listingId: "sku-3",
+    canonicalUrl: "https://shop.different.test/product/3",
+    affiliateUrl: "https://partner.different.test/link/3?partner=sample",
+    recommendationPercent: null,
+    rank: null,
+    consumerInformation: { specs: { attribute1: null }, facts: [], conflicts: [] },
+    axes: [
+      { id: "price", label: "価格", score: 50 },
+      { id: "attribute1", label: "重量", score: null },
+    ],
+  };
+  const partial = parseConsumerComparison(
+    {
+      tag: "ok",
+      value: {
+        ...result,
+        status: "needs_information",
+        products: [...products.map((product) => ({ ...product, rank: null })), missing],
+      },
+    },
+    catalog,
+  );
+  assert.equal(partial.products[2]?.recommendationPercent, null);
+  assert.equal(partial.products[0]?.recommendationPercent, 25);
 });
 
 await test("automatically discovered categories validate without the startup catalog and survive job restoration", async (context) => {
@@ -1716,7 +1860,7 @@ await test("automatically discovered categories validate without the startup cat
     /カテゴリ定義/,
   );
   for (const patch of [
-    { aiCalls: { openai: 0, jev: 3 } },
+    { aiCalls: { openai: 0, jev: 9 } },
     { categoryDefinition: { ...category, mainFields: ["invented"] } },
     { products: products.map((product) => ({ ...product, condition: "used" })) },
     {

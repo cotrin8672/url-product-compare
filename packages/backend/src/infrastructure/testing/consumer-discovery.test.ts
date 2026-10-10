@@ -62,7 +62,7 @@ await test("unregistered category selects API attributes once and shares concurr
   assert.deepEqual(first.definition.mainFields, ["attribute11", "attribute12"]);
   assert.deepEqual(
     first.definition.axes.map((axis) => axis.id),
-    ["price"],
+    ["price", "attribute11", "attribute12"],
   );
   assert.equal(
     first.definition.fields.every((field) => field.kind === "text"),

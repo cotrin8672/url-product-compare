@@ -105,8 +105,19 @@ export function createConsumerCategoryDiscovery(
         providerBindings: { [providerId]: { genreId: genre.id, keyword: genre.label } },
         mainFields: major.map((attribute) => `attribute${attribute.id}`),
         fields,
-        // Attribute names do not establish numeric units or which direction is better.
-        axes: [{ id: "price", label: "価格", lowerIsBetter: true, weight: 1 }],
+        axes: [
+          { id: "price", label: "価格", lowerIsBetter: true, weight: 1 },
+          ...major.map(
+            (attribute) =>
+              ({
+                id: `attribute${attribute.id}`,
+                label: attribute.label,
+                lowerIsBetter: false,
+                weight: 1,
+                method: "jev",
+              }) satisfies ConsumerCategoryDefinition["axes"][number],
+          ),
+        ],
         allowUnknownCondition: true,
       };
       const checked = buildConsumerCatalog([definition]).categories[0];

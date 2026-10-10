@@ -9,6 +9,9 @@ import {
   readFieldTextLabels,
 } from "./consumer-catalog.js";
 import type { ConsumerCategoryDefinition, ConsumerListingCondition } from "./consumer-catalog.js";
+import { consumerAssessmentScore } from "./consumer-scoring.js";
+import type { ConsumerAssessment, ConsumerAssessments } from "./consumer-scoring.js";
+import { consumerValueSpans } from "./consumer-spans.js";
 import { readMonitorSpecifications } from "./monitor.js";
 import { relativeSpecificationScore } from "./product-comparison.js";
 import { record } from "./values.js";
@@ -71,6 +74,7 @@ type ExtractionChoice = Readonly<{
   listingId: string;
   field: string;
   label: string;
+  category?: string;
   options: ReadonlyArray<Readonly<{ id: string; fact: ConsumerFact }>>;
 }>;
 export type ConsumerExtraction = (
@@ -150,6 +154,9 @@ export function readConsumerInformation(
       .replace(/\([^)]*\)/g, "")
       .replace(/[\s・_-]/g, "")
       .toLowerCase();
+  const attributeSpans = category.fields.some((field) => field.extraction?.kind === "attribute")
+    ? consumerValueSpans(text)
+    : [];
   for (const definition of category.fields) {
     const found: ConsumerFact[] = [];
     if (
@@ -186,11 +193,29 @@ export function readConsumerInformation(
         (entry) => attributeLabel(entry.label) === attributeLabel(definition.label),
       );
       for (const entry of matching) {
-        add(entry.value, entry.quote);
+        if (!/^(?:記載なし|不明|未確認|未記載|unknown|N\/?A|[-ー])$/i.test(entry.value)) {
+          add(entry.value, entry.quote);
+        }
       }
-      if (matching.length === 0 && labeled.length > 0) {
-        const options = labeled
-          .slice(0, 12)
+      if (matching.length === 0 && attributeSpans.length > 0) {
+        const terms = Array.from(attributeLabel(definition.label)).flatMap(
+          (_character, index, letters) =>
+            index + 1 < letters.length ? [letters.slice(index, index + 2).join("")] : [],
+        );
+        const relevance = (entry: (typeof attributeSpans)[number]): number =>
+          terms.reduce(
+            (sum, term) =>
+              sum +
+              (attributeLabel(entry.value).includes(term)
+                ? 4
+                : attributeLabel(entry.quote).includes(term)
+                  ? 1
+                  : 0),
+            0,
+          );
+        const options = attributeSpans
+          .toSorted((left, right) => relevance(right) - relevance(left))
+          .slice(0, 8)
           .map((entry, index) => ({
             id: `option_${index}`,
             fact: Object.freeze({
@@ -208,6 +233,7 @@ export function readConsumerInformation(
             listingId,
             field: definition.id,
             label: definition.label,
+            category: category.label,
             options: Object.freeze(options),
           }),
         );
@@ -613,7 +639,9 @@ export type ConsumerComparisonProduct<T extends Listing> = T &
     reasons: readonly string[];
     rank: number | null;
     recommendationPercent: number | null;
-    axes: ReadonlyArray<Readonly<{ id: string; label: string; score: number | null }>>;
+    axes: ReadonlyArray<
+      Readonly<{ id: string; label: string; score: number | null; assessment?: ConsumerAssessment }>
+    >;
   }>;
 
 export function compareConsumerListings<T extends Listing>(
@@ -621,9 +649,11 @@ export function compareConsumerListings<T extends Listing>(
   category: ConsumerCategory,
   conditions: ConsumerConditions,
   sort: ConsumerSort,
+  assessments: ConsumerAssessments = {},
 ): Readonly<{
   status: "ranked" | "compared" | "needs_information" | "no_match";
   products: ReadonlyArray<ConsumerComparisonProduct<T>>;
+  scoreBasis?: readonly string[];
 }> {
   const assessed = listings.map((listing) =>
     Object.freeze({ ...listing, ...assessConsumerListing(listing, category, conditions) }),
@@ -659,6 +689,26 @@ export function compareConsumerListings<T extends Listing>(
   const scored = assessed.map((listing) => {
     const axes = axisDefinitions.map((axis, index) => {
       const known = axisValues[index] ?? [];
+      const assessment = assessments[listing.listingId]?.[axis.id];
+      if (axis.method === "jev") {
+        const confirmed = (entry: Listing): boolean =>
+          entry.consumerInformation.facts.some(
+            (fact) =>
+              fact.field === axis.id && fact.value === entry.consumerInformation.specs[axis.id],
+          );
+        const score =
+          listing.status === "eligible" &&
+          confirmed(listing) &&
+          eligible.filter(confirmed).length >= 2
+            ? consumerAssessmentScore(assessment)
+            : null;
+        return Object.freeze({
+          id: axis.id,
+          label: axis.label,
+          score,
+          ...(score === null || assessment === undefined ? {} : { assessment }),
+        });
+      }
       return Object.freeze({
         id: axis.id,
         label: axis.label,
@@ -675,21 +725,45 @@ export function compareConsumerListings<T extends Listing>(
     });
     return Object.freeze({ ...listing, axes: Object.freeze(axes) });
   });
+  const automaticScoring = axisDefinitions.some((axis) => axis.method === "jev");
+  const scoredEligible = scored.filter((listing) => listing.status === "eligible");
+  const source = scored[0];
+  const anchorAvailable =
+    source?.axes.some((axis) => axis.id !== "price" && axis.score !== null) === true;
+  const anchor = automaticScoring
+    ? axisDefinitions
+        .map((axis, index) => ({
+          axis,
+          index,
+          count: scoredEligible.filter((listing) => typeof listing.axes[index]?.score === "number")
+            .length,
+        }))
+        .filter(
+          (entry) =>
+            entry.axis.id !== "price" &&
+            entry.count >= 2 &&
+            (!anchorAvailable || typeof source.axes[entry.index]?.score === "number"),
+        )
+        .toSorted((left, right) => right.count - left.count)[0]
+    : undefined;
+  // Unknown products keep their cells; totals use one shared basis for a comparable group.
+  const totalListings = automaticScoring
+    ? scoredEligible.filter(
+        (listing) => anchor !== undefined && typeof listing.axes[anchor.index]?.score === "number",
+      )
+    : scoredEligible;
   const commonAxes = axisDefinitions
     .map((axis, index) => ({ ...axis, index }))
     .filter(
       (axis) =>
-        eligible.length >= 2 &&
-        scored.every(
-          (listing) =>
-            listing.status !== "eligible" || typeof listing.axes[axis.index]?.score === "number",
-        ),
+        totalListings.length >= 2 &&
+        totalListings.every((listing) => typeof listing.axes[axis.index]?.score === "number"),
     );
   const totalWeight = commonAxes.reduce((sum, axis) => sum + axis.weight, 0);
   const hasSpecificationAxis = commonAxes.some((axis) => axis.id !== "price");
   const withTotals = scored.map((listing) => {
     const recommendationPercent =
-      listing.status === "eligible" && hasSpecificationAxis && totalWeight > 0
+      totalListings.includes(listing) && hasSpecificationAxis && totalWeight > 0
         ? Math.round(
             commonAxes.reduce(
               (sum, axis) => sum + (listing.axes[axis.index]?.score ?? 0) * axis.weight,
@@ -717,6 +791,7 @@ export function compareConsumerListings<T extends Listing>(
             listing.price.minimum === listing.price.maximum,
         ));
   return Object.freeze({
+    ...(automaticScoring ? { scoreBasis: Object.freeze(commonAxes.map((axis) => axis.id)) } : {}),
     status:
       pending || (sort === "recommendation" && eligible.length >= 2 && !recommendationReady)
         ? "needs_information"

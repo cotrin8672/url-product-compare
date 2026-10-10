@@ -11,7 +11,14 @@ type CatalogField = Readonly<{
   presets: readonly number[];
 }>;
 
-type CatalogAxis = Readonly<{ id: string; label: string; lowerIsBetter: boolean; weight: number }>;
+type CatalogAxis = Readonly<{
+  id: string;
+  label: string;
+  lowerIsBetter: boolean;
+  weight: number;
+  method?: "jev";
+}>;
+type ConsumerAssessment = Readonly<{ model: string; index: number; confidence: number }>;
 
 export type CatalogCategory = Readonly<{
   id: string;
@@ -81,7 +88,9 @@ type ConsumerProduct = ConsumerListing &
   Readonly<{
     status: "eligible" | "excluded" | "pending";
     recommendationPercent: number | null;
-    axes: ReadonlyArray<Readonly<{ id: string; label: string; score: number | null }>>;
+    axes: ReadonlyArray<
+      Readonly<{ id: string; label: string; score: number | null; assessment?: ConsumerAssessment }>
+    >;
     reasons: readonly string[];
     rank: number | null;
   }>;
@@ -99,6 +108,7 @@ export type ConsumerComparison = Readonly<{
   aiCalls: Readonly<{ openai: 0; jev: number }>;
   extractionStatus: "not_needed" | "not_configured" | "applied" | "unavailable";
   categorySelectionStatus?: CategorySelectionStatus;
+  scoreBasis?: readonly string[];
   search: Readonly<{
     pages: number;
     examined: number;
@@ -252,7 +262,9 @@ function parseAxis(input: unknown): CatalogAxis | null {
     !/^[a-zA-Z][a-zA-Z0-9_]{0,63}$/.test(input["id"]) ||
     typeof input["label"] !== "string" ||
     input["label"].length === 0 ||
-    input["label"].length > 24 ||
+    input["label"].length > (input["method"] === "jev" ? 80 : 24) ||
+    (input["method"] !== undefined && input["method"] !== "jev") ||
+    (input["method"] === "jev" && input["id"] === "price") ||
     typeof input["lowerIsBetter"] !== "boolean" ||
     typeof input["weight"] !== "number" ||
     !Number.isFinite(input["weight"]) ||
@@ -266,6 +278,7 @@ function parseAxis(input: unknown): CatalogAxis | null {
     label: input["label"],
     lowerIsBetter: input["lowerIsBetter"],
     weight: input["weight"],
+    ...(input["method"] === "jev" ? { method: "jev" } : {}),
   });
 }
 
@@ -312,7 +325,14 @@ function parseCategory(input: unknown): CatalogCategory | null {
   const fieldIds = new Set(fields.flatMap((field) => (field === null ? [] : [field.id])));
   if (
     mainFields.some((id) => !fieldIds.has(id)) ||
-    axes.some((axis) => axis !== null && axis.id !== "price" && !fieldIds.has(axis.id))
+    axes.some(
+      (axis) =>
+        axis !== null &&
+        axis.id !== "price" &&
+        (!fieldIds.has(axis.id) ||
+          (axis.method === "jev" &&
+            fields.find((field) => field?.id === axis.id)?.kind !== "text")),
+    )
   ) {
     return null;
   }
@@ -875,7 +895,7 @@ export function parseConsumerComparison(
     typeof value["aiCalls"]["jev"] !== "number" ||
     !Number.isSafeInteger(value["aiCalls"]["jev"]) ||
     value["aiCalls"]["jev"] < 0 ||
-    value["aiCalls"]["jev"] > (isAutomaticCategory(catalog, parsedCategory.id) ? 2 : 1) ||
+    value["aiCalls"]["jev"] > (isAutomaticCategory(catalog, parsedCategory.id) ? 8 : 1) ||
     !["not_needed", "not_configured", "applied", "unavailable"].includes(
       String(value["extractionStatus"]),
     )
@@ -931,7 +951,42 @@ export function parseConsumerComparison(
       ) {
         throw new Error("評価の内訳を検証できませんでした");
       }
-      return Object.freeze({ id: axis["id"], label: axis["label"], score: axis["score"] });
+      const raw = axis["assessment"];
+      if (
+        raw !== undefined &&
+        (expected.method !== "jev" ||
+          axis["score"] === null ||
+          !record(raw) ||
+          typeof raw["model"] !== "string" ||
+          !/^jev-\d+\.\d+\.\d+$/.test(raw["model"]) ||
+          typeof raw["index"] !== "number" ||
+          !Number.isFinite(raw["index"]) ||
+          raw["index"] < 0 ||
+          raw["index"] > 4 ||
+          typeof raw["confidence"] !== "number" ||
+          !Number.isFinite(raw["confidence"]) ||
+          raw["confidence"] < 0.6 ||
+          raw["confidence"] > 1)
+      ) {
+        throw new Error("Jev評価を検証できませんでした");
+      }
+      const assessment =
+        record(raw) &&
+        typeof raw["model"] === "string" &&
+        typeof raw["index"] === "number" &&
+        typeof raw["confidence"] === "number"
+          ? Object.freeze({
+              model: raw["model"],
+              index: raw["index"],
+              confidence: raw["confidence"],
+            })
+          : undefined;
+      return Object.freeze({
+        id: axis["id"],
+        label: axis["label"],
+        score: axis["score"],
+        ...(assessment === undefined ? {} : { assessment }),
+      });
     });
     const recommendationPercent = entry["recommendationPercent"];
     const rank = entry["rank"];
@@ -999,20 +1054,63 @@ export function parseConsumerComparison(
   );
   const eligible = products.filter((product) => product.status === "eligible");
   const pending = products.some((product) => product.status === "pending");
+  const automaticScoring = axisDefinitions.some((axis) => axis.method === "jev");
+  const scoreBasis = automaticScoring ? stringArray(value["scoreBasis"], 17, 64) : undefined;
+  if (
+    scoreBasis === null ||
+    (!automaticScoring && value["scoreBasis"] !== undefined) ||
+    scoreBasis?.some((id) => !axisDefinitions.some((axis) => axis.id === id)) === true
+  ) {
+    throw new Error("総合評価の対象項目を検証できませんでした");
+  }
+  const totalProducts =
+    scoreBasis === undefined
+      ? eligible
+      : eligible.filter((product) =>
+          scoreBasis.every((id) =>
+            product.axes.some((axis) => axis.id === id && axis.score !== null),
+          ),
+        );
   const commonAxes = axisDefinitions
     .map((axis, index) => ({ ...axis, index }))
     .filter(
       (axis) =>
-        eligible.length >= 2 &&
-        eligible.every((product) => typeof product.axes[axis.index]?.score === "number"),
+        totalProducts.length >= 2 &&
+        (scoreBasis === undefined || scoreBasis.includes(axis.id)) &&
+        totalProducts.every((product) => typeof product.axes[axis.index]?.score === "number"),
     );
   const weightTotal = commonAxes.reduce((sum, axis) => sum + axis.weight, 0);
   const hasSpecificationAxis = commonAxes.some((axis) => axis.id !== "price");
+  if (
+    scoreBasis !== undefined &&
+    scoreBasis.length > 0 &&
+    (!hasSpecificationAxis || commonAxes.length !== scoreBasis.length)
+  ) {
+    throw new Error("総合評価の共通項目を確認できませんでした");
+  }
   for (const product of products) {
     for (const [index, axis] of product.axes.entries()) {
       const meta = axisDefinitions[index];
       if (meta === undefined) {
         throw new Error("評価軸を検証できませんでした");
+      }
+      if (meta.method === "jev") {
+        const confirmed = (entry: ConsumerProduct): boolean =>
+          entry.consumerInformation.facts.some(
+            (fact) =>
+              fact.field === axis.id && fact.value === entry.consumerInformation.specs[axis.id],
+          );
+        const expected =
+          product.status === "eligible" &&
+          confirmed(product) &&
+          eligible.filter(confirmed).length >= 2 &&
+          axis.assessment !== undefined
+            ? Math.round(axis.assessment.index * 25)
+            : null;
+        if (axis.score !== expected) {
+          throw new Error("Jevスコアが確認済みの仕様と一致しません");
+        }
+        continue;
       }
       const allowZero = parsedCategory.fields.find((field) => field.id === axis.id)?.minimum === 0;
       const own = axisNumeric(product, axis.id, allowZero);
@@ -1028,7 +1126,7 @@ export function parseConsumerComparison(
       }
     }
     const expectedPercent =
-      product.status === "eligible" && hasSpecificationAxis && weightTotal > 0
+      totalProducts.includes(product) && hasSpecificationAxis && weightTotal > 0
         ? Math.round(
             commonAxes.reduce(
               (sum, axis) => sum + (product.axes[axis.index]?.score ?? 0) * axis.weight,
@@ -1150,6 +1248,7 @@ export function parseConsumerComparison(
     aiCalls: Object.freeze({ openai: 0, jev: value["aiCalls"]["jev"] }),
     extractionStatus,
     ...(selectionStatus === undefined ? {} : { categorySelectionStatus: selectionStatus }),
+    ...(scoreBasis === undefined ? {} : { scoreBasis }),
     search: Object.freeze({
       pages,
       examined,

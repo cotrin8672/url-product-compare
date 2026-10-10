@@ -18,6 +18,7 @@ import type {
   ConsumerProviderLookupError,
   ConsumerProviderMetadata,
 } from "./consumer-provider.js";
+import type { ConsumerAssessments, ConsumerScoring } from "./consumer-scoring.js";
 import {
   applyConsumerChoices,
   assessConsumerListing,
@@ -78,6 +79,7 @@ export type ConsumerComparisonResult = Readonly<{
   aiCalls: Readonly<{ openai: number; jev: number }>;
   extractionStatus: "not_needed" | "not_configured" | "applied" | "unavailable";
   categorySelectionStatus?: ConsumerCategorySelectionStatus;
+  scoreBasis?: readonly string[];
   search: Readonly<{
     pages: number;
     examined: number;
@@ -144,6 +146,7 @@ export function createConsumerComparisonService(
   extraction?: ConsumerExtraction,
   clock?: () => Instant,
   catalog: ConsumerCatalog = defaultConsumerCatalog,
+  score?: ConsumerScoring,
 ): {
   catalog: () => readonly ConsumerCatalogCategory[];
   providerDefinitions: () => readonly ConsumerProviderMetadata[];
@@ -409,6 +412,7 @@ export function createConsumerComparisonService(
         .slice(0, 6)
         .filter((axis) => typeof sourceInformation?.specs[axis.id] === "number");
       const hasComparableSpecifications = (listing: ConsumerAttachedListing): boolean =>
+        automaticCategory(category.id) ||
         category.axes.every((axis) => axis.id === "price") ||
         (comparableAxes.length > 0 &&
           comparableAxes.every(
@@ -521,9 +525,12 @@ export function createConsumerComparisonService(
       }
       let jevCalls = discoveryCalls;
       let extractionStatus: ConsumerComparisonResult["extractionStatus"] = "not_needed";
+      if (automaticCategory(category.id)) {
+        collected = collected.slice(0, 6);
+      }
       const choices = collected
         .flatMap((listing) => listing.consumerInformation.choices)
-        .slice(0, 24);
+        .slice(0, automaticCategory(category.id) ? 96 : 24);
       if (choices.length > 0) {
         extractionStatus = "not_configured";
         if (
@@ -532,28 +539,38 @@ export function createConsumerComparisonService(
           Date.now() < deadline + 10_000 &&
           options?.signal?.aborted !== true
         ) {
-          jevCalls += 1;
-          const answers = await extraction(choices, options);
-          options?.signal?.throwIfAborted();
-          extractionStatus = answers.tag === "ok" ? "applied" : "unavailable";
-          if (answers.tag === "ok") {
-            collected = collected.map((listing) =>
-              Object.freeze({
-                ...listing,
-                consumerInformation: applyConsumerChoices(
-                  listing.consumerInformation,
-                  answers.value,
-                ),
-              }),
-            );
+          await reportProgress(options, { stage: "extract", pages, examined });
+          const batchSize = automaticCategory(category.id) ? 16 : 24;
+          for (let offset = 0; offset < choices.length; offset += batchSize) {
+            if (
+              !provider.permissions(readServiceClock(clock)).ai ||
+              Date.now() >= deadline + 10_000
+            ) {
+              break;
+            }
+            jevCalls += 1;
+            const answers = await extraction(choices.slice(offset, offset + batchSize), options);
+            options?.signal?.throwIfAborted();
+            extractionStatus = answers.tag === "ok" ? "applied" : "unavailable";
+            if (answers.tag === "ok") {
+              collected = collected.map((listing) =>
+                Object.freeze({
+                  ...listing,
+                  consumerInformation: applyConsumerChoices(
+                    listing.consumerInformation,
+                    answers.value,
+                  ),
+                }),
+              );
+            }
           }
         }
       }
-      const now = readServiceClock(clock);
+      const checkedAt = readServiceClock(clock);
       options?.signal?.throwIfAborted();
       if (
-        collected.some((listing) => listing.expiresAt <= valueOf(now)) ||
-        !provider.permissions(now).display
+        collected.some((listing) => listing.expiresAt <= valueOf(checkedAt)) ||
+        !provider.permissions(checkedAt).display
       ) {
         return err({ code: "source_not_authorized" });
       }
@@ -585,11 +602,50 @@ export function createConsumerComparisonService(
       if (source === undefined) {
         return err({ code: "internal_error" });
       }
+      const comparedListings = [publicListing(source), ...preferred.map(publicListing)];
+      let assessments: ConsumerAssessments = {};
+      const eligibleForScoring = comparedListings.filter(
+        (listing) => assessConsumerListing(listing, category, checked.value).status === "eligible",
+      );
+      if (
+        score !== undefined &&
+        provider.permissions(checkedAt).ai &&
+        Date.now() < deadline + 10_000 &&
+        category.axes.some(
+          (axis) =>
+            axis.method === "jev" &&
+            eligibleForScoring.filter((listing) =>
+              listing.consumerInformation.facts.some(
+                (fact) =>
+                  fact.field === axis.id &&
+                  fact.value === listing.consumerInformation.specs[axis.id],
+              ),
+            ).length >= 2,
+        )
+      ) {
+        await reportProgress(options, { stage: "score", pages, examined });
+        if (provider.permissions(readServiceClock(clock)).ai && Date.now() < deadline + 10_000) {
+          jevCalls += 1;
+          const scored = await score(category, eligibleForScoring, options);
+          options?.signal?.throwIfAborted();
+          if (scored.tag === "ok") {
+            assessments = scored.value;
+          }
+        }
+      }
+      const now = readServiceClock(clock);
+      if (
+        !provider.permissions(now).display ||
+        comparedListings.some((listing) => listing.expiresAt <= valueOf(now))
+      ) {
+        return err({ code: "source_not_authorized" });
+      }
       const compared = compareConsumerListings(
-        [publicListing(source), ...preferred.map(publicListing)],
+        comparedListings,
         category,
         checked.value,
         input.sort,
+        assessments,
       );
       const storage = provider.permissions(now);
       const storageExpiresAt =
@@ -623,6 +679,7 @@ export function createConsumerComparisonService(
           }),
           status: compared.status,
           products: compared.products,
+          ...(compared.scoreBasis === undefined ? {} : { scoreBasis: compared.scoreBasis }),
         }),
       );
     },

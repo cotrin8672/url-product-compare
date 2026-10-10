@@ -16,6 +16,7 @@ type ConsumerCategoryAxis = Readonly<{
   label: string;
   lowerIsBetter: boolean;
   weight: number;
+  method?: "jev";
 }>;
 
 type ConsumerFieldExtraction =
@@ -910,7 +911,11 @@ export function buildConsumerCatalog(
       new Set(category.axes.map((axis) => axis.id)).size !== category.axes.length ||
       category.axes.some(
         (axis) =>
-          (axis.id === "price" ? !axis.lowerIsBetter : fields.get(axis.id)?.kind !== "number") ||
+          (axis.id === "price"
+            ? !axis.lowerIsBetter || axis.method !== undefined
+            : axis.method === "jev"
+              ? fields.get(axis.id)?.extraction?.kind !== "attribute"
+              : fields.get(axis.id)?.kind !== "number") ||
           typeof axis.lowerIsBetter !== "boolean" ||
           axis.label.trim().length === 0 ||
           !Number.isFinite(axis.weight) ||

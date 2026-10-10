@@ -2968,18 +2968,39 @@ await test("automatic category selection rejects malformed Jev responses and mal
 
 await test("HTTP comparison unlocks rice, reuses Jev selection, preserves HTML evidence and separates donations from retail", async (context) => {
   let jevCalls = 0;
+  let validScores = true;
   context.mock.method(globalThis, "fetch", (input: unknown, init?: RequestInit) => {
     if (input === "https://api.typesafe.ai/v1/systemone") {
       jevCalls += 1;
       assert.ok(typeof init?.body === "string");
       const body: unknown = JSON.parse(init.body);
       assert.ok(record(body) && record(body["questions"]));
-      assert.deepEqual(Object.keys(body["questions"]), ["a11", "a12"]);
+      const scoring = Object.keys(body["questions"])[0]?.startsWith("s") === true;
+      assert.deepEqual(Object.keys(body["questions"]), scoring ? ["s0", "s1"] : ["a11", "a12"]);
       return Promise.resolve(
         Response.json({
           model: "jev-1.13.0",
           answers: Object.fromEntries(
-            Object.keys(body["questions"]).map((id) => [id, { type: "noul", noul: 0.7 }]),
+            Object.entries(body["questions"]).map(([id, question]) => {
+              assert.ok(record(question));
+              const levels = question["criteria"];
+              return [
+                id,
+                scoring && Array.isArray(levels)
+                  ? {
+                      type: "score",
+                      score: validScores ? 2 : 4,
+                      confidence: 1,
+                      legend: Object.fromEntries(
+                        levels.map((level, index) => [String(index), level]),
+                      ),
+                      probabilities: Object.fromEntries(
+                        levels.map((_level, index) => [String(index), index === 2 ? 1 : 0]),
+                      ),
+                    }
+                  : { type: "noul", noul: 0.7 },
+              ];
+            }),
           ),
         }),
       );
@@ -3030,14 +3051,16 @@ await test("HTTP comparison unlocks rice, reuses Jev selection, preserves HTML e
   assert.ok(record(body) && record(body["value"]));
   const value = body["value"];
   assert.equal(value["category"], "rakuten_201184");
-  assert.deepEqual(value["aiCalls"], { openai: 0, jev: 1 });
+  assert.deepEqual(value["aiCalls"], { openai: 0, jev: 2 });
+  assert.deepEqual(value["scoreBasis"], ["price", "attribute11", "attribute12"]);
+  assert.equal(value["status"], "ranked");
   assert.equal(value["categorySelectionStatus"], "applied");
   assert.ok(Array.isArray(value["products"]));
   assert.equal(value["products"].length, 6);
   for (const product of value["products"]) {
     assert.ok(record(product) && record(product["consumerInformation"]));
     assert.equal(product["condition"], "unknown");
-    assert.equal(product["recommendationPercent"], null);
+    assert.equal(product["recommendationPercent"], 67);
     assert.notEqual(product["listingId"], "shop:retail");
     assert.deepEqual(product["consumerInformation"]["specs"], {
       attribute11: "5kg",
@@ -3056,8 +3079,23 @@ await test("HTTP comparison unlocks rice, reuses Jev selection, preserves HTML e
   assert.equal(second.statusCode, 200, second.body);
   const repeated: unknown = JSON.parse(second.body);
   assert.ok(record(repeated) && record(repeated["value"]));
-  assert.deepEqual(repeated["value"]["aiCalls"], { openai: 0, jev: 0 });
-  assert.equal(jevCalls, 1);
+  assert.deepEqual(repeated["value"]["aiCalls"], { openai: 0, jev: 1 });
+  assert.equal(jevCalls, 3);
+  validScores = false;
+  const failedScore = await handler(event);
+  const failedBody: unknown = JSON.parse(failedScore.body);
+  assert.ok(record(failedBody) && record(failedBody["value"]));
+  assert.deepEqual(failedBody["value"]["scoreBasis"], []);
+  assert.equal(failedBody["value"]["status"], "needs_information");
+  assert.ok(Array.isArray(failedBody["value"]["products"]));
+  for (const product of failedBody["value"]["products"]) {
+    assert.ok(record(product) && record(product["consumerInformation"]));
+    assert.equal(product["recommendationPercent"], null);
+    assert.deepEqual(product["consumerInformation"]["specs"], {
+      attribute11: "5kg",
+      attribute12: "北海道",
+    });
+  }
 
   const fresh = createApiHandler(false, discoverySettings, null, discoveryJevSettings, {
     clock: discoveryClock,
@@ -3079,4 +3117,159 @@ await test("HTTP comparison unlocks rice, reuses Jev selection, preserves HTML e
     }),
   });
   assert.equal(job.statusCode, 202, job.body);
+});
+
+await test("automatic extraction reaches all six products beyond 24 questions and then scores one batch", async (context) => {
+  const attributes = ["総重量", "単品重量", "入数", "原材料", "産地", "精米方法"];
+  const values = ["200g×5袋", "200g", "5袋", "玄米", "北海道", "無洗米"];
+  const calls = { noul: 0, choice: 0, score: 0 };
+  let malformed = false;
+  context.mock.method(globalThis, "fetch", (input: unknown, init?: RequestInit) => {
+    if (input === "https://api.typesafe.ai/v1/systemone") {
+      assert.ok(typeof init?.body === "string");
+      const body: unknown = JSON.parse(init.body);
+      assert.ok(record(body) && record(body["questions"]));
+      const entries = Object.entries(body["questions"]);
+      const first: unknown = entries[0]?.[1];
+      assert.ok(record(first));
+      const type = first["type"];
+      assert.ok(type === "noul" || type === "choice" || type === "score");
+      calls[type] += 1;
+      if (type === "choice") {
+        assert.ok(entries.length <= 16);
+      }
+      return Promise.resolve(
+        Response.json({
+          model: "jev-1.13.0",
+          answers: Object.fromEntries(
+            entries.map(([id, question]): readonly [string, unknown] => {
+              assert.ok(record(question));
+              if (type === "noul") {
+                return [id, { type, noul: 1 }];
+              }
+              const criteria: unknown = question["criteria"];
+              if (type === "score") {
+                assert.ok(Array.isArray(criteria));
+                return [
+                  id,
+                  {
+                    type,
+                    score: 2,
+                    confidence: 1,
+                    legend: Object.fromEntries(
+                      criteria.map((level, index) => [String(index), level]),
+                    ),
+                    probabilities: Object.fromEntries(
+                      criteria.map((_level, index) => [String(index), index === 2 ? 1 : 0]),
+                    ),
+                  },
+                ];
+              }
+              assert.ok(record(criteria) && record(question["instructions"]));
+              const field = question["instructions"]["field"];
+              assert.ok(typeof field === "string");
+              const value = values[attributes.indexOf(field)];
+              const selected = Object.entries(criteria).find(
+                ([_option, candidate]) => record(candidate) && candidate["value"] === value,
+              );
+              assert.ok(selected !== undefined, `${field} needs ${String(value)}`);
+              const ids = Object.keys(criteria);
+              const rest = ids.filter((option) => option !== selected[0]);
+              return [
+                id,
+                {
+                  type,
+                  choice: selected[0],
+                  confidence: 0.9,
+                  probabilities: Object.fromEntries(
+                    ids.map((option) => [
+                      option,
+                      malformed && id === "q0"
+                        ? 2
+                        : option === selected[0]
+                          ? 0.9
+                          : rest.indexOf(option) < 3
+                            ? 0.03
+                            : 0,
+                    ]),
+                  ),
+                },
+              ];
+            }),
+          ),
+        }),
+      );
+    }
+    assert.ok(input instanceof URL && input.hostname === "openapi.rakuten.co.jp");
+    if (input.pathname.includes("IchibaGenre/Search")) {
+      return Promise.resolve(
+        discoveryGenreResponse(
+          attributes.map((nameJa, index) => ({ attributeId: 100 + index, nameJa })),
+        ),
+      );
+    }
+    if (input.pathname.includes("Product/Search")) {
+      return Promise.resolve(Response.json({ Products: [] }));
+    }
+    const item = (id: string): ReturnType<typeof discoveryRiceItem> => ({
+      ...discoveryRiceItem(id),
+      itemName: "白米",
+      itemCaption: "商品内容: 200g×5袋、玄米、北海道、無洗米",
+    });
+    return Promise.resolve(
+      Response.json(
+        input.searchParams.has("shopCode")
+          ? { count: 1, Items: [item("source")] }
+          : { count: 5, Items: Array.from({ length: 5 }, (_, index) => item(`candidate${index}`)) },
+      ),
+    );
+  });
+  const handler = createApiHandler(false, discoverySettings, null, discoveryJevSettings, {
+    clock: discoveryClock,
+  });
+  const event = {
+    method: "POST",
+    path: "/api/compare",
+    headers: { authorization: `Bearer ${discoverySettings.accessToken}` },
+    body: JSON.stringify({
+      url: "https://item.rakuten.co.jp/shop/source/",
+      category: null,
+      conditions: {},
+      sort: "recommendation",
+    }),
+  };
+  const response = await handler(event);
+  assert.equal(response.statusCode, 200, response.body);
+  const body: unknown = JSON.parse(response.body);
+  assert.ok(record(body) && record(body["value"]));
+  const result = body["value"];
+  assert.deepEqual(result["aiCalls"], { openai: 0, jev: 5 });
+  assert.deepEqual(calls, { noul: 1, choice: 3, score: 1 });
+  assert.equal(result["status"], "ranked");
+  assert.ok(Array.isArray(result["products"]));
+  assert.equal(result["products"].length, 6);
+  for (const product of result["products"]) {
+    assert.ok(record(product) && record(product["consumerInformation"]));
+    assert.deepEqual(
+      product["consumerInformation"]["specs"],
+      Object.fromEntries(values.map((value, index) => [`attribute${100 + index}`, value])),
+    );
+    assert.equal(product["recommendationPercent"], 57);
+  }
+  malformed = true;
+  const partialResponse = await handler(event);
+  const partialBody: unknown = JSON.parse(partialResponse.body);
+  assert.ok(record(partialBody) && record(partialBody["value"]));
+  assert.deepEqual(partialBody["value"]["aiCalls"], { openai: 0, jev: 4 });
+  assert.ok(Array.isArray(partialBody["value"]["products"]));
+  const partialSource: unknown = partialBody["value"]["products"].find(
+    (product: unknown) => record(product) && product["listingId"] === "shop:source",
+  );
+  assert.ok(
+    record(partialSource) &&
+      record(partialSource["consumerInformation"]) &&
+      record(partialSource["consumerInformation"]["specs"]),
+  );
+  assert.equal(partialSource["consumerInformation"]["specs"]["attribute100"], null);
+  assert.equal(partialSource["consumerInformation"]["specs"]["attribute101"], "200g");
 });
