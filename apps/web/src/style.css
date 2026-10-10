@@ -1236,6 +1236,7 @@ progress::-moz-progress-bar {
   text-underline-offset: 3px;
 }
 
+:root:has(.consumer-home),
 .consumer-ready:has(.consumer-home) {
   background: #f5f8fc;
 }
