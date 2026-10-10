@@ -184,6 +184,21 @@ await test("automatic fields retain units, quotes, contradictions and supplied J
     true,
   );
   assert.equal(information.choices.length, 0);
+  const bracketed = readConsumerInformation(
+    category,
+    "shop:rice",
+    url,
+    "商品説明【総重量】5kg【産地】北海道【保存方法】高温多湿を避ける",
+  );
+  assert.deepEqual(bracketed.specs, { attribute11: "5kg", attribute12: "北海道" });
+  assert.equal(bracketed.facts[0]?.quote, "【総重量】5kg");
+  assert.equal(bracketed.choices.length, 0);
+  assert.equal(
+    readConsumerInformation(category, "shop:rice", url, `【総重量】${"x".repeat(101)}`).specs[
+      "attribute11"
+    ],
+    null,
+  );
   const conflicting = readConsumerInformation(
     category,
     "shop:rice",

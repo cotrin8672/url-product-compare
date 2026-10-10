@@ -128,17 +128,21 @@ export function readConsumerInformation(
   const conflicts: string[] = [];
   const choices: ExtractionChoice[] = [];
   const pc = category.id === "laptop" || category.id === "desktop";
-  const labeled = clauses.flatMap((clause) => {
-    const match = /^([^:：]{1,80})[:：]\s*([^:：]{1,100})$/.exec(clause);
+  const labeled = [
+    ...text.matchAll(/【([^】\n]{1,80})】([^【\n]{1,100})(?=【|\n|$)/g),
+    ...clauses.map((clause) => /^([^:：]{1,80})[:：]\s*([^:：]{1,100})$/.exec(clause)),
+  ].flatMap((match) => {
     const label = match?.[1]?.trim();
     const value = match?.[2]?.trim();
+    const quote = match?.[0];
     return label === undefined ||
       value === undefined ||
+      quote === undefined ||
       label.length === 0 ||
       value.length === 0 ||
       /推奨|おすすめ|選択|選べ|オプション|recommended/i.test(label)
       ? []
-      : [{ label, value, quote: clause }];
+      : [{ label, value, quote }];
   });
   const attributeLabel = (label: string): string =>
     label
