@@ -8,3 +8,8 @@ test-results/
 .env.*
 !.env.example
 *.tsbuildinfo
+.firebase/
+firebase-debug*.log
+firestore-debug.log
+ui-debug.log
+infrastructure/api-configuration.json

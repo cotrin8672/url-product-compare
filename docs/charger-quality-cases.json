@@ -1,0 +1,230 @@
+{
+  "labelledBeforeImplementation": "2026-10-02",
+  "scope": "Manufacturer specification compatibility; three SKUs, correlated scenarios, no measured charging speed or safety claim",
+  "sources": {
+    "MPA-ACCP4245WH": "https://www.elecom.co.jp/products/MPA-ACCP4245WH.html",
+    "MPA-ACCP4365BK": "https://www.elecom.co.jp/products/MPA-ACCP4365BK.html",
+    "MPA-AC113100BK": "https://www.elecom.co.jp/products/MPA-AC113100BK.html"
+  },
+  "deviceFormat": "[protocol, volts, amps, cableAmps or null]; cable voltage 20V unless supplied fifth element",
+  "cases": [
+    {
+      "id": "single-65W",
+      "devices": [["pd", 20, 3.25, 5]],
+      "expected": ["excluded", "eligible", "eligible"]
+    },
+    {
+      "id": "single-45W",
+      "devices": [["pd", 20, 2.25, 3]],
+      "expected": ["eligible", "eligible", "eligible"]
+    },
+    {
+      "id": "single-100W",
+      "devices": [["pd", 20, 5, 5]],
+      "expected": ["excluded", "excluded", "eligible"]
+    },
+    {
+      "id": "single-100W-3A-cable",
+      "devices": [["pd", 20, 5, 3]],
+      "expected": ["excluded", "excluded", "excluded"]
+    },
+    {
+      "id": "single-65W-unknown-cable",
+      "devices": [["pd", 20, 3.25, null]],
+      "expected": ["excluded", "pending", "pending"]
+    },
+    {
+      "id": "single-12V",
+      "devices": [["pd", 12, 3, 3]],
+      "expected": ["eligible", "eligible", "pending"]
+    },
+    {
+      "id": "dual-65W-plus-15W",
+      "devices": [
+        ["pd", 20, 3.25, 5],
+        ["pd", 5, 3, 3]
+      ],
+      "expected": ["excluded", "excluded", "eligible"]
+    },
+    {
+      "id": "dual-45W-plus-15W",
+      "devices": [
+        ["pd", 20, 2.25, 3],
+        ["pd", 5, 3, 3]
+      ],
+      "expected": ["excluded", "eligible", "eligible"]
+    },
+    {
+      "id": "dual-45W-plus-19.98W",
+      "devices": [
+        ["pd", 20, 2.25, 3],
+        ["pd", 9, 2.22, 3]
+      ],
+      "expected": ["excluded", "eligible", "eligible"]
+    },
+    {
+      "id": "dual-45W-plus-exact-20W",
+      "devices": [
+        ["pd", 20, 2.25, 3],
+        ["pd", 9, 2.2222222222222223, 3]
+      ],
+      "expected": ["excluded", "excluded", "eligible"]
+    },
+    {
+      "id": "dual-70W-plus-30W",
+      "devices": [
+        ["pd", 20, 3.5, 5],
+        ["pd", 20, 1.5, 3]
+      ],
+      "expected": ["excluded", "excluded", "eligible"]
+    },
+    {
+      "id": "dual-71W-plus-29W",
+      "devices": [
+        ["pd", 20, 3.55, 5],
+        ["pd", 20, 1.45, 3]
+      ],
+      "expected": ["excluded", "excluded", "pending"]
+    },
+    {
+      "id": "dual-65W-twice",
+      "devices": [
+        ["pd", 20, 3.25, 5],
+        ["pd", 20, 3.25, 5]
+      ],
+      "expected": ["excluded", "excluded", "excluded"]
+    },
+    {
+      "id": "dual-phones-15W",
+      "devices": [
+        ["pd", 5, 3, 3],
+        ["pd", 5, 3, 3]
+      ],
+      "expected": ["eligible", "eligible", "eligible"]
+    },
+    {
+      "id": "dual-phones-25W-and-19.98W",
+      "devices": [
+        ["pd", 9, 2.77, 3],
+        ["pd", 9, 2.22, 3]
+      ],
+      "expected": ["eligible", "eligible", "eligible"]
+    },
+    {
+      "id": "dual-phones-25W-twice",
+      "devices": [
+        ["pd", 9, 2.77, 3],
+        ["pd", 9, 2.77, 3]
+      ],
+      "expected": ["excluded", "excluded", "eligible"]
+    },
+    {
+      "id": "reversed-port-allocation",
+      "devices": [
+        ["pd", 5, 3, 3],
+        ["pd", 20, 3.25, 5]
+      ],
+      "expected": ["excluded", "excluded", "eligible"]
+    },
+    {
+      "id": "single-PPS-11V-3A",
+      "devices": [["pps", 11, 3, 3]],
+      "expected": ["eligible", "eligible", "eligible"]
+    },
+    {
+      "id": "single-PPS-20V-3A",
+      "devices": [["pps", 20, 3, 3]],
+      "expected": ["excluded", "eligible", "eligible"]
+    },
+    {
+      "id": "single-PPS-21V-3.25A-exceeds-65W",
+      "devices": [["pps", 21, 3.25, 5, 48]],
+      "expected": ["excluded", "excluded", "eligible"]
+    },
+    {
+      "id": "single-PPS-below-100W-range",
+      "devices": [["pps", 3.3, 3, 3]],
+      "expected": ["eligible", "eligible", "pending"]
+    },
+    {
+      "id": "single-PPS-11V-5A",
+      "devices": [["pps", 11, 5, 5]],
+      "expected": ["excluded", "excluded", "eligible"]
+    },
+    {
+      "id": "dual-PPS-11V-5A-plus-PD-30W",
+      "devices": [
+        ["pps", 11, 5, 5],
+        ["pd", 20, 1.5, 3]
+      ],
+      "expected": ["excluded", "excluded", "eligible"]
+    },
+    {
+      "id": "dual-PPS-12V-5A",
+      "devices": [
+        ["pps", 12, 5, 5],
+        ["pd", 5, 1, 3]
+      ],
+      "expected": ["excluded", "excluded", "pending"]
+    },
+    {
+      "id": "dual-PPS-5.9V-3A-twice",
+      "devices": [
+        ["pps", 5.9, 3, 3],
+        ["pps", 5.9, 3, 3]
+      ],
+      "expected": ["eligible", "eligible", "eligible"]
+    },
+    {
+      "id": "dual-PPS-6V-3A-twice",
+      "devices": [
+        ["pps", 6, 3, 3],
+        ["pps", 6, 3, 3]
+      ],
+      "expected": ["excluded", "excluded", "eligible"]
+    },
+    {
+      "id": "three-PD-devices-protocol-unverified",
+      "devices": [
+        ["pd", 20, 3.25, 5],
+        ["pd", 5, 2, 3],
+        ["pd", 5, 2, 3]
+      ],
+      "expected": ["excluded", "excluded", "pending"]
+    },
+    {
+      "id": "four-devices",
+      "devices": [
+        ["pd", 5, 1, 3],
+        ["pd", 5, 1, 3],
+        ["pd", 5, 1, 3],
+        ["pd", 5, 1, 3]
+      ],
+      "expected": ["excluded", "excluded", "excluded"]
+    },
+    {
+      "id": "three-100W-laptops",
+      "devices": [
+        ["pd", 20, 5, 5],
+        ["pd", 20, 5, 5],
+        ["pd", 20, 5, 5]
+      ],
+      "expected": ["excluded", "excluded", "excluded"]
+    },
+    {
+      "id": "voltage-rating-cable-too-low",
+      "devices": [["pd", 20, 2, 3, 15]],
+      "expected": ["excluded", "excluded", "excluded"]
+    },
+    {
+      "id": "unknown-cable-supported-power",
+      "devices": [["pd", 9, 2, null]],
+      "expected": ["pending", "pending", "pending"]
+    },
+    {
+      "id": "PD-28V-unsupported-or-over-total",
+      "devices": [["pd", 28, 5, 5, 48]],
+      "expected": ["excluded", "excluded", "excluded"]
+    }
+  ]
+}

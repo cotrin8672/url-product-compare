@@ -1,0 +1,465 @@
+{
+  "version": "jev-prepared-v1",
+  "model": "jev-1.13.0",
+  "labelAuthor": "Codex; labels and clarification fixed before live execution; no independent human validation",
+  "note": "Previous cases are development regressions with clarified lock acceptance and a binary scale, not a controlled attribution of improvement. SM-TA48 is an unused model with manually reviewed factual summaries, not automatic SKU ingestion. AI permissions here cover the self-authored test summaries only.",
+  "products": [
+    {
+      "model": "JNL-S501",
+      "manufacturer": "THERMOS",
+      "color": "Ash Black(ASBK)",
+      "source": "https://www.thermos.jp/english/product/detail/jnl-s501.html",
+      "facts": {
+        "openingMechanism": "Unlock the ring, press the button and open the attached flip lid to drink.",
+        "dishwasherCoverage": "The bottle body and all lid parts are dishwasher compatible, following the manuals."
+      },
+      "factSources": {
+        "openingMechanism": "https://www.thermos.jp/product/series/product_file/file/jnls.pdf",
+        "dishwasherCoverage": "https://www.thermos.jp/product/series/jnl-s01.html"
+      }
+    },
+    {
+      "model": "JOQ-481",
+      "manufacturer": "THERMOS",
+      "color": "アイボリー（IV）",
+      "source": "https://www.thermos.jp/product/detail/joq-481.html",
+      "facts": {
+        "openingMechanism": "Unscrew and remove the screw cap to drink.",
+        "dishwasherCoverage": "The bottle body and all lid parts are dishwasher compatible, following the manuals."
+      },
+      "factSources": {
+        "openingMechanism": "https://www.thermos.jp/product/series/joq-01.html",
+        "dishwasherCoverage": "https://www.thermos.jp/product/series/joq-01.html"
+      }
+    },
+    {
+      "model": "SM-TA48",
+      "manufacturer": "ZOJIRUSHI",
+      "color": "ブラック（BA）",
+      "source": "https://www.zojirushi.co.jp/syohin/bottle/smta/",
+      "facts": {
+        "openingMechanism": "With the supplied one-touch stopper, slide the safety lock then press the button to open the attached lid.",
+        "lidOptions": "A compatible screw-type stopper is sold separately. It can replace the supplied one-touch stopper; it is not part of the standard supplied configuration."
+      },
+      "reviewedClaims": [
+        "SM-TA48",
+        "ロック解除はスライドを動かすだけ",
+        "別売の「せんセット」",
+        "スクリュータイプとつけ替えできる"
+      ]
+    }
+  ],
+  "policy": {
+    "version": "prepared-bottle-evaluation-v1",
+    "category": "vacuum-insulated-drinking-bottle",
+    "mode": "evaluation-only",
+    "tieMargin": 0,
+    "minimumConfidence": 0.7,
+    "criteria": [
+      {
+        "id": "opening_fit",
+        "weight": 1,
+        "factKeys": ["openingMechanism"],
+        "instructions": "Evaluate only the supplied opening mechanism against preferences. Use openingMechanism and its excerpt. An accepted safety-lock release is not a conflict. Do not assume an optional replacement is installed, or infer operating force or one-handed ease.",
+        "levels": [
+          "The verified information conflicts with the explicit preference in preferences.",
+          "The verified information supports the explicit preference in preferences, including the handling steps or separate purchase that preferences explicitly accepts."
+        ]
+      },
+      {
+        "id": "cleaning_fit",
+        "weight": 1,
+        "factKeys": ["dishwasherCoverage"],
+        "instructions": "Evaluate only dishwasher coverage against preferences. Use dishwasherCoverage and its excerpt. Do not infer washing speed, hygiene or operating effort.",
+        "levels": [
+          "The verified information conflicts with the explicit preference in preferences.",
+          "The verified information supports the explicit preference in preferences, including the handling steps or separate purchase that preferences explicitly accepts."
+        ]
+      },
+      {
+        "id": "lid_change_fit",
+        "weight": 1,
+        "factKeys": ["lidOptions"],
+        "instructions": "Evaluate only the supplied configuration and separately purchasable stopper option against preferences. Use lidOptions and its excerpt. Distinguish the ability to buy and replace a stopper later from both stoppers being included in the box.",
+        "levels": [
+          "The verified information conflicts with the explicit preference in preferences.",
+          "The verified information supports the explicit preference in preferences, including the handling steps or separate purchase that preferences explicitly accepts."
+        ]
+      },
+      {
+        "id": "force_fit",
+        "weight": 1,
+        "factKeys": ["operatingForce"],
+        "instructions": "Evaluate only measured opening force against preferences. Do not derive operating force from the opening method or marketing language.",
+        "levels": [
+          "The verified information conflicts with the explicit preference in preferences.",
+          "The verified information supports the explicit preference in preferences, including the handling steps or separate purchase that preferences explicitly accepts."
+        ]
+      }
+    ]
+  },
+  "cases": [
+    {
+      "id": "button-en-jnl",
+      "group": "previous-failure-regression",
+      "model": "JNL-S501",
+      "preferences": [
+        {
+          "id": "opening_fit",
+          "status": "confirmed",
+          "preference": "I prefer a button-operated attached lid and do not want to unscrew and remove a cap to drink. Unlocking a safety lock before pressing the button is acceptable."
+        },
+        {
+          "id": "cleaning_fit",
+          "status": "confirmed",
+          "preference": "I want the bottle body and every lid part to be dishwasher compatible, following the manuals."
+        }
+      ],
+      "unverifiedKeys": [],
+      "expectedError": null,
+      "expected": { "opening_fit": 1, "cleaning_fit": 1 }
+    },
+    {
+      "id": "button-en-joq",
+      "group": "previous-failure-regression",
+      "model": "JOQ-481",
+      "preferences": [
+        {
+          "id": "opening_fit",
+          "status": "confirmed",
+          "preference": "I prefer a button-operated attached lid and do not want to unscrew and remove a cap to drink. Unlocking a safety lock before pressing the button is acceptable."
+        },
+        {
+          "id": "cleaning_fit",
+          "status": "confirmed",
+          "preference": "I want the bottle body and every lid part to be dishwasher compatible, following the manuals."
+        }
+      ],
+      "unverifiedKeys": [],
+      "expectedError": null,
+      "expected": { "opening_fit": 0, "cleaning_fit": 1 }
+    },
+    {
+      "id": "screw-en-jnl",
+      "group": "previous-failure-regression",
+      "model": "JNL-S501",
+      "preferences": [
+        {
+          "id": "opening_fit",
+          "status": "confirmed",
+          "preference": "I prefer a screw cap that I unscrew and fully remove to drink. An attached button-operated lid is not my preferred method."
+        },
+        {
+          "id": "cleaning_fit",
+          "status": "confirmed",
+          "preference": "I want the bottle body and every lid part to be dishwasher compatible, following the manuals."
+        }
+      ],
+      "unverifiedKeys": [],
+      "expectedError": null,
+      "expected": { "opening_fit": 0, "cleaning_fit": 1 }
+    },
+    {
+      "id": "screw-en-joq",
+      "group": "previous-failure-regression",
+      "model": "JOQ-481",
+      "preferences": [
+        {
+          "id": "opening_fit",
+          "status": "confirmed",
+          "preference": "I prefer a screw cap that I unscrew and fully remove to drink. An attached button-operated lid is not my preferred method."
+        },
+        {
+          "id": "cleaning_fit",
+          "status": "confirmed",
+          "preference": "I want the bottle body and every lid part to be dishwasher compatible, following the manuals."
+        }
+      ],
+      "unverifiedKeys": [],
+      "expectedError": null,
+      "expected": { "opening_fit": 1, "cleaning_fit": 1 }
+    },
+    {
+      "id": "button-ja-jnl",
+      "group": "previous-failure-regression",
+      "model": "JNL-S501",
+      "preferences": [
+        {
+          "id": "opening_fit",
+          "status": "confirmed",
+          "preference": "飲むときにフタを回して外さず、ボタンで本体につながったフタを開く方式を希望。ボタンを押す前の安全ロック解除は許容する。"
+        },
+        {
+          "id": "cleaning_fit",
+          "status": "confirmed",
+          "preference": "I want the bottle body and every lid part to be dishwasher compatible, following the manuals."
+        }
+      ],
+      "unverifiedKeys": [],
+      "expectedError": null,
+      "expected": { "opening_fit": 1, "cleaning_fit": 1 }
+    },
+    {
+      "id": "button-ja-joq",
+      "group": "previous-failure-regression",
+      "model": "JOQ-481",
+      "preferences": [
+        {
+          "id": "opening_fit",
+          "status": "confirmed",
+          "preference": "飲むときにフタを回して外さず、ボタンで本体につながったフタを開く方式を希望。ボタンを押す前の安全ロック解除は許容する。"
+        },
+        {
+          "id": "cleaning_fit",
+          "status": "confirmed",
+          "preference": "I want the bottle body and every lid part to be dishwasher compatible, following the manuals."
+        }
+      ],
+      "unverifiedKeys": [],
+      "expectedError": null,
+      "expected": { "opening_fit": 0, "cleaning_fit": 1 }
+    },
+    {
+      "id": "screw-ja-jnl",
+      "group": "previous-failure-regression",
+      "model": "JNL-S501",
+      "preferences": [
+        {
+          "id": "opening_fit",
+          "status": "confirmed",
+          "preference": "飲むときはフタをねじって完全に外すスクリュー方式を希望。ボタンで本体につながったフタを開く方式は希望しない。"
+        },
+        {
+          "id": "cleaning_fit",
+          "status": "confirmed",
+          "preference": "I want the bottle body and every lid part to be dishwasher compatible, following the manuals."
+        }
+      ],
+      "unverifiedKeys": [],
+      "expectedError": null,
+      "expected": { "opening_fit": 0, "cleaning_fit": 1 }
+    },
+    {
+      "id": "screw-ja-joq",
+      "group": "previous-failure-regression",
+      "model": "JOQ-481",
+      "preferences": [
+        {
+          "id": "opening_fit",
+          "status": "confirmed",
+          "preference": "飲むときはフタをねじって完全に外すスクリュー方式を希望。ボタンで本体につながったフタを開く方式は希望しない。"
+        },
+        {
+          "id": "cleaning_fit",
+          "status": "confirmed",
+          "preference": "I want the bottle body and every lid part to be dishwasher compatible, following the manuals."
+        }
+      ],
+      "unverifiedKeys": [],
+      "expectedError": null,
+      "expected": { "opening_fit": 1, "cleaning_fit": 1 }
+    },
+    {
+      "id": "unknown-opening",
+      "group": "previous-failure-regression",
+      "model": "JNL-S501",
+      "preferences": [
+        {
+          "id": "opening_fit",
+          "status": "confirmed",
+          "preference": "I prefer a button-operated attached lid and do not want to unscrew and remove a cap to drink. Unlocking a safety lock before pressing the button is acceptable."
+        },
+        {
+          "id": "cleaning_fit",
+          "status": "confirmed",
+          "preference": "I want the bottle body and every lid part to be dishwasher compatible, following the manuals."
+        }
+      ],
+      "unverifiedKeys": ["openingMechanism"],
+      "expectedError": "insufficient_evidence",
+      "expected": { "cleaning_fit": 1 }
+    },
+    {
+      "id": "unknown-cleaning",
+      "group": "previous-failure-regression",
+      "model": "JOQ-481",
+      "preferences": [
+        {
+          "id": "opening_fit",
+          "status": "confirmed",
+          "preference": "I prefer a screw cap that I unscrew and fully remove to drink. An attached button-operated lid is not my preferred method."
+        },
+        {
+          "id": "cleaning_fit",
+          "status": "confirmed",
+          "preference": "I want the bottle body and every lid part to be dishwasher compatible, following the manuals."
+        }
+      ],
+      "unverifiedKeys": ["dishwasherCoverage"],
+      "expectedError": "insufficient_evidence",
+      "expected": { "opening_fit": 1 }
+    },
+    {
+      "id": "no-opening-preference",
+      "group": "previous-failure-regression",
+      "model": "JOQ-481",
+      "preferences": [
+        { "id": "opening_fit", "status": "not_applicable" },
+        {
+          "id": "cleaning_fit",
+          "status": "confirmed",
+          "preference": "I want the bottle body and every lid part to be dishwasher compatible, following the manuals."
+        }
+      ],
+      "unverifiedKeys": [],
+      "expectedError": null,
+      "expected": { "cleaning_fit": 1 }
+    },
+    {
+      "id": "no-cleaning-preference",
+      "group": "previous-failure-regression",
+      "model": "JNL-S501",
+      "preferences": [
+        {
+          "id": "opening_fit",
+          "status": "confirmed",
+          "preference": "I prefer a button-operated attached lid and do not want to unscrew and remove a cap to drink. Unlocking a safety lock before pressing the button is acceptable."
+        },
+        { "id": "cleaning_fit", "status": "not_applicable" }
+      ],
+      "unverifiedKeys": [],
+      "expectedError": null,
+      "expected": { "opening_fit": 1 }
+    },
+    {
+      "id": "smta-supplied-button-en",
+      "group": "unseen-model",
+      "model": "SM-TA48",
+      "preferences": [
+        {
+          "id": "opening_fit",
+          "status": "confirmed",
+          "preference": "I prefer a button-operated attached lid and do not want to unscrew and remove a cap to drink. Unlocking a safety lock before pressing the button is acceptable."
+        }
+      ],
+      "unverifiedKeys": [],
+      "expectedError": null,
+      "expected": { "opening_fit": 1 }
+    },
+    {
+      "id": "smta-supplied-button-ja",
+      "group": "unseen-model",
+      "model": "SM-TA48",
+      "preferences": [
+        {
+          "id": "opening_fit",
+          "status": "confirmed",
+          "preference": "飲むときにフタを回して外さず、ボタンで本体につながったフタを開く方式を希望。ボタンを押す前の安全ロック解除は許容する。"
+        }
+      ],
+      "unverifiedKeys": [],
+      "expectedError": null,
+      "expected": { "opening_fit": 1 }
+    },
+    {
+      "id": "smta-supplied-screw-en",
+      "group": "unseen-model",
+      "model": "SM-TA48",
+      "preferences": [
+        {
+          "id": "opening_fit",
+          "status": "confirmed",
+          "preference": "I prefer a screw cap that I unscrew and fully remove to drink. An attached button-operated lid is not my preferred method."
+        }
+      ],
+      "unverifiedKeys": [],
+      "expectedError": null,
+      "expected": { "opening_fit": 0 }
+    },
+    {
+      "id": "smta-supplied-screw-ja",
+      "group": "unseen-model",
+      "model": "SM-TA48",
+      "preferences": [
+        {
+          "id": "opening_fit",
+          "status": "confirmed",
+          "preference": "飲むときはフタをねじって完全に外すスクリュー方式を希望。ボタンで本体につながったフタを開く方式は希望しない。"
+        }
+      ],
+      "unverifiedKeys": [],
+      "expectedError": null,
+      "expected": { "opening_fit": 0 }
+    },
+    {
+      "id": "smta-later-change-accepted",
+      "group": "unseen-model",
+      "model": "SM-TA48",
+      "preferences": [
+        {
+          "id": "lid_change_fit",
+          "status": "confirmed",
+          "preference": "I want the option to change to a screw-type stopper later. Buying a separate compatible stopper is acceptable; I do not require it in the box."
+        }
+      ],
+      "unverifiedKeys": [],
+      "expectedError": null,
+      "expected": { "lid_change_fit": 1 }
+    },
+    {
+      "id": "smta-both-in-box-required",
+      "group": "unseen-model",
+      "model": "SM-TA48",
+      "preferences": [
+        {
+          "id": "lid_change_fit",
+          "status": "confirmed",
+          "preference": "I want both one-touch and screw-type stoppers supplied with the bottle, without buying a separate stopper."
+        }
+      ],
+      "unverifiedKeys": [],
+      "expectedError": null,
+      "expected": { "lid_change_fit": 0 }
+    },
+    {
+      "id": "smta-dishwasher-unverified",
+      "group": "unseen-model",
+      "model": "SM-TA48",
+      "preferences": [
+        {
+          "id": "cleaning_fit",
+          "status": "confirmed",
+          "preference": "I want the bottle body and every lid part to be dishwasher compatible, following the manuals."
+        }
+      ],
+      "unverifiedKeys": [],
+      "expectedError": "insufficient_evidence",
+      "expected": {}
+    },
+    {
+      "id": "smta-opening-ambiguous",
+      "group": "unseen-model",
+      "model": "SM-TA48",
+      "preferences": [{ "id": "opening_fit", "status": "needs_confirmation" }],
+      "unverifiedKeys": [],
+      "expectedError": "conditions_need_confirmation",
+      "expected": {}
+    },
+    {
+      "id": "smta-force-unverified",
+      "group": "unseen-model",
+      "model": "SM-TA48",
+      "preferences": [
+        {
+          "id": "force_fit",
+          "status": "confirmed",
+          "preference": "I want to know that opening needs less than 5 newtons of force."
+        }
+      ],
+      "unverifiedKeys": [],
+      "expectedError": "insufficient_evidence",
+      "expected": {}
+    }
+  ],
+  "repeats": []
+}

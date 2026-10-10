@@ -1,46 +1,47 @@
-import { createApiHandler } from "../../../packages/backend/src/bootstrap.js";
+import {
+  createApiHandler,
+  createPublicConsumerApi,
+} from "../../../packages/backend/src/bootstrap.js";
 
-const lambda = process.env["AWS_LAMBDA_FUNCTION_NAME"] !== undefined;
-const resourceArn = process.env["DB_RESOURCE_ARN"];
-const secretArn = process.env["DB_SECRET_ARN"];
-const database = process.env["DB_NAME"];
-const configured =
-  lambda || resourceArn !== undefined || secretArn !== undefined || database !== undefined;
-if (
-  configured &&
-  (resourceArn === undefined ||
-    !/^arn:aws(?:-cn|-us-gov)?:rds:[a-z0-9-]+:\d{12}:cluster:[a-zA-Z0-9-]+$/.test(resourceArn) ||
-    secretArn === undefined ||
-    !/^arn:aws(?:-cn|-us-gov)?:secretsmanager:[a-z0-9-]+:\d{12}:secret:[a-zA-Z0-9/_+=.@-]+$/.test(
-      secretArn,
-    ) ||
-    database === undefined ||
-    !/^[a-z][a-z0-9_]{0,62}$/.test(database))
-) {
-  throw new Error("Valid DB_RESOURCE_ARN, DB_SECRET_ARN and DB_NAME are required together");
-}
-export const handler = createApiHandler(
-  resourceArn !== undefined && secretArn !== undefined && database !== undefined
-    ? { resourceArn, secretArn, database }
-    : null,
+const allowedOrigin = process.env["API_ALLOWED_ORIGIN"] ?? process.env["RENDER_EXTERNAL_URL"];
+
+const internal = createApiHandler(
+  false,
   [
     "RAKUTEN_APPLICATION_ID",
     "RAKUTEN_ACCESS_KEY",
     "RAKUTEN_AFFILIATE_ID",
     "RAKUTEN_ALLOWED_ORIGIN",
     "RAKUTEN_DATA_AUTHORIZED_UNTIL",
-    "API_ACCESS_TOKEN",
   ].some((name) => process.env[name] !== undefined)
     ? {
         applicationId: process.env["RAKUTEN_APPLICATION_ID"],
         accessKey: process.env["RAKUTEN_ACCESS_KEY"],
         affiliateId: process.env["RAKUTEN_AFFILIATE_ID"],
-        allowedOrigin: process.env["RAKUTEN_ALLOWED_ORIGIN"],
+        allowedOrigin: process.env["RAKUTEN_ALLOWED_ORIGIN"] ?? process.env["RENDER_EXTERNAL_URL"],
         authorizedUntil: process.env["RAKUTEN_DATA_AUTHORIZED_UNTIL"],
+        ...(process.env["RAKUTEN_RESULT_STORAGE_AUTHORIZED_UNTIL"] === undefined
+          ? {}
+          : {
+              resultStorageAuthorizedUntil: process.env["RAKUTEN_RESULT_STORAGE_AUTHORIZED_UNTIL"],
+            }),
         accessToken: process.env["API_ACCESS_TOKEN"],
       }
     : null,
   process.env["OPENAI_API_KEY"] === undefined || process.env["OPENAI_API_KEY"].trim() === ""
     ? null
     : { apiKey: process.env["OPENAI_API_KEY"], model: process.env["OPENAI_MODEL"] ?? "gpt-6-luna" },
+  process.env["JEV_API_KEY"] === undefined || process.env["JEV_API_KEY"].trim() === ""
+    ? null
+    : { apiKey: process.env["JEV_API_KEY"], model: process.env["JEV_MODEL"] ?? "jev-1.13.0" },
+  {
+    ...(process.env["API_ACCESS_TOKEN"] === undefined
+      ? {}
+      : { apiAccessToken: process.env["API_ACCESS_TOKEN"] }),
+    ...(allowedOrigin === undefined ? {} : { allowedOrigin }),
+  },
 );
+export const handler = createPublicConsumerApi(internal, {
+  accessToken: process.env["API_ACCESS_TOKEN"] ?? null,
+  allowedOrigin: allowedOrigin ?? "http://127.0.0.1:5173",
+});

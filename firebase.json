@@ -1,0 +1,39 @@
+{
+  "functions": {
+    "source": "apps/api/dist/firebase",
+    "codebase": "comparison",
+    "runtime": "nodejs22",
+    "ignore": ["node_modules", ".git", "*.log", "src", "dist", "tsconfig.json"],
+    "predeploy": ["rtk mise run verify", "rtk mise run firebase:package"]
+  },
+  "hosting": {
+    "public": "apps/web/dist",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "predeploy": ["rtk mise exec -- pnpm --filter @app/web build"],
+    "rewrites": [
+      {
+        "source": "/api{,/**}",
+        "function": { "functionId": "api", "region": "asia-northeast1", "pinTag": true }
+      },
+      { "source": "**", "destination": "/index.html" }
+    ],
+    "headers": [
+      { "source": "/api{,/**}", "headers": [{ "key": "Cache-Control", "value": "no-store" }] },
+      {
+        "source": "/assets/**",
+        "headers": [{ "key": "Cache-Control", "value": "public,max-age=31536000,immutable" }]
+      }
+    ]
+  },
+  "firestore": {
+    "rules": "infrastructure/firestore.rules",
+    "indexes": "infrastructure/firestore.indexes.json"
+  },
+  "emulators": {
+    "functions": { "host": "127.0.0.1", "port": 5001 },
+    "hosting": { "host": "127.0.0.1", "port": 5000 },
+    "firestore": { "host": "127.0.0.1", "port": 8080 },
+    "ui": { "enabled": false },
+    "singleProjectMode": true
+  }
+}

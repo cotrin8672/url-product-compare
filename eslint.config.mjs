@@ -250,10 +250,15 @@ export default defineConfig(
                 ]),
               ],
             },
-            // Aurora transport uses the approved official SDK; core comparison stays independent.
+            // Firebase storage uses the approved Admin SDK only in its adapter.
             {
-              from: { file: { path: "packages/backend/src/infrastructure/aws/aurora.ts" } },
-              allow: external("@aws-sdk/client-rds-data"),
+              from: { file: { path: "packages/backend/src/infrastructure/firebase/firestore.ts" } },
+              allow: external("firebase-admin"),
+            },
+            // Firebase HTTP triggers and secret bindings are wired only at bootstrap.
+            {
+              from: { file: { path: "packages/backend/src/bootstrap.ts" } },
+              allow: external("firebase-functions"),
             },
             {
               from: { file: { categories: "bootstrap" } },
@@ -265,7 +270,9 @@ export default defineConfig(
             // Tests use the same safety rules; only the runner dependency is added.
             // Transport tests exercise bootstrap wiring and its infrastructure adapters.
             {
-              from: { file: { path: "packages/backend/src/infrastructure/testing/aws.test.ts" } },
+              from: {
+                file: { path: "packages/backend/src/infrastructure/testing/firebase.test.ts" },
+              },
               allow: [local("infrastructure"), { to: { file: { categories: "bootstrap" } } }],
             },
             { from: { file: { path: "**/*.test.ts" } }, allow: external("vitest") },

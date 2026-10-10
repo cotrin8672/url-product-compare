@@ -254,6 +254,15 @@ try {
     ["boundaries/dependencies"],
     "packages/backend/src/comparison/probe.ts",
   );
+  // Firebase SDK access remains confined to bootstrap and the storage adapter.
+  for (const [file, dependency] of [
+    ["apps/web/src/probe.ts", "firebase-admin/app"],
+    ["apps/api/src/probe.ts", "firebase-functions/v2/https"],
+    ["packages/backend/src/comparison/probe.ts", "firebase-admin/firestore"],
+    ["packages/backend/src/infrastructure/http/probe.ts", "firebase-admin/firestore"],
+  ]) {
+    await check(`import '${dependency}'; export {};`, ["boundaries/dependencies"], file);
+  }
   await put("packages/contracts/src/index.ts", "export const value = 1;");
   await check(
     "import { value } from '../../../packages/contracts/src/index.js'; export const price = value;",

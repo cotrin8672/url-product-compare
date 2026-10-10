@@ -4,7 +4,7 @@ const [mode, input, ...extra] = process.argv.slice(2);
 if (mode === "--jev-demo" && input === undefined && extra.length === 0) {
   const result = await rankDemoWithJev(
     process.env["TYPESAFE_API_KEY"] ?? "",
-    process.env["TYPESAFE_MODEL"] ?? "jev-latest",
+    process.env["TYPESAFE_MODEL"] ?? "jev-1.13.0",
   );
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
   process.exitCode = result.tag === "ok" ? 0 : 1;

@@ -1,0 +1,507 @@
+{
+  "replayedAt": "2026-10-02T13:19:56.361Z",
+  "inputSha256": "259acdb44d748ef84a3c9fe54a4bf05f5ef11632deb65d0baa653cb64ba375af",
+  "note": "Offline revalidation of the same live responses; no API calls and no relabeling",
+  "rows": [
+    {
+      "id": "button-en-jnl",
+      "group": "real-en",
+      "repeat": 0,
+      "originalValidation": "ok",
+      "axes": {
+        "opening_fit": {
+          "validation": "ok",
+          "expected": 2,
+          "decision": "abstain",
+          "agrees": false,
+          "score": 1.23,
+          "confidence": 0.64
+        },
+        "cleaning_fit": {
+          "validation": "ok",
+          "expected": 2,
+          "decision": 2,
+          "agrees": true,
+          "score": 2,
+          "confidence": 1
+        }
+      },
+      "candidateDecision": "withheld"
+    },
+    {
+      "id": "button-en-joq",
+      "group": "real-en",
+      "repeat": 0,
+      "originalValidation": "ok",
+      "axes": {
+        "opening_fit": {
+          "validation": "ok",
+          "expected": 0,
+          "decision": 0,
+          "agrees": true,
+          "score": 0.02,
+          "confidence": 0.98
+        },
+        "cleaning_fit": {
+          "validation": "ok",
+          "expected": 2,
+          "decision": 2,
+          "agrees": true,
+          "score": 2,
+          "confidence": 1
+        }
+      },
+      "candidateDecision": "scored"
+    },
+    {
+      "id": "screw-en-jnl",
+      "group": "real-en",
+      "repeat": 0,
+      "originalValidation": "ok",
+      "axes": {
+        "opening_fit": {
+          "validation": "ok",
+          "expected": 0,
+          "decision": 0,
+          "agrees": true,
+          "score": 0.01,
+          "confidence": 0.99
+        },
+        "cleaning_fit": {
+          "validation": "ok",
+          "expected": 2,
+          "decision": 2,
+          "agrees": true,
+          "score": 2,
+          "confidence": 1
+        }
+      },
+      "candidateDecision": "scored"
+    },
+    {
+      "id": "screw-en-joq",
+      "group": "real-en",
+      "repeat": 0,
+      "originalValidation": "ok",
+      "axes": {
+        "opening_fit": {
+          "validation": "ok",
+          "expected": 2,
+          "decision": 2,
+          "agrees": true,
+          "score": 1.99,
+          "confidence": 0.99
+        },
+        "cleaning_fit": {
+          "validation": "ok",
+          "expected": 2,
+          "decision": 2,
+          "agrees": true,
+          "score": 2,
+          "confidence": 1
+        }
+      },
+      "candidateDecision": "scored"
+    },
+    {
+      "id": "button-ja-jnl",
+      "group": "real-ja",
+      "repeat": 0,
+      "originalValidation": "ok",
+      "axes": {
+        "opening_fit": {
+          "validation": "ok",
+          "expected": 2,
+          "decision": 1,
+          "agrees": false,
+          "score": 1.05,
+          "confidence": 0.89
+        },
+        "cleaning_fit": {
+          "validation": "ok",
+          "expected": 2,
+          "decision": 2,
+          "agrees": true,
+          "score": 2,
+          "confidence": 1
+        }
+      },
+      "candidateDecision": "scored"
+    },
+    {
+      "id": "button-ja-joq",
+      "group": "real-ja",
+      "repeat": 0,
+      "originalValidation": "ok",
+      "axes": {
+        "opening_fit": {
+          "validation": "ok",
+          "expected": 0,
+          "decision": 0,
+          "agrees": true,
+          "score": 0.05,
+          "confidence": 0.93
+        },
+        "cleaning_fit": {
+          "validation": "ok",
+          "expected": 2,
+          "decision": 2,
+          "agrees": true,
+          "score": 1.99,
+          "confidence": 0.99
+        }
+      },
+      "candidateDecision": "scored"
+    },
+    {
+      "id": "screw-ja-jnl",
+      "group": "real-ja",
+      "repeat": 0,
+      "originalValidation": "ok",
+      "axes": {
+        "opening_fit": {
+          "validation": "ok",
+          "expected": 0,
+          "decision": 0,
+          "agrees": true,
+          "score": 0.03,
+          "confidence": 0.95
+        },
+        "cleaning_fit": {
+          "validation": "ok",
+          "expected": 2,
+          "decision": 2,
+          "agrees": true,
+          "score": 2,
+          "confidence": 1
+        }
+      },
+      "candidateDecision": "scored"
+    },
+    {
+      "id": "screw-ja-joq",
+      "group": "real-ja",
+      "repeat": 0,
+      "originalValidation": "ok",
+      "axes": {
+        "opening_fit": {
+          "validation": "ok",
+          "expected": 2,
+          "decision": 2,
+          "agrees": true,
+          "score": 1.99,
+          "confidence": 0.99
+        },
+        "cleaning_fit": {
+          "validation": "ok",
+          "expected": 2,
+          "decision": 2,
+          "agrees": true,
+          "score": 2,
+          "confidence": 1
+        }
+      },
+      "candidateDecision": "scored"
+    },
+    {
+      "id": "unknown-opening",
+      "group": "missing-diagnostic",
+      "repeat": 0,
+      "originalValidation": "ok",
+      "axes": {
+        "opening_fit": {
+          "validation": "ok",
+          "expected": "abstain",
+          "decision": "abstain",
+          "agrees": true,
+          "score": 0.85,
+          "confidence": 0
+        },
+        "cleaning_fit": {
+          "validation": "ok",
+          "expected": 2,
+          "decision": 2,
+          "agrees": true,
+          "score": 2,
+          "confidence": 1
+        }
+      },
+      "candidateDecision": "withheld"
+    },
+    {
+      "id": "unknown-cleaning",
+      "group": "missing-diagnostic",
+      "repeat": 0,
+      "originalValidation": "ok",
+      "axes": {
+        "opening_fit": {
+          "validation": "ok",
+          "expected": 2,
+          "decision": 2,
+          "agrees": true,
+          "score": 1.98,
+          "confidence": 0.97
+        },
+        "cleaning_fit": {
+          "validation": "ok",
+          "expected": "abstain",
+          "decision": 0,
+          "agrees": false,
+          "score": 0.1,
+          "confidence": 0.84
+        }
+      },
+      "candidateDecision": "scored"
+    },
+    {
+      "id": "no-opening-preference",
+      "group": "irrelevant-diagnostic",
+      "repeat": 0,
+      "originalValidation": "ok",
+      "axes": {
+        "opening_fit": {
+          "validation": "ok",
+          "expected": "abstain",
+          "decision": "abstain",
+          "agrees": true,
+          "score": 1.6,
+          "confidence": 0.4
+        },
+        "cleaning_fit": {
+          "validation": "ok",
+          "expected": 2,
+          "decision": 2,
+          "agrees": true,
+          "score": 2,
+          "confidence": 1
+        }
+      },
+      "candidateDecision": "withheld"
+    },
+    {
+      "id": "no-cleaning-preference",
+      "group": "irrelevant-diagnostic",
+      "repeat": 0,
+      "originalValidation": "ok",
+      "axes": {
+        "opening_fit": {
+          "validation": "ok",
+          "expected": 2,
+          "decision": 1,
+          "agrees": false,
+          "score": 1.15,
+          "confidence": 0.77
+        },
+        "cleaning_fit": {
+          "validation": "ok",
+          "expected": "abstain",
+          "decision": 2,
+          "agrees": false,
+          "score": 1.98,
+          "confidence": 0.97
+        }
+      },
+      "candidateDecision": "scored"
+    },
+    {
+      "id": "button-ja-joq",
+      "group": "real-ja",
+      "repeat": 1,
+      "originalValidation": "ok",
+      "axes": {
+        "opening_fit": {
+          "validation": "ok",
+          "expected": 0,
+          "decision": 0,
+          "agrees": true,
+          "score": 0.04,
+          "confidence": 0.94
+        },
+        "cleaning_fit": {
+          "validation": "ok",
+          "expected": 2,
+          "decision": 2,
+          "agrees": true,
+          "score": 1.99,
+          "confidence": 0.99
+        }
+      },
+      "candidateDecision": "scored"
+    },
+    {
+      "id": "button-ja-joq",
+      "group": "real-ja",
+      "repeat": 2,
+      "originalValidation": "ok",
+      "axes": {
+        "opening_fit": {
+          "validation": "ok",
+          "expected": 0,
+          "decision": 0,
+          "agrees": true,
+          "score": 0.05,
+          "confidence": 0.93
+        },
+        "cleaning_fit": {
+          "validation": "ok",
+          "expected": 2,
+          "decision": 2,
+          "agrees": true,
+          "score": 1.99,
+          "confidence": 0.99
+        }
+      },
+      "candidateDecision": "scored"
+    },
+    {
+      "id": "button-ja-joq",
+      "group": "real-ja",
+      "repeat": 3,
+      "originalValidation": "ok",
+      "axes": {
+        "opening_fit": {
+          "validation": "ok",
+          "expected": 0,
+          "decision": 0,
+          "agrees": true,
+          "score": 0.05,
+          "confidence": 0.92
+        },
+        "cleaning_fit": {
+          "validation": "ok",
+          "expected": 2,
+          "decision": 2,
+          "agrees": true,
+          "score": 1.99,
+          "confidence": 0.99
+        }
+      },
+      "candidateDecision": "scored"
+    },
+    {
+      "id": "button-ja-joq",
+      "group": "real-ja",
+      "repeat": 4,
+      "originalValidation": "ok",
+      "axes": {
+        "opening_fit": {
+          "validation": "ok",
+          "expected": 0,
+          "decision": 0,
+          "agrees": true,
+          "score": 0.05,
+          "confidence": 0.93
+        },
+        "cleaning_fit": {
+          "validation": "ok",
+          "expected": 2,
+          "decision": 2,
+          "agrees": true,
+          "score": 1.99,
+          "confidence": 0.99
+        }
+      },
+      "candidateDecision": "scored"
+    },
+    {
+      "id": "screw-ja-jnl",
+      "group": "real-ja",
+      "repeat": 1,
+      "originalValidation": "ok",
+      "axes": {
+        "opening_fit": {
+          "validation": "ok",
+          "expected": 0,
+          "decision": 0,
+          "agrees": true,
+          "score": 0.02,
+          "confidence": 0.96
+        },
+        "cleaning_fit": {
+          "validation": "ok",
+          "expected": 2,
+          "decision": 2,
+          "agrees": true,
+          "score": 2,
+          "confidence": 1
+        }
+      },
+      "candidateDecision": "scored"
+    },
+    {
+      "id": "screw-ja-jnl",
+      "group": "real-ja",
+      "repeat": 2,
+      "originalValidation": "ok",
+      "axes": {
+        "opening_fit": {
+          "validation": "ok",
+          "expected": 0,
+          "decision": 0,
+          "agrees": true,
+          "score": 0.02,
+          "confidence": 0.96
+        },
+        "cleaning_fit": {
+          "validation": "ok",
+          "expected": 2,
+          "decision": 2,
+          "agrees": true,
+          "score": 2,
+          "confidence": 1
+        }
+      },
+      "candidateDecision": "scored"
+    },
+    {
+      "id": "screw-ja-jnl",
+      "group": "real-ja",
+      "repeat": 3,
+      "originalValidation": "ok",
+      "axes": {
+        "opening_fit": {
+          "validation": "ok",
+          "expected": 0,
+          "decision": 0,
+          "agrees": true,
+          "score": 0.02,
+          "confidence": 0.97
+        },
+        "cleaning_fit": {
+          "validation": "ok",
+          "expected": 2,
+          "decision": 2,
+          "agrees": true,
+          "score": 2,
+          "confidence": 1
+        }
+      },
+      "candidateDecision": "scored"
+    },
+    {
+      "id": "screw-ja-jnl",
+      "group": "real-ja",
+      "repeat": 4,
+      "originalValidation": "ok",
+      "axes": {
+        "opening_fit": {
+          "validation": "ok",
+          "expected": 0,
+          "decision": 0,
+          "agrees": true,
+          "score": 0.03,
+          "confidence": 0.95
+        },
+        "cleaning_fit": {
+          "validation": "ok",
+          "expected": 2,
+          "decision": 2,
+          "agrees": true,
+          "score": 2,
+          "confidence": 1
+        }
+      },
+      "candidateDecision": "scored"
+    }
+  ]
+}

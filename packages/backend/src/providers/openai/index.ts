@@ -3,7 +3,7 @@ import type { Result } from "../../comparison/algebra.js";
 import { record } from "../../comparison/values.js";
 import type { Schema, SchemaError } from "../../comparison/values.js";
 
-type Configuration = Readonly<{ apiKey: string; model: string }>;
+export type Configuration = Readonly<{ apiKey: string; model: string }>;
 export const openaiConfigurationSchema: Schema<Configuration> = Object.freeze({
   parse(input: unknown): Result<Configuration, SchemaError> {
     if (

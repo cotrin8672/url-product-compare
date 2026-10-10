@@ -1,0 +1,1505 @@
+{
+  "evaluatedAt": "2026-10-02T14:26:12.530Z",
+  "inputSha256": "079d599138399eebdb1db5783db676d2c8d7839b4e72fb6d765e59c87b86fc66",
+  "model": "jev-1.13.0",
+  "note": "Previous cases are development regressions with clarified lock acceptance and a binary scale, not a controlled attribution of improvement. SM-TA48 is an unused model with manually reviewed factual summaries, not automatic SKU ingestion. AI permissions here cover the self-authored test summaries only.",
+  "replay": true,
+  "totalCalls": 24,
+  "rows": [
+    {
+      "id": "button-en-jnl",
+      "group": "previous-failure-regression",
+      "model": "JNL-S501",
+      "expectedError": null,
+      "actualError": null,
+      "agrees": true,
+      "calls": 2,
+      "axes": [
+        {
+          "id": "opening_fit",
+          "score": 1,
+          "confidence": 1,
+          "probabilities": { "0": 0, "1": 1 },
+          "expected": 1,
+          "decision": 1,
+          "agrees": true
+        },
+        {
+          "id": "cleaning_fit",
+          "score": 1,
+          "confidence": 1,
+          "probabilities": { "0": 0, "1": 1 },
+          "expected": 1,
+          "decision": 1,
+          "agrees": true
+        }
+      ],
+      "transport": [
+        {
+          "request": {
+            "model": "jev-1.13.0",
+            "state": {
+              "category": "vacuum-insulated-drinking-bottle",
+              "mode": "evaluation-only",
+              "preferences": "I prefer a button-operated attached lid and do not want to unscrew and remove a cap to drink. Unlocking a safety lock before pressing the button is acceptable.",
+              "facts": {
+                "openingMechanism": "Unlock the ring, press the button and open the attached flip lid to drink."
+              },
+              "excerpts": {
+                "openingMechanism": "Unlock the ring, press the button and open the attached flip lid to drink."
+              }
+            },
+            "questions": {
+              "opening_fit": {
+                "type": "score",
+                "instructions": "Evaluate only the supplied opening mechanism against preferences. Use openingMechanism and its excerpt. An accepted safety-lock release is not a conflict. Do not assume an optional replacement is installed, or infer operating force or one-handed ease.",
+                "criteria": [
+                  "The verified information conflicts with the explicit preference in preferences.",
+                  "The verified information supports the explicit preference in preferences, including the handling steps or separate purchase that preferences explicitly accepts."
+                ]
+              }
+            }
+          },
+          "status": 200,
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "opening_fit": {
+                "type": "score",
+                "score": 1,
+                "confidence": 1,
+                "legend": {
+                  "0": "The verified information conflicts with the explicit preference in preferences.",
+                  "1": "The verified information supports the explicit preference in preferences, including the handling steps or separate purchase that preferences explicitly accepts."
+                },
+                "probabilities": { "0": 0, "1": 1 }
+              }
+            },
+            "usage": { "input_tokens": 498, "output_tokens": 18 }
+          }
+        },
+        {
+          "request": {
+            "model": "jev-1.13.0",
+            "state": {
+              "category": "vacuum-insulated-drinking-bottle",
+              "mode": "evaluation-only",
+              "preferences": "I want the bottle body and every lid part to be dishwasher compatible, following the manuals.",
+              "facts": {
+                "dishwasherCoverage": "The bottle body and all lid parts are dishwasher compatible, following the manuals."
+              },
+              "excerpts": {
+                "dishwasherCoverage": "The bottle body and all lid parts are dishwasher compatible, following the manuals."
+              }
+            },
+            "questions": {
+              "cleaning_fit": {
+                "type": "score",
+                "instructions": "Evaluate only dishwasher coverage against preferences. Use dishwasherCoverage and its excerpt. Do not infer washing speed, hygiene or operating effort.",
+                "criteria": [
+                  "The verified information conflicts with the explicit preference in preferences.",
+                  "The verified information supports the explicit preference in preferences, including the handling steps or separate purchase that preferences explicitly accepts."
+                ]
+              }
+            }
+          },
+          "status": 200,
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "cleaning_fit": {
+                "type": "score",
+                "score": 1,
+                "confidence": 1,
+                "legend": {
+                  "0": "The verified information conflicts with the explicit preference in preferences.",
+                  "1": "The verified information supports the explicit preference in preferences, including the handling steps or separate purchase that preferences explicitly accepts."
+                },
+                "probabilities": { "0": 0, "1": 1 }
+              }
+            },
+            "usage": { "input_tokens": 462, "output_tokens": 20 }
+          }
+        }
+      ]
+    },
+    {
+      "id": "button-en-joq",
+      "group": "previous-failure-regression",
+      "model": "JOQ-481",
+      "expectedError": null,
+      "actualError": null,
+      "agrees": true,
+      "calls": 2,
+      "axes": [
+        {
+          "id": "opening_fit",
+          "score": 0,
+          "confidence": 1,
+          "probabilities": { "0": 1, "1": 0 },
+          "expected": 0,
+          "decision": 0,
+          "agrees": true
+        },
+        {
+          "id": "cleaning_fit",
+          "score": 1,
+          "confidence": 1,
+          "probabilities": { "0": 0, "1": 1 },
+          "expected": 1,
+          "decision": 1,
+          "agrees": true
+        }
+      ],
+      "transport": [
+        {
+          "request": {
+            "model": "jev-1.13.0",
+            "state": {
+              "category": "vacuum-insulated-drinking-bottle",
+              "mode": "evaluation-only",
+              "preferences": "I prefer a button-operated attached lid and do not want to unscrew and remove a cap to drink. Unlocking a safety lock before pressing the button is acceptable.",
+              "facts": { "openingMechanism": "Unscrew and remove the screw cap to drink." },
+              "excerpts": { "openingMechanism": "Unscrew and remove the screw cap to drink." }
+            },
+            "questions": {
+              "opening_fit": {
+                "type": "score",
+                "instructions": "Evaluate only the supplied opening mechanism against preferences. Use openingMechanism and its excerpt. An accepted safety-lock release is not a conflict. Do not assume an optional replacement is installed, or infer operating force or one-handed ease.",
+                "criteria": [
+                  "The verified information conflicts with the explicit preference in preferences.",
+                  "The verified information supports the explicit preference in preferences, including the handling steps or separate purchase that preferences explicitly accepts."
+                ]
+              }
+            }
+          },
+          "status": 200,
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "opening_fit": {
+                "type": "score",
+                "score": 0,
+                "confidence": 1,
+                "legend": {
+                  "0": "The verified information conflicts with the explicit preference in preferences.",
+                  "1": "The verified information supports the explicit preference in preferences, including the handling steps or separate purchase that preferences explicitly accepts."
+                },
+                "probabilities": { "0": 1, "1": 0 }
+              }
+            },
+            "usage": { "input_tokens": 486, "output_tokens": 18 }
+          }
+        },
+        {
+          "request": {
+            "model": "jev-1.13.0",
+            "state": {
+              "category": "vacuum-insulated-drinking-bottle",
+              "mode": "evaluation-only",
+              "preferences": "I want the bottle body and every lid part to be dishwasher compatible, following the manuals.",
+              "facts": {
+                "dishwasherCoverage": "The bottle body and all lid parts are dishwasher compatible, following the manuals."
+              },
+              "excerpts": {
+                "dishwasherCoverage": "The bottle body and all lid parts are dishwasher compatible, following the manuals."
+              }
+            },
+            "questions": {
+              "cleaning_fit": {
+                "type": "score",
+                "instructions": "Evaluate only dishwasher coverage against preferences. Use dishwasherCoverage and its excerpt. Do not infer washing speed, hygiene or operating effort.",
+                "criteria": [
+                  "The verified information conflicts with the explicit preference in preferences.",
+                  "The verified information supports the explicit preference in preferences, including the handling steps or separate purchase that preferences explicitly accepts."
+                ]
+              }
+            }
+          },
+          "status": 200,
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "cleaning_fit": {
+                "type": "score",
+                "score": 1,
+                "confidence": 1,
+                "legend": {
+                  "0": "The verified information conflicts with the explicit preference in preferences.",
+                  "1": "The verified information supports the explicit preference in preferences, including the handling steps or separate purchase that preferences explicitly accepts."
+                },
+                "probabilities": { "0": 0, "1": 1 }
+              }
+            },
+            "usage": { "input_tokens": 462, "output_tokens": 20 }
+          }
+        }
+      ]
+    },
+    {
+      "id": "screw-en-jnl",
+      "group": "previous-failure-regression",
+      "model": "JNL-S501",
+      "expectedError": null,
+      "actualError": null,
+      "agrees": true,
+      "calls": 2,
+      "axes": [
+        {
+          "id": "opening_fit",
+          "score": 0,
+          "confidence": 1,
+          "probabilities": { "0": 1, "1": 0 },
+          "expected": 0,
+          "decision": 0,
+          "agrees": true
+        },
+        {
+          "id": "cleaning_fit",
+          "score": 1,
+          "confidence": 1,
+          "probabilities": { "0": 0, "1": 1 },
+          "expected": 1,
+          "decision": 1,
+          "agrees": true
+        }
+      ],
+      "transport": [
+        {
+          "request": {
+            "model": "jev-1.13.0",
+            "state": {
+              "category": "vacuum-insulated-drinking-bottle",
+              "mode": "evaluation-only",
+              "preferences": "I prefer a screw cap that I unscrew and fully remove to drink. An attached button-operated lid is not my preferred method.",
+              "facts": {
+                "openingMechanism": "Unlock the ring, press the button and open the attached flip lid to drink."
+              },
+              "excerpts": {
+                "openingMechanism": "Unlock the ring, press the button and open the attached flip lid to drink."
+              }
+            },
+            "questions": {
+              "opening_fit": {
+                "type": "score",
+                "instructions": "Evaluate only the supplied opening mechanism against preferences. Use openingMechanism and its excerpt. An accepted safety-lock release is not a conflict. Do not assume an optional replacement is installed, or infer operating force or one-handed ease.",
+                "criteria": [
+                  "The verified information conflicts with the explicit preference in preferences.",
+                  "The verified information supports the explicit preference in preferences, including the handling steps or separate purchase that preferences explicitly accepts."
+                ]
+              }
+            }
+          },
+          "status": 200,
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "opening_fit": {
+                "type": "score",
+                "score": 0,
+                "confidence": 1,
+                "legend": {
+                  "0": "The verified information conflicts with the explicit preference in preferences.",
+                  "1": "The verified information supports the explicit preference in preferences, including the handling steps or separate purchase that preferences explicitly accepts."
+                },
+                "probabilities": { "0": 1, "1": 0 }
+              }
+            },
+            "usage": { "input_tokens": 490, "output_tokens": 18 }
+          }
+        },
+        {
+          "request": {
+            "model": "jev-1.13.0",
+            "state": {
+              "category": "vacuum-insulated-drinking-bottle",
+              "mode": "evaluation-only",
+              "preferences": "I want the bottle body and every lid part to be dishwasher compatible, following the manuals.",
+              "facts": {
+                "dishwasherCoverage": "The bottle body and all lid parts are dishwasher compatible, following the manuals."
+              },
+              "excerpts": {
+                "dishwasherCoverage": "The bottle body and all lid parts are dishwasher compatible, following the manuals."
+              }
+            },
+            "questions": {
+              "cleaning_fit": {
+                "type": "score",
+                "instructions": "Evaluate only dishwasher coverage against preferences. Use dishwasherCoverage and its excerpt. Do not infer washing speed, hygiene or operating effort.",
+                "criteria": [
+                  "The verified information conflicts with the explicit preference in preferences.",
+                  "The verified information supports the explicit preference in preferences, including the handling steps or separate purchase that preferences explicitly accepts."
+                ]
+              }
+            }
+          },
+          "status": 200,
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "cleaning_fit": {
+                "type": "score",
+                "score": 1,
+                "confidence": 1,
+                "legend": {
+                  "0": "The verified information conflicts with the explicit preference in preferences.",
+                  "1": "The verified information supports the explicit preference in preferences, including the handling steps or separate purchase that preferences explicitly accepts."
+                },
+                "probabilities": { "0": 0, "1": 1 }
+              }
+            },
+            "usage": { "input_tokens": 462, "output_tokens": 20 }
+          }
+        }
+      ]
+    },
+    {
+      "id": "screw-en-joq",
+      "group": "previous-failure-regression",
+      "model": "JOQ-481",
+      "expectedError": null,
+      "actualError": null,
+      "agrees": true,
+      "calls": 2,
+      "axes": [
+        {
+          "id": "opening_fit",
+          "score": 1,
+          "confidence": 1,
+          "probabilities": { "0": 0, "1": 1 },
+          "expected": 1,
+          "decision": 1,
+          "agrees": true
+        },
+        {
+          "id": "cleaning_fit",
+          "score": 1,
+          "confidence": 1,
+          "probabilities": { "0": 0, "1": 1 },
+          "expected": 1,
+          "decision": 1,
+          "agrees": true
+        }
+      ],
+      "transport": [
+        {
+          "request": {
+            "model": "jev-1.13.0",
+            "state": {
+              "category": "vacuum-insulated-drinking-bottle",
+              "mode": "evaluation-only",
+              "preferences": "I prefer a screw cap that I unscrew and fully remove to drink. An attached button-operated lid is not my preferred method.",
+              "facts": { "openingMechanism": "Unscrew and remove the screw cap to drink." },
+              "excerpts": { "openingMechanism": "Unscrew and remove the screw cap to drink." }
+            },
+            "questions": {
+              "opening_fit": {
+                "type": "score",
+                "instructions": "Evaluate only the supplied opening mechanism against preferences. Use openingMechanism and its excerpt. An accepted safety-lock release is not a conflict. Do not assume an optional replacement is installed, or infer operating force or one-handed ease.",
+                "criteria": [
+                  "The verified information conflicts with the explicit preference in preferences.",
+                  "The verified information supports the explicit preference in preferences, including the handling steps or separate purchase that preferences explicitly accepts."
+                ]
+              }
+            }
+          },
+          "status": 200,
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "opening_fit": {
+                "type": "score",
+                "score": 1,
+                "confidence": 1,
+                "legend": {
+                  "0": "The verified information conflicts with the explicit preference in preferences.",
+                  "1": "The verified information supports the explicit preference in preferences, including the handling steps or separate purchase that preferences explicitly accepts."
+                },
+                "probabilities": { "0": 0, "1": 1 }
+              }
+            },
+            "usage": { "input_tokens": 478, "output_tokens": 18 }
+          }
+        },
+        {
+          "request": {
+            "model": "jev-1.13.0",
+            "state": {
+              "category": "vacuum-insulated-drinking-bottle",
+              "mode": "evaluation-only",
+              "preferences": "I want the bottle body and every lid part to be dishwasher compatible, following the manuals.",
+              "facts": {
+                "dishwasherCoverage": "The bottle body and all lid parts are dishwasher compatible, following the manuals."
+              },
+              "excerpts": {
+                "dishwasherCoverage": "The bottle body and all lid parts are dishwasher compatible, following the manuals."
+              }
+            },
+            "questions": {
+              "cleaning_fit": {
+                "type": "score",
+                "instructions": "Evaluate only dishwasher coverage against preferences. Use dishwasherCoverage and its excerpt. Do not infer washing speed, hygiene or operating effort.",
+                "criteria": [
+                  "The verified information conflicts with the explicit preference in preferences.",
+                  "The verified information supports the explicit preference in preferences, including the handling steps or separate purchase that preferences explicitly accepts."
+                ]
+              }
+            }
+          },
+          "status": 200,
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "cleaning_fit": {
+                "type": "score",
+                "score": 1,
+                "confidence": 1,
+                "legend": {
+                  "0": "The verified information conflicts with the explicit preference in preferences.",
+                  "1": "The verified information supports the explicit preference in preferences, including the handling steps or separate purchase that preferences explicitly accepts."
+                },
+                "probabilities": { "0": 0, "1": 1 }
+              }
+            },
+            "usage": { "input_tokens": 462, "output_tokens": 20 }
+          }
+        }
+      ]
+    },
+    {
+      "id": "button-ja-jnl",
+      "group": "previous-failure-regression",
+      "model": "JNL-S501",
+      "expectedError": null,
+      "actualError": null,
+      "agrees": true,
+      "calls": 2,
+      "axes": [
+        {
+          "id": "opening_fit",
+          "score": 0.99,
+          "confidence": 0.97,
+          "probabilities": { "0": 0.01, "1": 0.99 },
+          "expected": 1,
+          "decision": 1,
+          "agrees": true
+        },
+        {
+          "id": "cleaning_fit",
+          "score": 1,
+          "confidence": 1,
+          "probabilities": { "0": 0, "1": 1 },
+          "expected": 1,
+          "decision": 1,
+          "agrees": true
+        }
+      ],
+      "transport": [
+        {
+          "request": {
+            "model": "jev-1.13.0",
+            "state": {
+              "category": "vacuum-insulated-drinking-bottle",
+              "mode": "evaluation-only",
+              "preferences": "飲むときにフタを回して外さず、ボタンで本体につながったフタを開く方式を希望。ボタンを押す前の安全ロック解除は許容する。",
+              "facts": {
+                "openingMechanism": "Unlock the ring, press the button and open the attached flip lid to drink."
+              },
+              "excerpts": {
+                "openingMechanism": "Unlock the ring, press the button and open the attached flip lid to drink."
+              }
+            },
+            "questions": {
+              "opening_fit": {
+                "type": "score",
+                "instructions": "Evaluate only the supplied opening mechanism against preferences. Use openingMechanism and its excerpt. An accepted safety-lock release is not a conflict. Do not assume an optional replacement is installed, or infer operating force or one-handed ease.",
+                "criteria": [
+                  "The verified information conflicts with the explicit preference in preferences.",
+                  "The verified information supports the explicit preference in preferences, including the handling steps or separate purchase that preferences explicitly accepts."
+                ]
+              }
+            }
+          },
+          "status": 200,
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "opening_fit": {
+                "type": "score",
+                "score": 0.99,
+                "confidence": 0.97,
+                "legend": {
+                  "0": "The verified information conflicts with the explicit preference in preferences.",
+                  "1": "The verified information supports the explicit preference in preferences, including the handling steps or separate purchase that preferences explicitly accepts."
+                },
+                "probabilities": { "0": 0.01, "1": 0.99 }
+              }
+            },
+            "usage": { "input_tokens": 521, "output_tokens": 18 }
+          }
+        },
+        {
+          "request": {
+            "model": "jev-1.13.0",
+            "state": {
+              "category": "vacuum-insulated-drinking-bottle",
+              "mode": "evaluation-only",
+              "preferences": "I want the bottle body and every lid part to be dishwasher compatible, following the manuals.",
+              "facts": {
+                "dishwasherCoverage": "The bottle body and all lid parts are dishwasher compatible, following the manuals."
+              },
+              "excerpts": {
+                "dishwasherCoverage": "The bottle body and all lid parts are dishwasher compatible, following the manuals."
+              }
+            },
+            "questions": {
+              "cleaning_fit": {
+                "type": "score",
+                "instructions": "Evaluate only dishwasher coverage against preferences. Use dishwasherCoverage and its excerpt. Do not infer washing speed, hygiene or operating effort.",
+                "criteria": [
+                  "The verified information conflicts with the explicit preference in preferences.",
+                  "The verified information supports the explicit preference in preferences, including the handling steps or separate purchase that preferences explicitly accepts."
+                ]
+              }
+            }
+          },
+          "status": 200,
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "cleaning_fit": {
+                "type": "score",
+                "score": 1,
+                "confidence": 1,
+                "legend": {
+                  "0": "The verified information conflicts with the explicit preference in preferences.",
+                  "1": "The verified information supports the explicit preference in preferences, including the handling steps or separate purchase that preferences explicitly accepts."
+                },
+                "probabilities": { "0": 0, "1": 1 }
+              }
+            },
+            "usage": { "input_tokens": 462, "output_tokens": 20 }
+          }
+        }
+      ]
+    },
+    {
+      "id": "button-ja-joq",
+      "group": "previous-failure-regression",
+      "model": "JOQ-481",
+      "expectedError": null,
+      "actualError": null,
+      "agrees": true,
+      "calls": 2,
+      "axes": [
+        {
+          "id": "opening_fit",
+          "score": 0,
+          "confidence": 1,
+          "probabilities": { "0": 1, "1": 0 },
+          "expected": 0,
+          "decision": 0,
+          "agrees": true
+        },
+        {
+          "id": "cleaning_fit",
+          "score": 1,
+          "confidence": 1,
+          "probabilities": { "0": 0, "1": 1 },
+          "expected": 1,
+          "decision": 1,
+          "agrees": true
+        }
+      ],
+      "transport": [
+        {
+          "request": {
+            "model": "jev-1.13.0",
+            "state": {
+              "category": "vacuum-insulated-drinking-bottle",
+              "mode": "evaluation-only",
+              "preferences": "飲むときにフタを回して外さず、ボタンで本体につながったフタを開く方式を希望。ボタンを押す前の安全ロック解除は許容する。",
+              "facts": { "openingMechanism": "Unscrew and remove the screw cap to drink." },
+              "excerpts": { "openingMechanism": "Unscrew and remove the screw cap to drink." }
+            },
+            "questions": {
+              "opening_fit": {
+                "type": "score",
+                "instructions": "Evaluate only the supplied opening mechanism against preferences. Use openingMechanism and its excerpt. An accepted safety-lock release is not a conflict. Do not assume an optional replacement is installed, or infer operating force or one-handed ease.",
+                "criteria": [
+                  "The verified information conflicts with the explicit preference in preferences.",
+                  "The verified information supports the explicit preference in preferences, including the handling steps or separate purchase that preferences explicitly accepts."
+                ]
+              }
+            }
+          },
+          "status": 200,
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "opening_fit": {
+                "type": "score",
+                "score": 0,
+                "confidence": 1,
+                "legend": {
+                  "0": "The verified information conflicts with the explicit preference in preferences.",
+                  "1": "The verified information supports the explicit preference in preferences, including the handling steps or separate purchase that preferences explicitly accepts."
+                },
+                "probabilities": { "0": 1, "1": 0 }
+              }
+            },
+            "usage": { "input_tokens": 509, "output_tokens": 18 }
+          }
+        },
+        {
+          "request": {
+            "model": "jev-1.13.0",
+            "state": {
+              "category": "vacuum-insulated-drinking-bottle",
+              "mode": "evaluation-only",
+              "preferences": "I want the bottle body and every lid part to be dishwasher compatible, following the manuals.",
+              "facts": {
+                "dishwasherCoverage": "The bottle body and all lid parts are dishwasher compatible, following the manuals."
+              },
+              "excerpts": {
+                "dishwasherCoverage": "The bottle body and all lid parts are dishwasher compatible, following the manuals."
+              }
+            },
+            "questions": {
+              "cleaning_fit": {
+                "type": "score",
+                "instructions": "Evaluate only dishwasher coverage against preferences. Use dishwasherCoverage and its excerpt. Do not infer washing speed, hygiene or operating effort.",
+                "criteria": [
+                  "The verified information conflicts with the explicit preference in preferences.",
+                  "The verified information supports the explicit preference in preferences, including the handling steps or separate purchase that preferences explicitly accepts."
+                ]
+              }
+            }
+          },
+          "status": 200,
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "cleaning_fit": {
+                "type": "score",
+                "score": 1,
+                "confidence": 1,
+                "legend": {
+                  "0": "The verified information conflicts with the explicit preference in preferences.",
+                  "1": "The verified information supports the explicit preference in preferences, including the handling steps or separate purchase that preferences explicitly accepts."
+                },
+                "probabilities": { "0": 0, "1": 1 }
+              }
+            },
+            "usage": { "input_tokens": 462, "output_tokens": 20 }
+          }
+        }
+      ]
+    },
+    {
+      "id": "screw-ja-jnl",
+      "group": "previous-failure-regression",
+      "model": "JNL-S501",
+      "expectedError": null,
+      "actualError": null,
+      "agrees": true,
+      "calls": 2,
+      "axes": [
+        {
+          "id": "opening_fit",
+          "score": 0,
+          "confidence": 1,
+          "probabilities": { "0": 1, "1": 0 },
+          "expected": 0,
+          "decision": 0,
+          "agrees": true
+        },
+        {
+          "id": "cleaning_fit",
+          "score": 1,
+          "confidence": 1,
+          "probabilities": { "0": 0, "1": 1 },
+          "expected": 1,
+          "decision": 1,
+          "agrees": true
+        }
+      ],
+      "transport": [
+        {
+          "request": {
+            "model": "jev-1.13.0",
+            "state": {
+              "category": "vacuum-insulated-drinking-bottle",
+              "mode": "evaluation-only",
+              "preferences": "飲むときはフタをねじって完全に外すスクリュー方式を希望。ボタンで本体につながったフタを開く方式は希望しない。",
+              "facts": {
+                "openingMechanism": "Unlock the ring, press the button and open the attached flip lid to drink."
+              },
+              "excerpts": {
+                "openingMechanism": "Unlock the ring, press the button and open the attached flip lid to drink."
+              }
+            },
+            "questions": {
+              "opening_fit": {
+                "type": "score",
+                "instructions": "Evaluate only the supplied opening mechanism against preferences. Use openingMechanism and its excerpt. An accepted safety-lock release is not a conflict. Do not assume an optional replacement is installed, or infer operating force or one-handed ease.",
+                "criteria": [
+                  "The verified information conflicts with the explicit preference in preferences.",
+                  "The verified information supports the explicit preference in preferences, including the handling steps or separate purchase that preferences explicitly accepts."
+                ]
+              }
+            }
+          },
+          "status": 200,
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "opening_fit": {
+                "type": "score",
+                "score": 0,
+                "confidence": 1,
+                "legend": {
+                  "0": "The verified information conflicts with the explicit preference in preferences.",
+                  "1": "The verified information supports the explicit preference in preferences, including the handling steps or separate purchase that preferences explicitly accepts."
+                },
+                "probabilities": { "0": 1, "1": 0 }
+              }
+            },
+            "usage": { "input_tokens": 516, "output_tokens": 18 }
+          }
+        },
+        {
+          "request": {
+            "model": "jev-1.13.0",
+            "state": {
+              "category": "vacuum-insulated-drinking-bottle",
+              "mode": "evaluation-only",
+              "preferences": "I want the bottle body and every lid part to be dishwasher compatible, following the manuals.",
+              "facts": {
+                "dishwasherCoverage": "The bottle body and all lid parts are dishwasher compatible, following the manuals."
+              },
+              "excerpts": {
+                "dishwasherCoverage": "The bottle body and all lid parts are dishwasher compatible, following the manuals."
+              }
+            },
+            "questions": {
+              "cleaning_fit": {
+                "type": "score",
+                "instructions": "Evaluate only dishwasher coverage against preferences. Use dishwasherCoverage and its excerpt. Do not infer washing speed, hygiene or operating effort.",
+                "criteria": [
+                  "The verified information conflicts with the explicit preference in preferences.",
+                  "The verified information supports the explicit preference in preferences, including the handling steps or separate purchase that preferences explicitly accepts."
+                ]
+              }
+            }
+          },
+          "status": 200,
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "cleaning_fit": {
+                "type": "score",
+                "score": 1,
+                "confidence": 1,
+                "legend": {
+                  "0": "The verified information conflicts with the explicit preference in preferences.",
+                  "1": "The verified information supports the explicit preference in preferences, including the handling steps or separate purchase that preferences explicitly accepts."
+                },
+                "probabilities": { "0": 0, "1": 1 }
+              }
+            },
+            "usage": { "input_tokens": 462, "output_tokens": 20 }
+          }
+        }
+      ]
+    },
+    {
+      "id": "screw-ja-joq",
+      "group": "previous-failure-regression",
+      "model": "JOQ-481",
+      "expectedError": null,
+      "actualError": null,
+      "agrees": true,
+      "calls": 2,
+      "axes": [
+        {
+          "id": "opening_fit",
+          "score": 1,
+          "confidence": 1,
+          "probabilities": { "0": 0, "1": 1 },
+          "expected": 1,
+          "decision": 1,
+          "agrees": true
+        },
+        {
+          "id": "cleaning_fit",
+          "score": 1,
+          "confidence": 1,
+          "probabilities": { "0": 0, "1": 1 },
+          "expected": 1,
+          "decision": 1,
+          "agrees": true
+        }
+      ],
+      "transport": [
+        {
+          "request": {
+            "model": "jev-1.13.0",
+            "state": {
+              "category": "vacuum-insulated-drinking-bottle",
+              "mode": "evaluation-only",
+              "preferences": "飲むときはフタをねじって完全に外すスクリュー方式を希望。ボタンで本体につながったフタを開く方式は希望しない。",
+              "facts": { "openingMechanism": "Unscrew and remove the screw cap to drink." },
+              "excerpts": { "openingMechanism": "Unscrew and remove the screw cap to drink." }
+            },
+            "questions": {
+              "opening_fit": {
+                "type": "score",
+                "instructions": "Evaluate only the supplied opening mechanism against preferences. Use openingMechanism and its excerpt. An accepted safety-lock release is not a conflict. Do not assume an optional replacement is installed, or infer operating force or one-handed ease.",
+                "criteria": [
+                  "The verified information conflicts with the explicit preference in preferences.",
+                  "The verified information supports the explicit preference in preferences, including the handling steps or separate purchase that preferences explicitly accepts."
+                ]
+              }
+            }
+          },
+          "status": 200,
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "opening_fit": {
+                "type": "score",
+                "score": 1,
+                "confidence": 1,
+                "legend": {
+                  "0": "The verified information conflicts with the explicit preference in preferences.",
+                  "1": "The verified information supports the explicit preference in preferences, including the handling steps or separate purchase that preferences explicitly accepts."
+                },
+                "probabilities": { "0": 0, "1": 1 }
+              }
+            },
+            "usage": { "input_tokens": 504, "output_tokens": 18 }
+          }
+        },
+        {
+          "request": {
+            "model": "jev-1.13.0",
+            "state": {
+              "category": "vacuum-insulated-drinking-bottle",
+              "mode": "evaluation-only",
+              "preferences": "I want the bottle body and every lid part to be dishwasher compatible, following the manuals.",
+              "facts": {
+                "dishwasherCoverage": "The bottle body and all lid parts are dishwasher compatible, following the manuals."
+              },
+              "excerpts": {
+                "dishwasherCoverage": "The bottle body and all lid parts are dishwasher compatible, following the manuals."
+              }
+            },
+            "questions": {
+              "cleaning_fit": {
+                "type": "score",
+                "instructions": "Evaluate only dishwasher coverage against preferences. Use dishwasherCoverage and its excerpt. Do not infer washing speed, hygiene or operating effort.",
+                "criteria": [
+                  "The verified information conflicts with the explicit preference in preferences.",
+                  "The verified information supports the explicit preference in preferences, including the handling steps or separate purchase that preferences explicitly accepts."
+                ]
+              }
+            }
+          },
+          "status": 200,
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "cleaning_fit": {
+                "type": "score",
+                "score": 1,
+                "confidence": 1,
+                "legend": {
+                  "0": "The verified information conflicts with the explicit preference in preferences.",
+                  "1": "The verified information supports the explicit preference in preferences, including the handling steps or separate purchase that preferences explicitly accepts."
+                },
+                "probabilities": { "0": 0, "1": 1 }
+              }
+            },
+            "usage": { "input_tokens": 462, "output_tokens": 20 }
+          }
+        }
+      ]
+    },
+    {
+      "id": "unknown-opening",
+      "group": "previous-failure-regression",
+      "model": "JNL-S501",
+      "expectedError": "insufficient_evidence",
+      "actualError": "insufficient_evidence",
+      "agrees": true,
+      "calls": 0,
+      "axes": [],
+      "transport": []
+    },
+    {
+      "id": "unknown-cleaning",
+      "group": "previous-failure-regression",
+      "model": "JOQ-481",
+      "expectedError": "insufficient_evidence",
+      "actualError": "insufficient_evidence",
+      "agrees": true,
+      "calls": 0,
+      "axes": [],
+      "transport": []
+    },
+    {
+      "id": "no-opening-preference",
+      "group": "previous-failure-regression",
+      "model": "JOQ-481",
+      "expectedError": null,
+      "actualError": null,
+      "agrees": true,
+      "calls": 1,
+      "axes": [
+        {
+          "id": "cleaning_fit",
+          "score": 1,
+          "confidence": 1,
+          "probabilities": { "0": 0, "1": 1 },
+          "expected": 1,
+          "decision": 1,
+          "agrees": true
+        }
+      ],
+      "transport": [
+        {
+          "request": {
+            "model": "jev-1.13.0",
+            "state": {
+              "category": "vacuum-insulated-drinking-bottle",
+              "mode": "evaluation-only",
+              "preferences": "I want the bottle body and every lid part to be dishwasher compatible, following the manuals.",
+              "facts": {
+                "dishwasherCoverage": "The bottle body and all lid parts are dishwasher compatible, following the manuals."
+              },
+              "excerpts": {
+                "dishwasherCoverage": "The bottle body and all lid parts are dishwasher compatible, following the manuals."
+              }
+            },
+            "questions": {
+              "cleaning_fit": {
+                "type": "score",
+                "instructions": "Evaluate only dishwasher coverage against preferences. Use dishwasherCoverage and its excerpt. Do not infer washing speed, hygiene or operating effort.",
+                "criteria": [
+                  "The verified information conflicts with the explicit preference in preferences.",
+                  "The verified information supports the explicit preference in preferences, including the handling steps or separate purchase that preferences explicitly accepts."
+                ]
+              }
+            }
+          },
+          "status": 200,
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "cleaning_fit": {
+                "type": "score",
+                "score": 1,
+                "confidence": 1,
+                "legend": {
+                  "0": "The verified information conflicts with the explicit preference in preferences.",
+                  "1": "The verified information supports the explicit preference in preferences, including the handling steps or separate purchase that preferences explicitly accepts."
+                },
+                "probabilities": { "0": 0, "1": 1 }
+              }
+            },
+            "usage": { "input_tokens": 462, "output_tokens": 20 }
+          }
+        }
+      ]
+    },
+    {
+      "id": "no-cleaning-preference",
+      "group": "previous-failure-regression",
+      "model": "JNL-S501",
+      "expectedError": null,
+      "actualError": null,
+      "agrees": true,
+      "calls": 1,
+      "axes": [
+        {
+          "id": "opening_fit",
+          "score": 1,
+          "confidence": 1,
+          "probabilities": { "0": 0, "1": 1 },
+          "expected": 1,
+          "decision": 1,
+          "agrees": true
+        }
+      ],
+      "transport": [
+        {
+          "request": {
+            "model": "jev-1.13.0",
+            "state": {
+              "category": "vacuum-insulated-drinking-bottle",
+              "mode": "evaluation-only",
+              "preferences": "I prefer a button-operated attached lid and do not want to unscrew and remove a cap to drink. Unlocking a safety lock before pressing the button is acceptable.",
+              "facts": {
+                "openingMechanism": "Unlock the ring, press the button and open the attached flip lid to drink."
+              },
+              "excerpts": {
+                "openingMechanism": "Unlock the ring, press the button and open the attached flip lid to drink."
+              }
+            },
+            "questions": {
+              "opening_fit": {
+                "type": "score",
+                "instructions": "Evaluate only the supplied opening mechanism against preferences. Use openingMechanism and its excerpt. An accepted safety-lock release is not a conflict. Do not assume an optional replacement is installed, or infer operating force or one-handed ease.",
+                "criteria": [
+                  "The verified information conflicts with the explicit preference in preferences.",
+                  "The verified information supports the explicit preference in preferences, including the handling steps or separate purchase that preferences explicitly accepts."
+                ]
+              }
+            }
+          },
+          "status": 200,
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "opening_fit": {
+                "type": "score",
+                "score": 1,
+                "confidence": 1,
+                "legend": {
+                  "0": "The verified information conflicts with the explicit preference in preferences.",
+                  "1": "The verified information supports the explicit preference in preferences, including the handling steps or separate purchase that preferences explicitly accepts."
+                },
+                "probabilities": { "0": 0, "1": 1 }
+              }
+            },
+            "usage": { "input_tokens": 498, "output_tokens": 18 }
+          }
+        }
+      ]
+    },
+    {
+      "id": "smta-supplied-button-en",
+      "group": "unseen-model",
+      "model": "SM-TA48",
+      "expectedError": null,
+      "actualError": null,
+      "agrees": true,
+      "calls": 1,
+      "axes": [
+        {
+          "id": "opening_fit",
+          "score": 1,
+          "confidence": 1,
+          "probabilities": { "0": 0, "1": 1 },
+          "expected": 1,
+          "decision": 1,
+          "agrees": true
+        }
+      ],
+      "transport": [
+        {
+          "request": {
+            "model": "jev-1.13.0",
+            "state": {
+              "category": "vacuum-insulated-drinking-bottle",
+              "mode": "evaluation-only",
+              "preferences": "I prefer a button-operated attached lid and do not want to unscrew and remove a cap to drink. Unlocking a safety lock before pressing the button is acceptable.",
+              "facts": {
+                "openingMechanism": "With the supplied one-touch stopper, slide the safety lock then press the button to open the attached lid."
+              },
+              "excerpts": {
+                "openingMechanism": "With the supplied one-touch stopper, slide the safety lock then press the button to open the attached lid."
+              }
+            },
+            "questions": {
+              "opening_fit": {
+                "type": "score",
+                "instructions": "Evaluate only the supplied opening mechanism against preferences. Use openingMechanism and its excerpt. An accepted safety-lock release is not a conflict. Do not assume an optional replacement is installed, or infer operating force or one-handed ease.",
+                "criteria": [
+                  "The verified information conflicts with the explicit preference in preferences.",
+                  "The verified information supports the explicit preference in preferences, including the handling steps or separate purchase that preferences explicitly accepts."
+                ]
+              }
+            }
+          },
+          "status": 200,
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "opening_fit": {
+                "type": "score",
+                "score": 1,
+                "confidence": 1,
+                "legend": {
+                  "0": "The verified information conflicts with the explicit preference in preferences.",
+                  "1": "The verified information supports the explicit preference in preferences, including the handling steps or separate purchase that preferences explicitly accepts."
+                },
+                "probabilities": { "0": 0, "1": 1 }
+              }
+            },
+            "usage": { "input_tokens": 510, "output_tokens": 18 }
+          }
+        }
+      ]
+    },
+    {
+      "id": "smta-supplied-button-ja",
+      "group": "unseen-model",
+      "model": "SM-TA48",
+      "expectedError": null,
+      "actualError": null,
+      "agrees": true,
+      "calls": 1,
+      "axes": [
+        {
+          "id": "opening_fit",
+          "score": 1,
+          "confidence": 0.99,
+          "probabilities": { "0": 0, "1": 1 },
+          "expected": 1,
+          "decision": 1,
+          "agrees": true
+        }
+      ],
+      "transport": [
+        {
+          "request": {
+            "model": "jev-1.13.0",
+            "state": {
+              "category": "vacuum-insulated-drinking-bottle",
+              "mode": "evaluation-only",
+              "preferences": "飲むときにフタを回して外さず、ボタンで本体につながったフタを開く方式を希望。ボタンを押す前の安全ロック解除は許容する。",
+              "facts": {
+                "openingMechanism": "With the supplied one-touch stopper, slide the safety lock then press the button to open the attached lid."
+              },
+              "excerpts": {
+                "openingMechanism": "With the supplied one-touch stopper, slide the safety lock then press the button to open the attached lid."
+              }
+            },
+            "questions": {
+              "opening_fit": {
+                "type": "score",
+                "instructions": "Evaluate only the supplied opening mechanism against preferences. Use openingMechanism and its excerpt. An accepted safety-lock release is not a conflict. Do not assume an optional replacement is installed, or infer operating force or one-handed ease.",
+                "criteria": [
+                  "The verified information conflicts with the explicit preference in preferences.",
+                  "The verified information supports the explicit preference in preferences, including the handling steps or separate purchase that preferences explicitly accepts."
+                ]
+              }
+            }
+          },
+          "status": 200,
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "opening_fit": {
+                "type": "score",
+                "score": 1,
+                "confidence": 0.99,
+                "legend": {
+                  "0": "The verified information conflicts with the explicit preference in preferences.",
+                  "1": "The verified information supports the explicit preference in preferences, including the handling steps or separate purchase that preferences explicitly accepts."
+                },
+                "probabilities": { "0": 0, "1": 1 }
+              }
+            },
+            "usage": { "input_tokens": 533, "output_tokens": 18 }
+          }
+        }
+      ]
+    },
+    {
+      "id": "smta-supplied-screw-en",
+      "group": "unseen-model",
+      "model": "SM-TA48",
+      "expectedError": null,
+      "actualError": null,
+      "agrees": true,
+      "calls": 1,
+      "axes": [
+        {
+          "id": "opening_fit",
+          "score": 0,
+          "confidence": 1,
+          "probabilities": { "0": 1, "1": 0 },
+          "expected": 0,
+          "decision": 0,
+          "agrees": true
+        }
+      ],
+      "transport": [
+        {
+          "request": {
+            "model": "jev-1.13.0",
+            "state": {
+              "category": "vacuum-insulated-drinking-bottle",
+              "mode": "evaluation-only",
+              "preferences": "I prefer a screw cap that I unscrew and fully remove to drink. An attached button-operated lid is not my preferred method.",
+              "facts": {
+                "openingMechanism": "With the supplied one-touch stopper, slide the safety lock then press the button to open the attached lid."
+              },
+              "excerpts": {
+                "openingMechanism": "With the supplied one-touch stopper, slide the safety lock then press the button to open the attached lid."
+              }
+            },
+            "questions": {
+              "opening_fit": {
+                "type": "score",
+                "instructions": "Evaluate only the supplied opening mechanism against preferences. Use openingMechanism and its excerpt. An accepted safety-lock release is not a conflict. Do not assume an optional replacement is installed, or infer operating force or one-handed ease.",
+                "criteria": [
+                  "The verified information conflicts with the explicit preference in preferences.",
+                  "The verified information supports the explicit preference in preferences, including the handling steps or separate purchase that preferences explicitly accepts."
+                ]
+              }
+            }
+          },
+          "status": 200,
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "opening_fit": {
+                "type": "score",
+                "score": 0,
+                "confidence": 1,
+                "legend": {
+                  "0": "The verified information conflicts with the explicit preference in preferences.",
+                  "1": "The verified information supports the explicit preference in preferences, including the handling steps or separate purchase that preferences explicitly accepts."
+                },
+                "probabilities": { "0": 1, "1": 0 }
+              }
+            },
+            "usage": { "input_tokens": 502, "output_tokens": 18 }
+          }
+        }
+      ]
+    },
+    {
+      "id": "smta-supplied-screw-ja",
+      "group": "unseen-model",
+      "model": "SM-TA48",
+      "expectedError": null,
+      "actualError": null,
+      "agrees": true,
+      "calls": 1,
+      "axes": [
+        {
+          "id": "opening_fit",
+          "score": 0,
+          "confidence": 1,
+          "probabilities": { "0": 1, "1": 0 },
+          "expected": 0,
+          "decision": 0,
+          "agrees": true
+        }
+      ],
+      "transport": [
+        {
+          "request": {
+            "model": "jev-1.13.0",
+            "state": {
+              "category": "vacuum-insulated-drinking-bottle",
+              "mode": "evaluation-only",
+              "preferences": "飲むときはフタをねじって完全に外すスクリュー方式を希望。ボタンで本体につながったフタを開く方式は希望しない。",
+              "facts": {
+                "openingMechanism": "With the supplied one-touch stopper, slide the safety lock then press the button to open the attached lid."
+              },
+              "excerpts": {
+                "openingMechanism": "With the supplied one-touch stopper, slide the safety lock then press the button to open the attached lid."
+              }
+            },
+            "questions": {
+              "opening_fit": {
+                "type": "score",
+                "instructions": "Evaluate only the supplied opening mechanism against preferences. Use openingMechanism and its excerpt. An accepted safety-lock release is not a conflict. Do not assume an optional replacement is installed, or infer operating force or one-handed ease.",
+                "criteria": [
+                  "The verified information conflicts with the explicit preference in preferences.",
+                  "The verified information supports the explicit preference in preferences, including the handling steps or separate purchase that preferences explicitly accepts."
+                ]
+              }
+            }
+          },
+          "status": 200,
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "opening_fit": {
+                "type": "score",
+                "score": 0,
+                "confidence": 1,
+                "legend": {
+                  "0": "The verified information conflicts with the explicit preference in preferences.",
+                  "1": "The verified information supports the explicit preference in preferences, including the handling steps or separate purchase that preferences explicitly accepts."
+                },
+                "probabilities": { "0": 1, "1": 0 }
+              }
+            },
+            "usage": { "input_tokens": 528, "output_tokens": 18 }
+          }
+        }
+      ]
+    },
+    {
+      "id": "smta-later-change-accepted",
+      "group": "unseen-model",
+      "model": "SM-TA48",
+      "expectedError": null,
+      "actualError": null,
+      "agrees": true,
+      "calls": 1,
+      "axes": [
+        {
+          "id": "lid_change_fit",
+          "score": 1,
+          "confidence": 1,
+          "probabilities": { "0": 0, "1": 1 },
+          "expected": 1,
+          "decision": 1,
+          "agrees": true
+        }
+      ],
+      "transport": [
+        {
+          "request": {
+            "model": "jev-1.13.0",
+            "state": {
+              "category": "vacuum-insulated-drinking-bottle",
+              "mode": "evaluation-only",
+              "preferences": "I want the option to change to a screw-type stopper later. Buying a separate compatible stopper is acceptable; I do not require it in the box.",
+              "facts": {
+                "lidOptions": "A compatible screw-type stopper is sold separately. It can replace the supplied one-touch stopper; it is not part of the standard supplied configuration."
+              },
+              "excerpts": {
+                "lidOptions": "A compatible screw-type stopper is sold separately. It can replace the supplied one-touch stopper; it is not part of the standard supplied configuration."
+              }
+            },
+            "questions": {
+              "lid_change_fit": {
+                "type": "score",
+                "instructions": "Evaluate only the supplied configuration and separately purchasable stopper option against preferences. Use lidOptions and its excerpt. Distinguish the ability to buy and replace a stopper later from both stoppers being included in the box.",
+                "criteria": [
+                  "The verified information conflicts with the explicit preference in preferences.",
+                  "The verified information supports the explicit preference in preferences, including the handling steps or separate purchase that preferences explicitly accepts."
+                ]
+              }
+            }
+          },
+          "status": 200,
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "lid_change_fit": {
+                "type": "score",
+                "score": 1,
+                "confidence": 1,
+                "legend": {
+                  "0": "The verified information conflicts with the explicit preference in preferences.",
+                  "1": "The verified information supports the explicit preference in preferences, including the handling steps or separate purchase that preferences explicitly accepts."
+                },
+                "probabilities": { "0": 0, "1": 1 }
+              }
+            },
+            "usage": { "input_tokens": 518, "output_tokens": 19 }
+          }
+        }
+      ]
+    },
+    {
+      "id": "smta-both-in-box-required",
+      "group": "unseen-model",
+      "model": "SM-TA48",
+      "expectedError": null,
+      "actualError": null,
+      "agrees": true,
+      "calls": 1,
+      "axes": [
+        {
+          "id": "lid_change_fit",
+          "score": 0.01,
+          "confidence": 0.99,
+          "probabilities": { "0": 0.99, "1": 0.01 },
+          "expected": 0,
+          "decision": 0,
+          "agrees": true
+        }
+      ],
+      "transport": [
+        {
+          "request": {
+            "model": "jev-1.13.0",
+            "state": {
+              "category": "vacuum-insulated-drinking-bottle",
+              "mode": "evaluation-only",
+              "preferences": "I want both one-touch and screw-type stoppers supplied with the bottle, without buying a separate stopper.",
+              "facts": {
+                "lidOptions": "A compatible screw-type stopper is sold separately. It can replace the supplied one-touch stopper; it is not part of the standard supplied configuration."
+              },
+              "excerpts": {
+                "lidOptions": "A compatible screw-type stopper is sold separately. It can replace the supplied one-touch stopper; it is not part of the standard supplied configuration."
+              }
+            },
+            "questions": {
+              "lid_change_fit": {
+                "type": "score",
+                "instructions": "Evaluate only the supplied configuration and separately purchasable stopper option against preferences. Use lidOptions and its excerpt. Distinguish the ability to buy and replace a stopper later from both stoppers being included in the box.",
+                "criteria": [
+                  "The verified information conflicts with the explicit preference in preferences.",
+                  "The verified information supports the explicit preference in preferences, including the handling steps or separate purchase that preferences explicitly accepts."
+                ]
+              }
+            }
+          },
+          "status": 200,
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "lid_change_fit": {
+                "type": "score",
+                "score": 0.01,
+                "confidence": 0.99,
+                "legend": {
+                  "0": "The verified information conflicts with the explicit preference in preferences.",
+                  "1": "The verified information supports the explicit preference in preferences, including the handling steps or separate purchase that preferences explicitly accepts."
+                },
+                "probabilities": { "0": 0.99, "1": 0.01 }
+              }
+            },
+            "usage": { "input_tokens": 508, "output_tokens": 19 }
+          }
+        }
+      ]
+    },
+    {
+      "id": "smta-dishwasher-unverified",
+      "group": "unseen-model",
+      "model": "SM-TA48",
+      "expectedError": "insufficient_evidence",
+      "actualError": "insufficient_evidence",
+      "agrees": true,
+      "calls": 0,
+      "axes": [],
+      "transport": []
+    },
+    {
+      "id": "smta-opening-ambiguous",
+      "group": "unseen-model",
+      "model": "SM-TA48",
+      "expectedError": "conditions_need_confirmation",
+      "actualError": "conditions_need_confirmation",
+      "agrees": true,
+      "calls": 0,
+      "axes": [],
+      "transport": []
+    },
+    {
+      "id": "smta-force-unverified",
+      "group": "unseen-model",
+      "model": "SM-TA48",
+      "expectedError": "insufficient_evidence",
+      "actualError": "insufficient_evidence",
+      "agrees": true,
+      "calls": 0,
+      "axes": [],
+      "transport": []
+    }
+  ]
+}

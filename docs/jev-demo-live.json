@@ -1,0 +1,79 @@
+{
+  "evaluatedAt": "2026-10-01T12:40:30.700Z",
+  "apiCalls": 2,
+  "result": {
+    "tag": "ok",
+    "value": {
+      "mode": "demo",
+      "notice": "Artificial products and uncalibrated internal index. Not a public suitability percentage.",
+      "policyVersion": "usb-c-charger-demo-v2",
+      "excludedProductIds": ["demo-65w"],
+      "ranked": [
+        {
+          "productId": "demo-85w",
+          "rank": 1,
+          "internalIndex": 0.9975,
+          "model": "jev-1.13.0",
+          "criteria": [
+            {
+              "id": "port_operation",
+              "score": 1.99,
+              "confidence": 0.99,
+              "legend": {
+                "0": "The port labeling conflicts with the user's stated routine and the user must identify the required port by another means.",
+                "1": "The port labeling identifies ports by neutral labels, so the user can follow the routine by remembering the device-to-port assignment.",
+                "2": "The port labeling explicitly identifies the intended device role, so the user can follow the stated routine directly from the labels."
+              },
+              "probabilities": { "0": 0, "1": 0.01, "2": 0.99 },
+              "sources": ["https://example.com/demo-85w"]
+            },
+            {
+              "id": "plug_storage",
+              "score": 2,
+              "confidence": 1,
+              "legend": {
+                "0": "The plug remains exposed during the user's stated storage routine and the product provides no means of covering or retracting it.",
+                "1": "The plug can be covered during the user's stated storage routine using a separate supplied protective cap that must be kept and handled.",
+                "2": "The plug folds into the body during the user's stated storage routine without a separate protective part."
+              },
+              "probabilities": { "0": 0, "1": 0, "2": 1 },
+              "sources": ["https://example.com/demo-85w"]
+            }
+          ]
+        },
+        {
+          "productId": "demo-100w",
+          "rank": 2,
+          "internalIndex": 0.245,
+          "model": "jev-1.13.0",
+          "criteria": [
+            {
+              "id": "port_operation",
+              "score": 0.98,
+              "confidence": 0.96,
+              "legend": {
+                "0": "The port labeling conflicts with the user's stated routine and the user must identify the required port by another means.",
+                "1": "The port labeling identifies ports by neutral labels, so the user can follow the routine by remembering the device-to-port assignment.",
+                "2": "The port labeling explicitly identifies the intended device role, so the user can follow the stated routine directly from the labels."
+              },
+              "probabilities": { "0": 0.02, "1": 0.98, "2": 0 },
+              "sources": ["https://example.com/demo-100w"]
+            },
+            {
+              "id": "plug_storage",
+              "score": 0,
+              "confidence": 1,
+              "legend": {
+                "0": "The plug remains exposed during the user's stated storage routine and the product provides no means of covering or retracting it.",
+                "1": "The plug can be covered during the user's stated storage routine using a separate supplied protective cap that must be kept and handled.",
+                "2": "The plug folds into the body during the user's stated storage routine without a separate protective part."
+              },
+              "probabilities": { "0": 1, "1": 0, "2": 0 },
+              "sources": ["https://example.com/demo-100w"]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

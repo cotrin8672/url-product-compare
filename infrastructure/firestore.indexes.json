@@ -1,0 +1,14 @@
+{
+  "indexes": [],
+  "fieldOverrides": [
+    { "collectionGroup": "investigation_runs", "fieldPath": "*", "indexes": [] },
+    {
+      "collectionGroup": "investigation_runs",
+      "fieldPath": "expiresAt",
+      "ttl": true,
+      "indexes": []
+    },
+    { "collectionGroup": "comparison_jobs", "fieldPath": "*", "indexes": [] },
+    { "collectionGroup": "comparison_jobs", "fieldPath": "cleanupAt", "ttl": true, "indexes": [] }
+  ]
+}

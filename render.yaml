@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: url-product-compare
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: bash infrastructure/render-build.sh
+    startCommand: node apps/api/dist/firebase/apps/api/src/local.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 24.21.0
+      - key: RAKUTEN_ALLOWED_ORIGIN
+        fromService:
+          type: web
+          name: url-product-compare
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: RAKUTEN_APPLICATION_ID
+        sync: false
+      - key: RAKUTEN_ACCESS_KEY
+        sync: false
+      - key: RAKUTEN_AFFILIATE_ID
+        sync: false
+      - key: RAKUTEN_DATA_AUTHORIZED_UNTIL
+        sync: false
+      - key: API_ACCESS_TOKEN
+        sync: false

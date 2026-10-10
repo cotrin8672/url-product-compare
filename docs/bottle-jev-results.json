@@ -1,0 +1,1311 @@
+{
+  "startedAt": "2026-10-02T13:19:35.581Z",
+  "updatedAt": "2026-10-02T13:19:39.700Z",
+  "model": "jev-1.13.0",
+  "category": "vacuum-insulated-drinking-bottle",
+  "inputSha256": "259acdb44d748ef84a3c9fe54a4bf05f5ef11632deb65d0baa653cb64ba375af",
+  "minimumConfidence": 0.7,
+  "labelAuthor": "Codex; labels fixed before live requests; synthetic pilot, no independent human validation",
+  "rows": [
+    {
+      "id": "button-en-jnl",
+      "group": "real-en",
+      "repeat": 0,
+      "expected": { "opening_fit": 2, "cleaning_fit": 2 },
+      "rubricExpected": { "opening_fit": 2, "cleaning_fit": 2 },
+      "durationMs": 287,
+      "transport": {
+        "status": 200,
+        "model": "jev-1.13.0",
+        "answers": {
+          "opening_fit": {
+            "type": "score",
+            "score": 1.23,
+            "confidence": 0.64,
+            "legend": {
+              "0": "The verified opening method is the opposite of the user's explicit preferred opening method.",
+              "1": "The verified opening method partially supports the user's explicit preferred method but needs an additional handling step the user explicitly wants to avoid.",
+              "2": "The verified opening method matches the user's explicit preferred opening method."
+            },
+            "probabilities": { "0": 0, "1": 0.76, "2": 0.24 }
+          },
+          "cleaning_fit": {
+            "type": "score",
+            "score": 2,
+            "confidence": 1,
+            "legend": {
+              "0": "Neither the bottle body nor its lid parts support the user's requested dishwasher cleaning.",
+              "1": "Only the lid parts support the requested dishwasher cleaning; the bottle body must be washed by hand.",
+              "2": "The bottle body and all lid parts support the requested dishwasher cleaning, subject to the dishwasher and product manual conditions."
+            },
+            "probabilities": { "0": 0, "1": 0, "2": 1 }
+          }
+        },
+        "usage": { "input_tokens": 676, "output_tokens": 34 }
+      },
+      "result": {
+        "tag": "ok",
+        "value": {
+          "model": "jev-1.13.0",
+          "answers": {
+            "opening_fit": {
+              "score": 1.23,
+              "confidence": 0.64,
+              "legend": {
+                "0": "The verified opening method is the opposite of the user's explicit preferred opening method.",
+                "1": "The verified opening method partially supports the user's explicit preferred method but needs an additional handling step the user explicitly wants to avoid.",
+                "2": "The verified opening method matches the user's explicit preferred opening method."
+              },
+              "probabilities": { "0": 0, "1": 0.76, "2": 0.24 }
+            },
+            "cleaning_fit": {
+              "score": 2,
+              "confidence": 1,
+              "legend": {
+                "0": "Neither the bottle body nor its lid parts support the user's requested dishwasher cleaning.",
+                "1": "Only the lid parts support the requested dishwasher cleaning; the bottle body must be washed by hand.",
+                "2": "The bottle body and all lid parts support the requested dishwasher cleaning, subject to the dishwasher and product manual conditions."
+              },
+              "probabilities": { "0": 0, "1": 0, "2": 1 }
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "button-en-joq",
+      "group": "real-en",
+      "repeat": 0,
+      "expected": { "opening_fit": 0, "cleaning_fit": 2 },
+      "rubricExpected": { "opening_fit": 0, "cleaning_fit": 2 },
+      "durationMs": 188,
+      "transport": {
+        "status": 200,
+        "model": "jev-1.13.0",
+        "answers": {
+          "opening_fit": {
+            "type": "score",
+            "score": 0.02,
+            "confidence": 0.98,
+            "legend": {
+              "0": "The verified opening method is the opposite of the user's explicit preferred opening method.",
+              "1": "The verified opening method partially supports the user's explicit preferred method but needs an additional handling step the user explicitly wants to avoid.",
+              "2": "The verified opening method matches the user's explicit preferred opening method."
+            },
+            "probabilities": { "0": 0.99, "1": 0.01, "2": 0 }
+          },
+          "cleaning_fit": {
+            "type": "score",
+            "score": 2,
+            "confidence": 1,
+            "legend": {
+              "0": "Neither the bottle body nor its lid parts support the user's requested dishwasher cleaning.",
+              "1": "Only the lid parts support the requested dishwasher cleaning; the bottle body must be washed by hand.",
+              "2": "The bottle body and all lid parts support the requested dishwasher cleaning, subject to the dishwasher and product manual conditions."
+            },
+            "probabilities": { "0": 0, "1": 0, "2": 1 }
+          }
+        },
+        "usage": { "input_tokens": 670, "output_tokens": 34 }
+      },
+      "result": {
+        "tag": "ok",
+        "value": {
+          "model": "jev-1.13.0",
+          "answers": {
+            "opening_fit": {
+              "score": 0.02,
+              "confidence": 0.98,
+              "legend": {
+                "0": "The verified opening method is the opposite of the user's explicit preferred opening method.",
+                "1": "The verified opening method partially supports the user's explicit preferred method but needs an additional handling step the user explicitly wants to avoid.",
+                "2": "The verified opening method matches the user's explicit preferred opening method."
+              },
+              "probabilities": { "0": 0.99, "1": 0.01, "2": 0 }
+            },
+            "cleaning_fit": {
+              "score": 2,
+              "confidence": 1,
+              "legend": {
+                "0": "Neither the bottle body nor its lid parts support the user's requested dishwasher cleaning.",
+                "1": "Only the lid parts support the requested dishwasher cleaning; the bottle body must be washed by hand.",
+                "2": "The bottle body and all lid parts support the requested dishwasher cleaning, subject to the dishwasher and product manual conditions."
+              },
+              "probabilities": { "0": 0, "1": 0, "2": 1 }
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "screw-en-jnl",
+      "group": "real-en",
+      "repeat": 0,
+      "expected": { "opening_fit": 0, "cleaning_fit": 2 },
+      "rubricExpected": { "opening_fit": 0, "cleaning_fit": 2 },
+      "durationMs": 170,
+      "transport": {
+        "status": 200,
+        "model": "jev-1.13.0",
+        "answers": {
+          "opening_fit": {
+            "type": "score",
+            "score": 0.01,
+            "confidence": 0.99,
+            "legend": {
+              "0": "The verified opening method is the opposite of the user's explicit preferred opening method.",
+              "1": "The verified opening method partially supports the user's explicit preferred method but needs an additional handling step the user explicitly wants to avoid.",
+              "2": "The verified opening method matches the user's explicit preferred opening method."
+            },
+            "probabilities": { "0": 0.99, "1": 0.01, "2": 0 }
+          },
+          "cleaning_fit": {
+            "type": "score",
+            "score": 2,
+            "confidence": 1,
+            "legend": {
+              "0": "Neither the bottle body nor its lid parts support the user's requested dishwasher cleaning.",
+              "1": "Only the lid parts support the requested dishwasher cleaning; the bottle body must be washed by hand.",
+              "2": "The bottle body and all lid parts support the requested dishwasher cleaning, subject to the dishwasher and product manual conditions."
+            },
+            "probabilities": { "0": 0, "1": 0, "2": 1 }
+          }
+        },
+        "usage": { "input_tokens": 673, "output_tokens": 34 }
+      },
+      "result": {
+        "tag": "ok",
+        "value": {
+          "model": "jev-1.13.0",
+          "answers": {
+            "opening_fit": {
+              "score": 0.01,
+              "confidence": 0.99,
+              "legend": {
+                "0": "The verified opening method is the opposite of the user's explicit preferred opening method.",
+                "1": "The verified opening method partially supports the user's explicit preferred method but needs an additional handling step the user explicitly wants to avoid.",
+                "2": "The verified opening method matches the user's explicit preferred opening method."
+              },
+              "probabilities": { "0": 0.99, "1": 0.01, "2": 0 }
+            },
+            "cleaning_fit": {
+              "score": 2,
+              "confidence": 1,
+              "legend": {
+                "0": "Neither the bottle body nor its lid parts support the user's requested dishwasher cleaning.",
+                "1": "Only the lid parts support the requested dishwasher cleaning; the bottle body must be washed by hand.",
+                "2": "The bottle body and all lid parts support the requested dishwasher cleaning, subject to the dishwasher and product manual conditions."
+              },
+              "probabilities": { "0": 0, "1": 0, "2": 1 }
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "screw-en-joq",
+      "group": "real-en",
+      "repeat": 0,
+      "expected": { "opening_fit": 2, "cleaning_fit": 2 },
+      "rubricExpected": { "opening_fit": 2, "cleaning_fit": 2 },
+      "durationMs": 206,
+      "transport": {
+        "status": 200,
+        "model": "jev-1.13.0",
+        "answers": {
+          "opening_fit": {
+            "type": "score",
+            "score": 1.99,
+            "confidence": 0.99,
+            "legend": {
+              "0": "The verified opening method is the opposite of the user's explicit preferred opening method.",
+              "1": "The verified opening method partially supports the user's explicit preferred method but needs an additional handling step the user explicitly wants to avoid.",
+              "2": "The verified opening method matches the user's explicit preferred opening method."
+            },
+            "probabilities": { "0": 0, "1": 0, "2": 1 }
+          },
+          "cleaning_fit": {
+            "type": "score",
+            "score": 2,
+            "confidence": 1,
+            "legend": {
+              "0": "Neither the bottle body nor its lid parts support the user's requested dishwasher cleaning.",
+              "1": "Only the lid parts support the requested dishwasher cleaning; the bottle body must be washed by hand.",
+              "2": "The bottle body and all lid parts support the requested dishwasher cleaning, subject to the dishwasher and product manual conditions."
+            },
+            "probabilities": { "0": 0, "1": 0, "2": 1 }
+          }
+        },
+        "usage": { "input_tokens": 667, "output_tokens": 34 }
+      },
+      "result": {
+        "tag": "ok",
+        "value": {
+          "model": "jev-1.13.0",
+          "answers": {
+            "opening_fit": {
+              "score": 1.99,
+              "confidence": 0.99,
+              "legend": {
+                "0": "The verified opening method is the opposite of the user's explicit preferred opening method.",
+                "1": "The verified opening method partially supports the user's explicit preferred method but needs an additional handling step the user explicitly wants to avoid.",
+                "2": "The verified opening method matches the user's explicit preferred opening method."
+              },
+              "probabilities": { "0": 0, "1": 0, "2": 1 }
+            },
+            "cleaning_fit": {
+              "score": 2,
+              "confidence": 1,
+              "legend": {
+                "0": "Neither the bottle body nor its lid parts support the user's requested dishwasher cleaning.",
+                "1": "Only the lid parts support the requested dishwasher cleaning; the bottle body must be washed by hand.",
+                "2": "The bottle body and all lid parts support the requested dishwasher cleaning, subject to the dishwasher and product manual conditions."
+              },
+              "probabilities": { "0": 0, "1": 0, "2": 1 }
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "button-ja-jnl",
+      "group": "real-ja",
+      "repeat": 0,
+      "expected": { "opening_fit": 2, "cleaning_fit": 2 },
+      "rubricExpected": { "opening_fit": 2, "cleaning_fit": 2 },
+      "durationMs": 180,
+      "transport": {
+        "status": 200,
+        "model": "jev-1.13.0",
+        "answers": {
+          "opening_fit": {
+            "type": "score",
+            "score": 1.05,
+            "confidence": 0.89,
+            "legend": {
+              "0": "The verified opening method is the opposite of the user's explicit preferred opening method.",
+              "1": "The verified opening method partially supports the user's explicit preferred method but needs an additional handling step the user explicitly wants to avoid.",
+              "2": "The verified opening method matches the user's explicit preferred opening method."
+            },
+            "probabilities": { "0": 0.01, "1": 0.93, "2": 0.06 }
+          },
+          "cleaning_fit": {
+            "type": "score",
+            "score": 2,
+            "confidence": 1,
+            "legend": {
+              "0": "Neither the bottle body nor its lid parts support the user's requested dishwasher cleaning.",
+              "1": "Only the lid parts support the requested dishwasher cleaning; the bottle body must be washed by hand.",
+              "2": "The bottle body and all lid parts support the requested dishwasher cleaning, subject to the dishwasher and product manual conditions."
+            },
+            "probabilities": { "0": 0, "1": 0, "2": 1 }
+          }
+        },
+        "usage": { "input_tokens": 720, "output_tokens": 34 }
+      },
+      "result": {
+        "tag": "ok",
+        "value": {
+          "model": "jev-1.13.0",
+          "answers": {
+            "opening_fit": {
+              "score": 1.05,
+              "confidence": 0.89,
+              "legend": {
+                "0": "The verified opening method is the opposite of the user's explicit preferred opening method.",
+                "1": "The verified opening method partially supports the user's explicit preferred method but needs an additional handling step the user explicitly wants to avoid.",
+                "2": "The verified opening method matches the user's explicit preferred opening method."
+              },
+              "probabilities": { "0": 0.01, "1": 0.93, "2": 0.06 }
+            },
+            "cleaning_fit": {
+              "score": 2,
+              "confidence": 1,
+              "legend": {
+                "0": "Neither the bottle body nor its lid parts support the user's requested dishwasher cleaning.",
+                "1": "Only the lid parts support the requested dishwasher cleaning; the bottle body must be washed by hand.",
+                "2": "The bottle body and all lid parts support the requested dishwasher cleaning, subject to the dishwasher and product manual conditions."
+              },
+              "probabilities": { "0": 0, "1": 0, "2": 1 }
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "button-ja-joq",
+      "group": "real-ja",
+      "repeat": 0,
+      "expected": { "opening_fit": 0, "cleaning_fit": 2 },
+      "rubricExpected": { "opening_fit": 0, "cleaning_fit": 2 },
+      "durationMs": 197,
+      "transport": {
+        "status": 200,
+        "model": "jev-1.13.0",
+        "answers": {
+          "opening_fit": {
+            "type": "score",
+            "score": 0.05,
+            "confidence": 0.93,
+            "legend": {
+              "0": "The verified opening method is the opposite of the user's explicit preferred opening method.",
+              "1": "The verified opening method partially supports the user's explicit preferred method but needs an additional handling step the user explicitly wants to avoid.",
+              "2": "The verified opening method matches the user's explicit preferred opening method."
+            },
+            "probabilities": { "0": 0.96, "1": 0.04, "2": 0 }
+          },
+          "cleaning_fit": {
+            "type": "score",
+            "score": 1.99,
+            "confidence": 0.99,
+            "legend": {
+              "0": "Neither the bottle body nor its lid parts support the user's requested dishwasher cleaning.",
+              "1": "Only the lid parts support the requested dishwasher cleaning; the bottle body must be washed by hand.",
+              "2": "The bottle body and all lid parts support the requested dishwasher cleaning, subject to the dishwasher and product manual conditions."
+            },
+            "probabilities": { "0": 0, "1": 0, "2": 1 }
+          }
+        },
+        "usage": { "input_tokens": 707, "output_tokens": 34 }
+      },
+      "result": {
+        "tag": "ok",
+        "value": {
+          "model": "jev-1.13.0",
+          "answers": {
+            "opening_fit": {
+              "score": 0.05,
+              "confidence": 0.93,
+              "legend": {
+                "0": "The verified opening method is the opposite of the user's explicit preferred opening method.",
+                "1": "The verified opening method partially supports the user's explicit preferred method but needs an additional handling step the user explicitly wants to avoid.",
+                "2": "The verified opening method matches the user's explicit preferred opening method."
+              },
+              "probabilities": { "0": 0.96, "1": 0.04, "2": 0 }
+            },
+            "cleaning_fit": {
+              "score": 1.99,
+              "confidence": 0.99,
+              "legend": {
+                "0": "Neither the bottle body nor its lid parts support the user's requested dishwasher cleaning.",
+                "1": "Only the lid parts support the requested dishwasher cleaning; the bottle body must be washed by hand.",
+                "2": "The bottle body and all lid parts support the requested dishwasher cleaning, subject to the dishwasher and product manual conditions."
+              },
+              "probabilities": { "0": 0, "1": 0, "2": 1 }
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "screw-ja-jnl",
+      "group": "real-ja",
+      "repeat": 0,
+      "expected": { "opening_fit": 0, "cleaning_fit": 2 },
+      "rubricExpected": { "opening_fit": 0, "cleaning_fit": 2 },
+      "durationMs": 169,
+      "transport": {
+        "status": 200,
+        "model": "jev-1.13.0",
+        "answers": {
+          "opening_fit": {
+            "type": "score",
+            "score": 0.03,
+            "confidence": 0.95,
+            "legend": {
+              "0": "The verified opening method is the opposite of the user's explicit preferred opening method.",
+              "1": "The verified opening method partially supports the user's explicit preferred method but needs an additional handling step the user explicitly wants to avoid.",
+              "2": "The verified opening method matches the user's explicit preferred opening method."
+            },
+            "probabilities": { "0": 0.97, "1": 0.03, "2": 0 }
+          },
+          "cleaning_fit": {
+            "type": "score",
+            "score": 2,
+            "confidence": 1,
+            "legend": {
+              "0": "Neither the bottle body nor its lid parts support the user's requested dishwasher cleaning.",
+              "1": "Only the lid parts support the requested dishwasher cleaning; the bottle body must be washed by hand.",
+              "2": "The bottle body and all lid parts support the requested dishwasher cleaning, subject to the dishwasher and product manual conditions."
+            },
+            "probabilities": { "0": 0, "1": 0, "2": 1 }
+          }
+        },
+        "usage": { "input_tokens": 722, "output_tokens": 34 }
+      },
+      "result": {
+        "tag": "ok",
+        "value": {
+          "model": "jev-1.13.0",
+          "answers": {
+            "opening_fit": {
+              "score": 0.03,
+              "confidence": 0.95,
+              "legend": {
+                "0": "The verified opening method is the opposite of the user's explicit preferred opening method.",
+                "1": "The verified opening method partially supports the user's explicit preferred method but needs an additional handling step the user explicitly wants to avoid.",
+                "2": "The verified opening method matches the user's explicit preferred opening method."
+              },
+              "probabilities": { "0": 0.97, "1": 0.03, "2": 0 }
+            },
+            "cleaning_fit": {
+              "score": 2,
+              "confidence": 1,
+              "legend": {
+                "0": "Neither the bottle body nor its lid parts support the user's requested dishwasher cleaning.",
+                "1": "Only the lid parts support the requested dishwasher cleaning; the bottle body must be washed by hand.",
+                "2": "The bottle body and all lid parts support the requested dishwasher cleaning, subject to the dishwasher and product manual conditions."
+              },
+              "probabilities": { "0": 0, "1": 0, "2": 1 }
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "screw-ja-joq",
+      "group": "real-ja",
+      "repeat": 0,
+      "expected": { "opening_fit": 2, "cleaning_fit": 2 },
+      "rubricExpected": { "opening_fit": 2, "cleaning_fit": 2 },
+      "durationMs": 200,
+      "transport": {
+        "status": 200,
+        "model": "jev-1.13.0",
+        "answers": {
+          "opening_fit": {
+            "type": "score",
+            "score": 1.99,
+            "confidence": 0.99,
+            "legend": {
+              "0": "The verified opening method is the opposite of the user's explicit preferred opening method.",
+              "1": "The verified opening method partially supports the user's explicit preferred method but needs an additional handling step the user explicitly wants to avoid.",
+              "2": "The verified opening method matches the user's explicit preferred opening method."
+            },
+            "probabilities": { "0": 0, "1": 0, "2": 1 }
+          },
+          "cleaning_fit": {
+            "type": "score",
+            "score": 2,
+            "confidence": 1,
+            "legend": {
+              "0": "Neither the bottle body nor its lid parts support the user's requested dishwasher cleaning.",
+              "1": "Only the lid parts support the requested dishwasher cleaning; the bottle body must be washed by hand.",
+              "2": "The bottle body and all lid parts support the requested dishwasher cleaning, subject to the dishwasher and product manual conditions."
+            },
+            "probabilities": { "0": 0, "1": 0, "2": 1 }
+          }
+        },
+        "usage": { "input_tokens": 709, "output_tokens": 34 }
+      },
+      "result": {
+        "tag": "ok",
+        "value": {
+          "model": "jev-1.13.0",
+          "answers": {
+            "opening_fit": {
+              "score": 1.99,
+              "confidence": 0.99,
+              "legend": {
+                "0": "The verified opening method is the opposite of the user's explicit preferred opening method.",
+                "1": "The verified opening method partially supports the user's explicit preferred method but needs an additional handling step the user explicitly wants to avoid.",
+                "2": "The verified opening method matches the user's explicit preferred opening method."
+              },
+              "probabilities": { "0": 0, "1": 0, "2": 1 }
+            },
+            "cleaning_fit": {
+              "score": 2,
+              "confidence": 1,
+              "legend": {
+                "0": "Neither the bottle body nor its lid parts support the user's requested dishwasher cleaning.",
+                "1": "Only the lid parts support the requested dishwasher cleaning; the bottle body must be washed by hand.",
+                "2": "The bottle body and all lid parts support the requested dishwasher cleaning, subject to the dishwasher and product manual conditions."
+              },
+              "probabilities": { "0": 0, "1": 0, "2": 1 }
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "unknown-opening",
+      "group": "missing-diagnostic",
+      "repeat": 0,
+      "expected": { "opening_fit": "abstain", "cleaning_fit": 2 },
+      "rubricExpected": { "opening_fit": "abstain", "cleaning_fit": 2 },
+      "durationMs": 201,
+      "transport": {
+        "status": 200,
+        "model": "jev-1.13.0",
+        "answers": {
+          "opening_fit": {
+            "type": "score",
+            "score": 0.85,
+            "confidence": 0,
+            "legend": {
+              "0": "The verified opening method is the opposite of the user's explicit preferred opening method.",
+              "1": "The verified opening method partially supports the user's explicit preferred method but needs an additional handling step the user explicitly wants to avoid.",
+              "2": "The verified opening method matches the user's explicit preferred opening method."
+            },
+            "probabilities": { "0": 0.49, "1": 0.16, "2": 0.35 }
+          },
+          "cleaning_fit": {
+            "type": "score",
+            "score": 2,
+            "confidence": 1,
+            "legend": {
+              "0": "Neither the bottle body nor its lid parts support the user's requested dishwasher cleaning.",
+              "1": "Only the lid parts support the requested dishwasher cleaning; the bottle body must be washed by hand.",
+              "2": "The bottle body and all lid parts support the requested dishwasher cleaning, subject to the dishwasher and product manual conditions."
+            },
+            "probabilities": { "0": 0, "1": 0, "2": 1 }
+          }
+        },
+        "usage": { "input_tokens": 653, "output_tokens": 34 }
+      },
+      "result": {
+        "tag": "ok",
+        "value": {
+          "model": "jev-1.13.0",
+          "answers": {
+            "opening_fit": {
+              "score": 0.85,
+              "confidence": 0,
+              "legend": {
+                "0": "The verified opening method is the opposite of the user's explicit preferred opening method.",
+                "1": "The verified opening method partially supports the user's explicit preferred method but needs an additional handling step the user explicitly wants to avoid.",
+                "2": "The verified opening method matches the user's explicit preferred opening method."
+              },
+              "probabilities": { "0": 0.49, "1": 0.16, "2": 0.35 }
+            },
+            "cleaning_fit": {
+              "score": 2,
+              "confidence": 1,
+              "legend": {
+                "0": "Neither the bottle body nor its lid parts support the user's requested dishwasher cleaning.",
+                "1": "Only the lid parts support the requested dishwasher cleaning; the bottle body must be washed by hand.",
+                "2": "The bottle body and all lid parts support the requested dishwasher cleaning, subject to the dishwasher and product manual conditions."
+              },
+              "probabilities": { "0": 0, "1": 0, "2": 1 }
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "unknown-cleaning",
+      "group": "missing-diagnostic",
+      "repeat": 0,
+      "expected": { "opening_fit": 2, "cleaning_fit": "abstain" },
+      "rubricExpected": { "opening_fit": 2, "cleaning_fit": "abstain" },
+      "durationMs": 165,
+      "transport": {
+        "status": 200,
+        "model": "jev-1.13.0",
+        "answers": {
+          "opening_fit": {
+            "type": "score",
+            "score": 1.98,
+            "confidence": 0.97,
+            "legend": {
+              "0": "The verified opening method is the opposite of the user's explicit preferred opening method.",
+              "1": "The verified opening method partially supports the user's explicit preferred method but needs an additional handling step the user explicitly wants to avoid.",
+              "2": "The verified opening method matches the user's explicit preferred opening method."
+            },
+            "probabilities": { "0": 0.01, "1": 0.01, "2": 0.98 }
+          },
+          "cleaning_fit": {
+            "type": "score",
+            "score": 0.1,
+            "confidence": 0.84,
+            "legend": {
+              "0": "Neither the bottle body nor its lid parts support the user's requested dishwasher cleaning.",
+              "1": "Only the lid parts support the requested dishwasher cleaning; the bottle body must be washed by hand.",
+              "2": "The bottle body and all lid parts support the requested dishwasher cleaning, subject to the dishwasher and product manual conditions."
+            },
+            "probabilities": { "0": 0.95, "1": 0.01, "2": 0.04 }
+          }
+        },
+        "usage": { "input_tokens": 645, "output_tokens": 34 }
+      },
+      "result": {
+        "tag": "ok",
+        "value": {
+          "model": "jev-1.13.0",
+          "answers": {
+            "opening_fit": {
+              "score": 1.98,
+              "confidence": 0.97,
+              "legend": {
+                "0": "The verified opening method is the opposite of the user's explicit preferred opening method.",
+                "1": "The verified opening method partially supports the user's explicit preferred method but needs an additional handling step the user explicitly wants to avoid.",
+                "2": "The verified opening method matches the user's explicit preferred opening method."
+              },
+              "probabilities": { "0": 0.01, "1": 0.01, "2": 0.98 }
+            },
+            "cleaning_fit": {
+              "score": 0.1,
+              "confidence": 0.84,
+              "legend": {
+                "0": "Neither the bottle body nor its lid parts support the user's requested dishwasher cleaning.",
+                "1": "Only the lid parts support the requested dishwasher cleaning; the bottle body must be washed by hand.",
+                "2": "The bottle body and all lid parts support the requested dishwasher cleaning, subject to the dishwasher and product manual conditions."
+              },
+              "probabilities": { "0": 0.95, "1": 0.01, "2": 0.04 }
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "no-opening-preference",
+      "group": "irrelevant-diagnostic",
+      "repeat": 0,
+      "expected": { "opening_fit": "abstain", "cleaning_fit": 2 },
+      "rubricExpected": { "opening_fit": "abstain", "cleaning_fit": 2 },
+      "durationMs": 195,
+      "transport": {
+        "status": 200,
+        "model": "jev-1.13.0",
+        "answers": {
+          "opening_fit": {
+            "type": "score",
+            "score": 1.6,
+            "confidence": 0.4,
+            "legend": {
+              "0": "The verified opening method is the opposite of the user's explicit preferred opening method.",
+              "1": "The verified opening method partially supports the user's explicit preferred method but needs an additional handling step the user explicitly wants to avoid.",
+              "2": "The verified opening method matches the user's explicit preferred opening method."
+            },
+            "probabilities": { "0": 0.17, "1": 0.06, "2": 0.77 }
+          },
+          "cleaning_fit": {
+            "type": "score",
+            "score": 2,
+            "confidence": 1,
+            "legend": {
+              "0": "Neither the bottle body nor its lid parts support the user's requested dishwasher cleaning.",
+              "1": "Only the lid parts support the requested dishwasher cleaning; the bottle body must be washed by hand.",
+              "2": "The bottle body and all lid parts support the requested dishwasher cleaning, subject to the dishwasher and product manual conditions."
+            },
+            "probabilities": { "0": 0, "1": 0, "2": 1 }
+          }
+        },
+        "usage": { "input_tokens": 659, "output_tokens": 34 }
+      },
+      "result": {
+        "tag": "ok",
+        "value": {
+          "model": "jev-1.13.0",
+          "answers": {
+            "opening_fit": {
+              "score": 1.6,
+              "confidence": 0.4,
+              "legend": {
+                "0": "The verified opening method is the opposite of the user's explicit preferred opening method.",
+                "1": "The verified opening method partially supports the user's explicit preferred method but needs an additional handling step the user explicitly wants to avoid.",
+                "2": "The verified opening method matches the user's explicit preferred opening method."
+              },
+              "probabilities": { "0": 0.17, "1": 0.06, "2": 0.77 }
+            },
+            "cleaning_fit": {
+              "score": 2,
+              "confidence": 1,
+              "legend": {
+                "0": "Neither the bottle body nor its lid parts support the user's requested dishwasher cleaning.",
+                "1": "Only the lid parts support the requested dishwasher cleaning; the bottle body must be washed by hand.",
+                "2": "The bottle body and all lid parts support the requested dishwasher cleaning, subject to the dishwasher and product manual conditions."
+              },
+              "probabilities": { "0": 0, "1": 0, "2": 1 }
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "no-cleaning-preference",
+      "group": "irrelevant-diagnostic",
+      "repeat": 0,
+      "expected": { "opening_fit": 2, "cleaning_fit": "abstain" },
+      "rubricExpected": { "opening_fit": 2, "cleaning_fit": "abstain" },
+      "durationMs": 214,
+      "transport": {
+        "status": 200,
+        "model": "jev-1.13.0",
+        "answers": {
+          "opening_fit": {
+            "type": "score",
+            "score": 1.15,
+            "confidence": 0.77,
+            "legend": {
+              "0": "The verified opening method is the opposite of the user's explicit preferred opening method.",
+              "1": "The verified opening method partially supports the user's explicit preferred method but needs an additional handling step the user explicitly wants to avoid.",
+              "2": "The verified opening method matches the user's explicit preferred opening method."
+            },
+            "probabilities": { "0": 0, "1": 0.85, "2": 0.15 }
+          },
+          "cleaning_fit": {
+            "type": "score",
+            "score": 1.98,
+            "confidence": 0.97,
+            "legend": {
+              "0": "Neither the bottle body nor its lid parts support the user's requested dishwasher cleaning.",
+              "1": "Only the lid parts support the requested dishwasher cleaning; the bottle body must be washed by hand.",
+              "2": "The bottle body and all lid parts support the requested dishwasher cleaning, subject to the dishwasher and product manual conditions."
+            },
+            "probabilities": { "0": 0.01, "1": 0, "2": 0.99 }
+          }
+        },
+        "usage": { "input_tokens": 663, "output_tokens": 34 }
+      },
+      "result": {
+        "tag": "ok",
+        "value": {
+          "model": "jev-1.13.0",
+          "answers": {
+            "opening_fit": {
+              "score": 1.15,
+              "confidence": 0.77,
+              "legend": {
+                "0": "The verified opening method is the opposite of the user's explicit preferred opening method.",
+                "1": "The verified opening method partially supports the user's explicit preferred method but needs an additional handling step the user explicitly wants to avoid.",
+                "2": "The verified opening method matches the user's explicit preferred opening method."
+              },
+              "probabilities": { "0": 0, "1": 0.85, "2": 0.15 }
+            },
+            "cleaning_fit": {
+              "score": 1.98,
+              "confidence": 0.97,
+              "legend": {
+                "0": "Neither the bottle body nor its lid parts support the user's requested dishwasher cleaning.",
+                "1": "Only the lid parts support the requested dishwasher cleaning; the bottle body must be washed by hand.",
+                "2": "The bottle body and all lid parts support the requested dishwasher cleaning, subject to the dishwasher and product manual conditions."
+              },
+              "probabilities": { "0": 0.01, "1": 0, "2": 0.99 }
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "button-ja-joq",
+      "group": "real-ja",
+      "repeat": 1,
+      "expected": { "opening_fit": 0, "cleaning_fit": 2 },
+      "rubricExpected": { "opening_fit": 0, "cleaning_fit": 2 },
+      "durationMs": 185,
+      "transport": {
+        "status": 200,
+        "model": "jev-1.13.0",
+        "answers": {
+          "opening_fit": {
+            "type": "score",
+            "score": 0.04,
+            "confidence": 0.94,
+            "legend": {
+              "0": "The verified opening method is the opposite of the user's explicit preferred opening method.",
+              "1": "The verified opening method partially supports the user's explicit preferred method but needs an additional handling step the user explicitly wants to avoid.",
+              "2": "The verified opening method matches the user's explicit preferred opening method."
+            },
+            "probabilities": { "0": 0.97, "1": 0.03, "2": 0 }
+          },
+          "cleaning_fit": {
+            "type": "score",
+            "score": 1.99,
+            "confidence": 0.99,
+            "legend": {
+              "0": "Neither the bottle body nor its lid parts support the user's requested dishwasher cleaning.",
+              "1": "Only the lid parts support the requested dishwasher cleaning; the bottle body must be washed by hand.",
+              "2": "The bottle body and all lid parts support the requested dishwasher cleaning, subject to the dishwasher and product manual conditions."
+            },
+            "probabilities": { "0": 0, "1": 0, "2": 1 }
+          }
+        },
+        "usage": { "input_tokens": 707, "output_tokens": 34 }
+      },
+      "result": {
+        "tag": "ok",
+        "value": {
+          "model": "jev-1.13.0",
+          "answers": {
+            "opening_fit": {
+              "score": 0.04,
+              "confidence": 0.94,
+              "legend": {
+                "0": "The verified opening method is the opposite of the user's explicit preferred opening method.",
+                "1": "The verified opening method partially supports the user's explicit preferred method but needs an additional handling step the user explicitly wants to avoid.",
+                "2": "The verified opening method matches the user's explicit preferred opening method."
+              },
+              "probabilities": { "0": 0.97, "1": 0.03, "2": 0 }
+            },
+            "cleaning_fit": {
+              "score": 1.99,
+              "confidence": 0.99,
+              "legend": {
+                "0": "Neither the bottle body nor its lid parts support the user's requested dishwasher cleaning.",
+                "1": "Only the lid parts support the requested dishwasher cleaning; the bottle body must be washed by hand.",
+                "2": "The bottle body and all lid parts support the requested dishwasher cleaning, subject to the dishwasher and product manual conditions."
+              },
+              "probabilities": { "0": 0, "1": 0, "2": 1 }
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "button-ja-joq",
+      "group": "real-ja",
+      "repeat": 2,
+      "expected": { "opening_fit": 0, "cleaning_fit": 2 },
+      "rubricExpected": { "opening_fit": 0, "cleaning_fit": 2 },
+      "durationMs": 176,
+      "transport": {
+        "status": 200,
+        "model": "jev-1.13.0",
+        "answers": {
+          "opening_fit": {
+            "type": "score",
+            "score": 0.05,
+            "confidence": 0.93,
+            "legend": {
+              "0": "The verified opening method is the opposite of the user's explicit preferred opening method.",
+              "1": "The verified opening method partially supports the user's explicit preferred method but needs an additional handling step the user explicitly wants to avoid.",
+              "2": "The verified opening method matches the user's explicit preferred opening method."
+            },
+            "probabilities": { "0": 0.96, "1": 0.04, "2": 0 }
+          },
+          "cleaning_fit": {
+            "type": "score",
+            "score": 1.99,
+            "confidence": 0.99,
+            "legend": {
+              "0": "Neither the bottle body nor its lid parts support the user's requested dishwasher cleaning.",
+              "1": "Only the lid parts support the requested dishwasher cleaning; the bottle body must be washed by hand.",
+              "2": "The bottle body and all lid parts support the requested dishwasher cleaning, subject to the dishwasher and product manual conditions."
+            },
+            "probabilities": { "0": 0, "1": 0, "2": 1 }
+          }
+        },
+        "usage": { "input_tokens": 707, "output_tokens": 34 }
+      },
+      "result": {
+        "tag": "ok",
+        "value": {
+          "model": "jev-1.13.0",
+          "answers": {
+            "opening_fit": {
+              "score": 0.05,
+              "confidence": 0.93,
+              "legend": {
+                "0": "The verified opening method is the opposite of the user's explicit preferred opening method.",
+                "1": "The verified opening method partially supports the user's explicit preferred method but needs an additional handling step the user explicitly wants to avoid.",
+                "2": "The verified opening method matches the user's explicit preferred opening method."
+              },
+              "probabilities": { "0": 0.96, "1": 0.04, "2": 0 }
+            },
+            "cleaning_fit": {
+              "score": 1.99,
+              "confidence": 0.99,
+              "legend": {
+                "0": "Neither the bottle body nor its lid parts support the user's requested dishwasher cleaning.",
+                "1": "Only the lid parts support the requested dishwasher cleaning; the bottle body must be washed by hand.",
+                "2": "The bottle body and all lid parts support the requested dishwasher cleaning, subject to the dishwasher and product manual conditions."
+              },
+              "probabilities": { "0": 0, "1": 0, "2": 1 }
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "button-ja-joq",
+      "group": "real-ja",
+      "repeat": 3,
+      "expected": { "opening_fit": 0, "cleaning_fit": 2 },
+      "rubricExpected": { "opening_fit": 0, "cleaning_fit": 2 },
+      "durationMs": 304,
+      "transport": {
+        "status": 200,
+        "model": "jev-1.13.0",
+        "answers": {
+          "opening_fit": {
+            "type": "score",
+            "score": 0.05,
+            "confidence": 0.92,
+            "legend": {
+              "0": "The verified opening method is the opposite of the user's explicit preferred opening method.",
+              "1": "The verified opening method partially supports the user's explicit preferred method but needs an additional handling step the user explicitly wants to avoid.",
+              "2": "The verified opening method matches the user's explicit preferred opening method."
+            },
+            "probabilities": { "0": 0.95, "1": 0.05, "2": 0 }
+          },
+          "cleaning_fit": {
+            "type": "score",
+            "score": 1.99,
+            "confidence": 0.99,
+            "legend": {
+              "0": "Neither the bottle body nor its lid parts support the user's requested dishwasher cleaning.",
+              "1": "Only the lid parts support the requested dishwasher cleaning; the bottle body must be washed by hand.",
+              "2": "The bottle body and all lid parts support the requested dishwasher cleaning, subject to the dishwasher and product manual conditions."
+            },
+            "probabilities": { "0": 0, "1": 0, "2": 1 }
+          }
+        },
+        "usage": { "input_tokens": 707, "output_tokens": 34 }
+      },
+      "result": {
+        "tag": "ok",
+        "value": {
+          "model": "jev-1.13.0",
+          "answers": {
+            "opening_fit": {
+              "score": 0.05,
+              "confidence": 0.92,
+              "legend": {
+                "0": "The verified opening method is the opposite of the user's explicit preferred opening method.",
+                "1": "The verified opening method partially supports the user's explicit preferred method but needs an additional handling step the user explicitly wants to avoid.",
+                "2": "The verified opening method matches the user's explicit preferred opening method."
+              },
+              "probabilities": { "0": 0.95, "1": 0.05, "2": 0 }
+            },
+            "cleaning_fit": {
+              "score": 1.99,
+              "confidence": 0.99,
+              "legend": {
+                "0": "Neither the bottle body nor its lid parts support the user's requested dishwasher cleaning.",
+                "1": "Only the lid parts support the requested dishwasher cleaning; the bottle body must be washed by hand.",
+                "2": "The bottle body and all lid parts support the requested dishwasher cleaning, subject to the dishwasher and product manual conditions."
+              },
+              "probabilities": { "0": 0, "1": 0, "2": 1 }
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "button-ja-joq",
+      "group": "real-ja",
+      "repeat": 4,
+      "expected": { "opening_fit": 0, "cleaning_fit": 2 },
+      "rubricExpected": { "opening_fit": 0, "cleaning_fit": 2 },
+      "durationMs": 186,
+      "transport": {
+        "status": 200,
+        "model": "jev-1.13.0",
+        "answers": {
+          "opening_fit": {
+            "type": "score",
+            "score": 0.05,
+            "confidence": 0.93,
+            "legend": {
+              "0": "The verified opening method is the opposite of the user's explicit preferred opening method.",
+              "1": "The verified opening method partially supports the user's explicit preferred method but needs an additional handling step the user explicitly wants to avoid.",
+              "2": "The verified opening method matches the user's explicit preferred opening method."
+            },
+            "probabilities": { "0": 0.96, "1": 0.04, "2": 0 }
+          },
+          "cleaning_fit": {
+            "type": "score",
+            "score": 1.99,
+            "confidence": 0.99,
+            "legend": {
+              "0": "Neither the bottle body nor its lid parts support the user's requested dishwasher cleaning.",
+              "1": "Only the lid parts support the requested dishwasher cleaning; the bottle body must be washed by hand.",
+              "2": "The bottle body and all lid parts support the requested dishwasher cleaning, subject to the dishwasher and product manual conditions."
+            },
+            "probabilities": { "0": 0, "1": 0, "2": 1 }
+          }
+        },
+        "usage": { "input_tokens": 707, "output_tokens": 34 }
+      },
+      "result": {
+        "tag": "ok",
+        "value": {
+          "model": "jev-1.13.0",
+          "answers": {
+            "opening_fit": {
+              "score": 0.05,
+              "confidence": 0.93,
+              "legend": {
+                "0": "The verified opening method is the opposite of the user's explicit preferred opening method.",
+                "1": "The verified opening method partially supports the user's explicit preferred method but needs an additional handling step the user explicitly wants to avoid.",
+                "2": "The verified opening method matches the user's explicit preferred opening method."
+              },
+              "probabilities": { "0": 0.96, "1": 0.04, "2": 0 }
+            },
+            "cleaning_fit": {
+              "score": 1.99,
+              "confidence": 0.99,
+              "legend": {
+                "0": "Neither the bottle body nor its lid parts support the user's requested dishwasher cleaning.",
+                "1": "Only the lid parts support the requested dishwasher cleaning; the bottle body must be washed by hand.",
+                "2": "The bottle body and all lid parts support the requested dishwasher cleaning, subject to the dishwasher and product manual conditions."
+              },
+              "probabilities": { "0": 0, "1": 0, "2": 1 }
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "screw-ja-jnl",
+      "group": "real-ja",
+      "repeat": 1,
+      "expected": { "opening_fit": 0, "cleaning_fit": 2 },
+      "rubricExpected": { "opening_fit": 0, "cleaning_fit": 2 },
+      "durationMs": 317,
+      "transport": {
+        "status": 200,
+        "model": "jev-1.13.0",
+        "answers": {
+          "opening_fit": {
+            "type": "score",
+            "score": 0.02,
+            "confidence": 0.96,
+            "legend": {
+              "0": "The verified opening method is the opposite of the user's explicit preferred opening method.",
+              "1": "The verified opening method partially supports the user's explicit preferred method but needs an additional handling step the user explicitly wants to avoid.",
+              "2": "The verified opening method matches the user's explicit preferred opening method."
+            },
+            "probabilities": { "0": 0.98, "1": 0.02, "2": 0 }
+          },
+          "cleaning_fit": {
+            "type": "score",
+            "score": 2,
+            "confidence": 1,
+            "legend": {
+              "0": "Neither the bottle body nor its lid parts support the user's requested dishwasher cleaning.",
+              "1": "Only the lid parts support the requested dishwasher cleaning; the bottle body must be washed by hand.",
+              "2": "The bottle body and all lid parts support the requested dishwasher cleaning, subject to the dishwasher and product manual conditions."
+            },
+            "probabilities": { "0": 0, "1": 0, "2": 1 }
+          }
+        },
+        "usage": { "input_tokens": 722, "output_tokens": 34 }
+      },
+      "result": {
+        "tag": "ok",
+        "value": {
+          "model": "jev-1.13.0",
+          "answers": {
+            "opening_fit": {
+              "score": 0.02,
+              "confidence": 0.96,
+              "legend": {
+                "0": "The verified opening method is the opposite of the user's explicit preferred opening method.",
+                "1": "The verified opening method partially supports the user's explicit preferred method but needs an additional handling step the user explicitly wants to avoid.",
+                "2": "The verified opening method matches the user's explicit preferred opening method."
+              },
+              "probabilities": { "0": 0.98, "1": 0.02, "2": 0 }
+            },
+            "cleaning_fit": {
+              "score": 2,
+              "confidence": 1,
+              "legend": {
+                "0": "Neither the bottle body nor its lid parts support the user's requested dishwasher cleaning.",
+                "1": "Only the lid parts support the requested dishwasher cleaning; the bottle body must be washed by hand.",
+                "2": "The bottle body and all lid parts support the requested dishwasher cleaning, subject to the dishwasher and product manual conditions."
+              },
+              "probabilities": { "0": 0, "1": 0, "2": 1 }
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "screw-ja-jnl",
+      "group": "real-ja",
+      "repeat": 2,
+      "expected": { "opening_fit": 0, "cleaning_fit": 2 },
+      "rubricExpected": { "opening_fit": 0, "cleaning_fit": 2 },
+      "durationMs": 181,
+      "transport": {
+        "status": 200,
+        "model": "jev-1.13.0",
+        "answers": {
+          "opening_fit": {
+            "type": "score",
+            "score": 0.02,
+            "confidence": 0.96,
+            "legend": {
+              "0": "The verified opening method is the opposite of the user's explicit preferred opening method.",
+              "1": "The verified opening method partially supports the user's explicit preferred method but needs an additional handling step the user explicitly wants to avoid.",
+              "2": "The verified opening method matches the user's explicit preferred opening method."
+            },
+            "probabilities": { "0": 0.98, "1": 0.02, "2": 0 }
+          },
+          "cleaning_fit": {
+            "type": "score",
+            "score": 2,
+            "confidence": 1,
+            "legend": {
+              "0": "Neither the bottle body nor its lid parts support the user's requested dishwasher cleaning.",
+              "1": "Only the lid parts support the requested dishwasher cleaning; the bottle body must be washed by hand.",
+              "2": "The bottle body and all lid parts support the requested dishwasher cleaning, subject to the dishwasher and product manual conditions."
+            },
+            "probabilities": { "0": 0, "1": 0, "2": 1 }
+          }
+        },
+        "usage": { "input_tokens": 722, "output_tokens": 34 }
+      },
+      "result": {
+        "tag": "ok",
+        "value": {
+          "model": "jev-1.13.0",
+          "answers": {
+            "opening_fit": {
+              "score": 0.02,
+              "confidence": 0.96,
+              "legend": {
+                "0": "The verified opening method is the opposite of the user's explicit preferred opening method.",
+                "1": "The verified opening method partially supports the user's explicit preferred method but needs an additional handling step the user explicitly wants to avoid.",
+                "2": "The verified opening method matches the user's explicit preferred opening method."
+              },
+              "probabilities": { "0": 0.98, "1": 0.02, "2": 0 }
+            },
+            "cleaning_fit": {
+              "score": 2,
+              "confidence": 1,
+              "legend": {
+                "0": "Neither the bottle body nor its lid parts support the user's requested dishwasher cleaning.",
+                "1": "Only the lid parts support the requested dishwasher cleaning; the bottle body must be washed by hand.",
+                "2": "The bottle body and all lid parts support the requested dishwasher cleaning, subject to the dishwasher and product manual conditions."
+              },
+              "probabilities": { "0": 0, "1": 0, "2": 1 }
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "screw-ja-jnl",
+      "group": "real-ja",
+      "repeat": 3,
+      "expected": { "opening_fit": 0, "cleaning_fit": 2 },
+      "rubricExpected": { "opening_fit": 0, "cleaning_fit": 2 },
+      "durationMs": 211,
+      "transport": {
+        "status": 200,
+        "model": "jev-1.13.0",
+        "answers": {
+          "opening_fit": {
+            "type": "score",
+            "score": 0.02,
+            "confidence": 0.97,
+            "legend": {
+              "0": "The verified opening method is the opposite of the user's explicit preferred opening method.",
+              "1": "The verified opening method partially supports the user's explicit preferred method but needs an additional handling step the user explicitly wants to avoid.",
+              "2": "The verified opening method matches the user's explicit preferred opening method."
+            },
+            "probabilities": { "0": 0.98, "1": 0.02, "2": 0 }
+          },
+          "cleaning_fit": {
+            "type": "score",
+            "score": 2,
+            "confidence": 1,
+            "legend": {
+              "0": "Neither the bottle body nor its lid parts support the user's requested dishwasher cleaning.",
+              "1": "Only the lid parts support the requested dishwasher cleaning; the bottle body must be washed by hand.",
+              "2": "The bottle body and all lid parts support the requested dishwasher cleaning, subject to the dishwasher and product manual conditions."
+            },
+            "probabilities": { "0": 0, "1": 0, "2": 1 }
+          }
+        },
+        "usage": { "input_tokens": 722, "output_tokens": 34 }
+      },
+      "result": {
+        "tag": "ok",
+        "value": {
+          "model": "jev-1.13.0",
+          "answers": {
+            "opening_fit": {
+              "score": 0.02,
+              "confidence": 0.97,
+              "legend": {
+                "0": "The verified opening method is the opposite of the user's explicit preferred opening method.",
+                "1": "The verified opening method partially supports the user's explicit preferred method but needs an additional handling step the user explicitly wants to avoid.",
+                "2": "The verified opening method matches the user's explicit preferred opening method."
+              },
+              "probabilities": { "0": 0.98, "1": 0.02, "2": 0 }
+            },
+            "cleaning_fit": {
+              "score": 2,
+              "confidence": 1,
+              "legend": {
+                "0": "Neither the bottle body nor its lid parts support the user's requested dishwasher cleaning.",
+                "1": "Only the lid parts support the requested dishwasher cleaning; the bottle body must be washed by hand.",
+                "2": "The bottle body and all lid parts support the requested dishwasher cleaning, subject to the dishwasher and product manual conditions."
+              },
+              "probabilities": { "0": 0, "1": 0, "2": 1 }
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "screw-ja-jnl",
+      "group": "real-ja",
+      "repeat": 4,
+      "expected": { "opening_fit": 0, "cleaning_fit": 2 },
+      "rubricExpected": { "opening_fit": 0, "cleaning_fit": 2 },
+      "durationMs": 169,
+      "transport": {
+        "status": 200,
+        "model": "jev-1.13.0",
+        "answers": {
+          "opening_fit": {
+            "type": "score",
+            "score": 0.03,
+            "confidence": 0.95,
+            "legend": {
+              "0": "The verified opening method is the opposite of the user's explicit preferred opening method.",
+              "1": "The verified opening method partially supports the user's explicit preferred method but needs an additional handling step the user explicitly wants to avoid.",
+              "2": "The verified opening method matches the user's explicit preferred opening method."
+            },
+            "probabilities": { "0": 0.97, "1": 0.03, "2": 0 }
+          },
+          "cleaning_fit": {
+            "type": "score",
+            "score": 2,
+            "confidence": 1,
+            "legend": {
+              "0": "Neither the bottle body nor its lid parts support the user's requested dishwasher cleaning.",
+              "1": "Only the lid parts support the requested dishwasher cleaning; the bottle body must be washed by hand.",
+              "2": "The bottle body and all lid parts support the requested dishwasher cleaning, subject to the dishwasher and product manual conditions."
+            },
+            "probabilities": { "0": 0, "1": 0, "2": 1 }
+          }
+        },
+        "usage": { "input_tokens": 722, "output_tokens": 34 }
+      },
+      "result": {
+        "tag": "ok",
+        "value": {
+          "model": "jev-1.13.0",
+          "answers": {
+            "opening_fit": {
+              "score": 0.03,
+              "confidence": 0.95,
+              "legend": {
+                "0": "The verified opening method is the opposite of the user's explicit preferred opening method.",
+                "1": "The verified opening method partially supports the user's explicit preferred method but needs an additional handling step the user explicitly wants to avoid.",
+                "2": "The verified opening method matches the user's explicit preferred opening method."
+              },
+              "probabilities": { "0": 0.97, "1": 0.03, "2": 0 }
+            },
+            "cleaning_fit": {
+              "score": 2,
+              "confidence": 1,
+              "legend": {
+                "0": "Neither the bottle body nor its lid parts support the user's requested dishwasher cleaning.",
+                "1": "Only the lid parts support the requested dishwasher cleaning; the bottle body must be washed by hand.",
+                "2": "The bottle body and all lid parts support the requested dishwasher cleaning, subject to the dishwasher and product manual conditions."
+              },
+              "probabilities": { "0": 0, "1": 0, "2": 1 }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

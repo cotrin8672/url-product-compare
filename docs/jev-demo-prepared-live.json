@@ -1,0 +1,5 @@
+{
+  "evaluatedAt": "2026-10-02T14:18:51.477Z",
+  "note": "Actual live API through updated synthetic bootstrap route; four isolated axis requests, not real-product recommendation accuracy",
+  "result": { "tag": "err", "error": { "code": "assessment_uncertain" } }
+}

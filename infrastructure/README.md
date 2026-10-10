@@ -1,84 +1,131 @@
-# AWSへの公開
+# Firebaseへの移行・公開手順
 
-構成: Amplify Hosting（Solidの静的ファイル）→ 同一オリジンの `/api/*` プロキシ → HTTP API → Node.js 24 Lambda → Aurora PostgreSQL Data API。
+画面をFirebase Hosting、APIをCloud Functions第2世代、操作記録をCloud Firestoreへ置き換えました。リージョンは東京 `asia-northeast1`。開発時はmiseのNode.js 24、FunctionsはFirebaseが対応するNode.js 22を使います。
 
-設定なしではデモです。楽天のサーバー設定をすべて追加した場合だけ実商品APIを呼びます。Jevへの本番リクエストは送信しません。DBにはデモの実行日時・成功/失敗・demoという区分だけを保存し、入力URL、商品、価格、AI評価は保存しません。実商品取得はDBに保存しません。
+Hostingの `/api` と `/api/**` は `api` 関数へ転送し、それ以外はSolid.jsの画面へ転送します。画面は商品URLだけで比較でき、ブラウザー用トークン・Firebase SDK・APIキー・Firebase Authenticationの設定は不要です。`createPublicConsumerApi` がカタログGET、判定POST、比較作成POST、ジョブGETだけにサーバー内のBearer認証を渡します。旧診断・同期比較・取消の経路は従来のBearer認証を維持します。
 
-## ローカルで検証・ビルド
+ブラウザーのOriginは設定済みの `http.allowedOrigin` または楽天設定の `allowedOrigin` と一致する必要があります。設定がない場合はFunctionsのリクエストから得た同一オリジンに限定します。Originのない直接リクエストも接続元の制限を受けます。高コストのPOSTはネイティブソケットの接続元アドレスにつき毎分6回、アドレス管理は最大1024件です。この上限はインスタンス内のメモリで管理し、複数インスタンスを横断する利用者別上限ではありません。任意の転送先パスや転送ヘッダーのアドレスを信用しません。
+
+Firestoreの `investigation_runs` に保存するのは、従来のデモ商品確認POSTの `mode`・`status`・サーバー時刻 `createdAt`・30日後の削除対象時刻 `expiresAt` だけです。この操作記録には実商品・URL・利用条件・候補・キーを保存しません。GET・health・充電器比較は記録しません。保存失敗は503を返します。ブラウザーからのFirestoreアクセスはルールで全面拒否し、サーバーはAdmin SDKと実行サービスアカウントのIAMで接続します。
+
+メイン比較は `POST /api/comparisons` でジョブを受け付け、`comparison_jobs` を作成します。HTTP処理は202を返し、`comparisonJobWorker` のFirestore作成トリガーが比較を実行します。トリガーには再試行を設定し、実行が中断したジョブは45秒のリース失効後に引き継げます。HTTPとワーカーの提供元登録は `bootstrap.ts` の `createConfiguredConsumerService` を共用しています。ローカルでは同じ状態遷移を使うメモリストアを利用します。
+
+永続ジョブには**実際の提供元の保存許諾が必要**です。任意項目 `rakuten.resultStorageAuthorizedUntil` はその許諾の終了時刻を記録するもので、設定しただけで許諾を取得したことにはなりません。許諾がなければ例のJSONからこの項目を削除してください。省略時は保存を拒否し、永続ジョブの受付は `422 result_storage_denied` で停止します。値は `authorizedUntil` 以下の将来UTC時刻に限定します。ローカルの一時比較と従来の同期 `POST /api/compare` は保存許諾なしでも利用できます。
+
+ジョブは入力URL・条件・操作のダイジェスト・状態を保存し、アクセス鍵はダイジェストだけを保存します。クライアントは操作ごとのランダムな `idempotencyKey` と `x-comparison-key` を最初のPOSTから送ります。同じキー・入力・アクセス鍵による再送は同一ジョブを返し、異なる入力は409、異なるアクセス鍵は403です。公開GETもこのアクセス鍵が必要です。旧取消APIはBearer認証とこの鍵を要求します。ブラウザーには結果本文を永続保存せず、セッション内にジョブID・鍵・期限・revisionを保持します。
+
+メタデータ期限は最大60分、結果は最大15分かつ全商品の表示期限・保存許諾期限の最も早い時刻までです。期限はAPIが検証し、期限切れ結果を返しません。失敗・取消時に結果は残しません。`comparison_jobs.cleanupAt` はFirestoreの日時型で、成功時には結果の期限、その他はメタデータ期限を設定します。このフィールドのネイティブTTLと全フィールドのインデックス除外をデプロイしてください。TTLの物理削除は即時ではないため、許諾上の削除要件がTTLの削除猶予を認めない場合、この永続保存を有効にしないでください。
+
+## Firestoreのアクセスと費用
+
+2026-10-02に費用を優先してFirestoreを採用しました。SQL Connect・Cloud SQLインスタンスの作成は不要です。現在の各リクエストのDB操作は以下のとおりです。
+
+| 経路                               | 読み取り | 書き込み |
+| ---------------------------------- | -------: | -------: |
+| デモ商品の確認POST（成功・失敗）   |        0 |        1 |
+| デモ確認GET・health・充電器比較    |        0 |        0 |
+| 実商品取得・候補検索・公式商品比較 |        0 |        0 |
+| 入力不正・認証失敗・未対応ルート   |        0 |        0 |
+
+操作記録はSDKのランダムIDで直接追加します。存在確認、全件走査、件数集計、リアルタイム購読、商品ごとのDB再取得はありません。単一の集計文書の毎回更新や、削除用の定期スキャンも追加しません。
+
+`firestore.indexes.json` で、検索しない操作記録の全フィールドを単一フィールドインデックスの対象外にしています。TTL用の `expiresAt` もインデックスなしです。インデックスを外す効果は保存容量と書き込み時の負荷の削減であり、1回の文書書き込みの課金数は変わりません。このコレクションを条件検索・時刻順で表示する管理画面を追加する際は、実際のクエリに必要なインデックスだけを定義します。
+
+TTLは30日後に削除対象とし、通常は期限後24時間以内に削除されます。即時削除の保証ではありません。`expiresAt` のない既存記録には適用されません。TTL削除は無料枠の対象外ですが、東京では100万件で約21円です。一般公開の個人結果にこの30日間を流用せず、保存許可・表示期限を別途検証してください。
+
+東京のStandard editionは1日5万読み取り・2万書き込み、保存1GiBが無料枠です。超過100万件の読み取りは約60円、書き込みは約182円、追加保存1GiBは月約18円です（2026-10-02確認、1ドル158円、税別概算）。デモ確認が毎日2万回以内かつ保存1GiB以内なら通常の読み書き・保存は無料枠に収まり、TTL削除分は別です。Functions、Hosting、Secret Manager、ビルド成果物、AI APIは別料金です。
+
+将来、履歴や保存結果を追加するときも、APIのアクセス目的ごとに読み取り数を決めます。
+
+- 結果表示は認証済み利用者の結果IDによる直接取得を基本にし、保存許可がある表示項目をまとめます。提供元の停止・失効の確認は省かず、その追加読み取りも計上します。
+- 一覧は利用者などの等値条件、必要な並び順、最大50件の `limit`、`startAfter` のカーソルで取得します。全件取得後の絞り込みや `offset` は使いません。
+- 候補最大5件と入力商品を表示するためだけに、各商品・価格・根拠を別クエリで繰り返し取得する設計を避けます。取得をまとめても文書数ぶん課金される点は変わりません。
+- 複数の範囲条件によるインデックス読み取りはQuery Explainで確認します。件数集計を毎回行わず、購読やポーリングは対象ジョブだけに限定し、完了時に停止します。
+- 結果の有効期限は取得時にも検証し、TTLの物理削除を待って表示を止める設計にはしません。
+
+上の操作回数は従来の診断ルートについてです。ジョブ作成・進捗・取消・完了は対象文書のトランザクション読み書き、ポーリングは対象ジョブの読み取りを行います。操作キーのダイジェストを文書IDに使い、コレクション検索や全件走査を行いません。パッケージ検査は従来ルートのDB操作数を維持し、追加の統合検査でジョブの受付・取得・取消・TTL・保存拒否を確認します。
+
+根拠：[Firestore料金](https://cloud.google.com/firestore/pricing)、[クエリの課金](https://firebase.google.com/docs/firestore/pricing)、[インデックスとクエリの推奨事項](https://firebase.google.com/docs/firestore/best-practices)、[TTL](https://firebase.google.com/docs/firestore/ttl)。
+
+## 1. Firebaseプロジェクトを作る
+
+1. [Firebase Console](https://console.firebase.google.com/) でプロジェクトを作成し、プロジェクトIDを控えます。以降の `YOUR_PROJECT_ID` をこのIDに置き換えてください。
+2. Cloud Functionsのデプロイには **Blazeプラン** が必要です。請求先を紐づけ、Google Cloud Billingで予算通知を設定します。
+3. Firestore Databaseを作成します。**Standard edition・Native mode・データベースID `(default)`・東京 `asia-northeast1`・本番モード** を選びます。手動のコレクション作成は不要です。
+4. Hostingを有効にします。`firebase init` は実行しないでください。構成は用意済みです。
+
+Functionsは最小0・最大2インスタンス、各10同時実行、256MiB、60秒です。インスタンス上限・POST制限・予算通知は支出の絶対上限ではありません。Bearerトークンはサーバーだけに置き、公開比較の入口で使用します。新しい認証基盤や共有された利用者別上限は追加しません。
+
+## 2. ローカルを準備する
+
+プロジェクトルートで実行します。Firebase CLIは開発依存に固定済みです。
 
 ```powershell
+rtk mise trust
+rtk mise install
+rtk mise run install
+rtk mise exec -- pnpm exec firebase login
 rtk mise run verify
-rtk proxy pwsh -NoProfile -File tooling/package-aws.ps1
-rtk mise exec -- node tooling/check-aws.mjs
+rtk mise run firebase:package
 ```
 
-Lambda用にアプリと承認済みSDKを `apps/api/dist/lambda` に配置します。画面のアップロード用ZIPは `apps/api/dist/web.zip` です。どちらもGit対象外です。
+`firebase:package` は画面とAPIをビルドし、lockfileから本番SDKを `apps/api/dist/firebase` にまとめます。生成先は毎回作り直します。ESM読み込み、HTTP・認証・入力検証・Firestore配線・保存エラーも外部呼び出しなしで検査します。秘密情報はコピーしません。
 
-ローカルでAurora接続も確認する場合は、依存を含むパッケージを作成した後、`rtk mise exec -- node --env-file=.env apps/api/dist/lambda/apps/api/src/local.js` で起動します。デモと楽天の商品取得だけなら通常のローカル起動で確認できます。
+## 3. サーバー設定をSecret Managerへ登録する
 
-## 1. 先に公開URLを作る
+楽天のApplication URL・Allowed websitesに、新しいHostingのURL・ホスト（`https://YOUR_PROJECT_ID.web.app` / `YOUR_PROJECT_ID.web.app`）を登録してください。独自ドメインの場合はそのオリジンを登録し、下記の `allowedOrigin` に同じ値を設定します。
 
-公開済みURL: `https://main.d3f6j2d66bsp2x.amplifyapp.com/`。AmplifyはGitHubの `main` と接続し、モノレポのアプリルートを `apps/web` に設定しています。ビルドはリポジトリルートで `mise.toml` のNode/pnpmを使用し、`apps/web/dist` を公開します。コンソールのYMLに設定したビルド設定を維持してください。
-
-初回は画面だけが公開され、商品検索APIは未接続です。表示されたHTTPS URLを楽天の Application URL、ホスト名を Allowed websites に使用します。実際のURLはAmplifyが発行するため、事前に推測して入力しません。
-
-## 2. APIとDBを作る
-
-`infrastructure/aws.json` がリソース定義です。まだAWSに作成していません。実行には作成先のメンバーアカウント用AWS CLIプロファイル、非公開のS3アーティファクトバケットが必要です。先に `sts get-caller-identity` で作成先アカウントを確認します。
+[api-configuration.example.json](api-configuration.example.json) をコピーして `infrastructure/api-configuration.json` を作り、値を編集します。このファイルはGit対象外です。
 
 ```powershell
-rtk proxy aws sts get-caller-identity --profile compare
-rtk proxy aws rds describe-orderable-db-instance-options --profile compare --region ap-northeast-1 --engine aurora-postgresql --db-instance-class db.serverless --query "OrderableDBInstanceOptions[].EngineVersion" --output text
+rtk proxy pwsh -NoProfile -Command 'Copy-Item -LiteralPath infrastructure/api-configuration.example.json -Destination infrastructure/api-configuration.json'
 ```
 
-表示されたバージョンから、Data APIと0 ACU自動停止に対応する現行16系（16.3以降）などを選びます。テンプレートには未確認のバージョンを初期値として固定していません。
+- `rakuten` の6項目はすべて必須です。既存の楽天アプリID・アクセスキー・Affiliate IDを使えます。
+- `accessToken` はサーバー内だけで使うランダムなbase64url形式の32〜256文字です。ブラウザーや公開HTMLには渡しません。作る場合は `rtk mise exec -- node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))"` を手元で実行し、出力を設定します。提供元から独立したHTTP設定が必要な場合は、任意の `http` に `{"accessToken":"YOUR_SERVER_TOKEN","allowedOrigin":"https://YOUR_SITE_HOST"}` を指定します。
+- `authorizedUntil` は取得・表示・成果リンクの利用を再確認する内部停止期限です。実際の許諾を満たす将来のUTC時刻（`YYYY-MM-DDTHH:mm:ss.sssZ`）を指定します。
+- OpenAIを使う場合は `openai` にキー・モデルを設定します。使わない場合は **`"openai": null`** にしてください。
+- メインの6カテゴリ比較はOpenAIを使いません。Jevの任意の抽出補助を使う場合だけ `jev` に `{"apiKey":"YOUR_JEV_API_KEY","model":"jev-1.13.0"}` を設定します。`jev` は省略または `null` でも比較できます。
+- 架空デモだけを先に公開する場合は、ファイル全体を **`{"rakuten":null,"openai":null}`** にします。設定の省略や不完全な設定ではエラーを返し、デモは明示的なnull設定に限ります。
+
+登録します。キーをコマンド引数やチャットへ貼る必要はありません。
 
 ```powershell
-rtk proxy aws cloudformation package --profile compare --region ap-northeast-1 --template-file infrastructure/aws.json --s3-bucket YOUR_PRIVATE_ARTIFACT_BUCKET --output-template-file apps/api/dist/packaged.json --use-json
-rtk proxy aws cloudformation validate-template --profile compare --region ap-northeast-1 --template-body file://apps/api/dist/packaged.json
-rtk proxy aws cloudformation deploy --profile compare --region ap-northeast-1 --template-file apps/api/dist/packaged.json --stack-name url-product-compare --capabilities CAPABILITY_IAM --parameter-overrides EngineVersion=YOUR_VERIFIED_VERSION --no-execute-changeset
+rtk mise exec -- pnpm exec firebase functions:secrets:set API_CONFIGURATION --data-file infrastructure/api-configuration.json --project YOUR_PROJECT_ID
 ```
 
-作成された変更セットをCloudFormation画面で確認して実行します。既存アカウントでの新規無料クレジットは見込みません。DB停止中もストレージ、Secrets Managerなどの料金は残ります。DBは0〜1 ACU、無通信5分で自動停止、APIは毎秒1リクエスト・バースト2、Lambda同時実行2、ログ保持7日です。これらは支出の絶対上限ではありません。DB削除時のスナップショットにも保存料金が発生します。
+更新後も同じ登録コマンドを実行し、関数を再デプロイします。既存のルート `.env` はローカル用のままで、クラウドへ自動送信されません。サービスアカウント鍵のダウンロードは不要です。
 
-DBは新しいVPCの非公開サブネット2つに配置します。NAT Gateway、公開IPv4、RDS Proxy、追加の読み取りインスタンスは作りません。LambdaはVPC外からData APIを呼ぶため、外部商品APIへのアクセスにNATは不要です。
-
-## 3. DBを初期化する
-
-CloudFormationの出力から `ClusterArn`、`MasterSecretArn`、`AppSecretArn` を控えます。ARNは識別子です。秘密鍵やパスワードをチャットに貼り付ける必要はありません。
+## 4. デプロイする
 
 ```powershell
-rtk proxy pwsh -NoProfile -File tooling/initialize-aws-db.ps1 -Profile compare -ClusterArn CLUSTER_ARN -MasterSecretArn MASTER_SECRET_ARN -AppSecretArn APP_SECRET_ARN
+rtk mise exec -- pnpm exec firebase deploy --project YOUR_PROJECT_ID --only "functions,hosting,firestore"
 ```
 
-初期化は管理者資格情報を使ってテーブルと `compare_app` ユーザーを作ります。実行用Lambdaは管理者シークレットへアクセスできず、アプリユーザーもテーブルへのメタデータINSERTだけ許可されます。初期化失敗時は中断し、再実行できます。パスワードを含む一時ファイルはGit対象外のdist内に作り、終了時に削除します。この処理を実行する端末は信頼できる端末に限定してください。
+CLIから必要なGoogle Cloud APIの有効化・Secret Managerアクセス権・公開HTTP関数の設定を求められたら内容を確認して進めます。`firestore` の指定でルール・インデックス除外・TTLをまとめて反映します。既存プロジェクトの場合、この操作は既定HostingサイトとFirestore設定を更新するため、専用プロジェクトを推奨します。既存の別用途のインデックス削除を求められた場合は削除を承認せず、その定義を先に設定ファイルへ取り込んでください。
 
-## 4. 画面からAPIへ接続する
+デプロイ前フックでもverifyとパッケージ作成を実行します。`pinTag` でHostingと関数の版を揃えます。初回のArtifact Registry保存期間の質問では、不要な古いビルドを短期間で削除する設定を選べます。
 
-Amplify → リダイレクトと書き換えで、下記の200書き換えを最初に追加します。`API_ORIGIN` はCloudFormationの `ApiOrigin` 出力に置き換えます。
+## 5. 公開後に確認する
 
-```json
-[{ "source": "/api/<*>", "target": "API_ORIGIN/api/<*>", "status": "200" }]
+1. `https://YOUR_PROJECT_ID.web.app/api/health` を開き、200と `mode: "live"` を確認します。架空デモ設定なら `mode: "demo"`。OpenAI設定済みなら `mainAiConfigured: true` です。healthだけではDB書き込みは確認できません。
+2. Hostingの画面を開き、楽天の商品URLを入力して比較します。ブラウザーへの認証設定は不要です。カテゴリが曖昧な場合だけ選択します。
+3. メインAPIは非同期 `POST /api/comparisons` です。保存許諾が設定されていない永続APIは受付を拒否します。OpenAI未設定でも使え、Jevは設定した場合に本文の曖昧な容量の割り当てだけ最大1回使います。Jev未設定や抽出失敗でも、確認できた仕様を表示します。旧充電器の診断用 `POST /api/candidates` は設定により有料APIを使う場合があります。従来のモニター診断は `/compare/monitor/` に保持します。
+4. デモ設定では、デモ商品の確認POST後にFirestore Consoleの `investigation_runs` を確認します。`expiresAt` が日時型で約30日後になっていること、Google Cloud ConsoleのFirestore「Time-to-live」で `investigation_runs.expiresAt` が有効になっていることを確認します。TTL有効化には10分以上かかる場合があります。実商品モードの操作は保存しません。
+5. 503 `storage_unavailable` が出たら、既定DBの存在と、関数の実行サービスアカウントにFirestore書き込み権限（例：Cloud Datastore User）があることを確認します。ルールの公開許可ではAdmin SDKのIAM問題は解決しません。
+
+Firebaseへの公開・実キーの疎通・請求・IAMはこの手順で確認してください。
+
+## 6. AWSから切り替える
+
+新URLで確認が完了してから、必要に応じて独自ドメインをHostingへ追加し、DNSを切り替えます。楽天の登録オリジンとSecretの `allowedOrigin` も揃えて再デプロイします。
+
+Amplify・Lambda・API Gateway・Aurora・Secrets Manager等のAWSリソースは、コード変更では停止・削除しません。利用箇所とバックアップを確認した後、不要なリソースをAWS側で停止・削除してください。既存Auroraには実行成否しか保存していないため、アプリ稼働に必要なデータ移行はありません。過去の操作記録が必要なら削除前にエクスポートしてください。
+
+通常のローカルAPI・Vite起動はREADMEの手順を継続できます。Firestoreを含むエミュレーター検証をする場合は、パッケージ作成後の `apps/api/dist/firebase/.secret.local` に `API_CONFIGURATION={"rakuten":null,"openai":null}` を記載し、Firestoreエミュレーターが要求するJavaを用意してから実行します。パッケージを作り直すと `.secret.local` も消えます。
+
+```powershell
+rtk mise exec -- pnpm exec firebase emulators:start --project demo-url-product-compare --only "hosting,functions,firestore"
 ```
 
-API応答には `Cache-Control: no-store` を設定します。`/api/health` はDBを起動せずに200を返します。画面のデモ商品を検索し、DBの `investigation_runs` に記録されたことを管理者で確認します。保存障害時は503を返し、保存できたようには扱いません。
-
-デモは匿名で呼び出せます。実商品モードは動作確認用BearerトークンとPOSTを要求し、GETでは外部APIを呼びません。これは少人数の検証用で、一般公開・有料AI接続には利用者認証・利用者別上限が必要です。
-
-## 5. 楽天の実商品取得を有効にする
-
-先にローカルの `.env` で [READMEの実商品接続手順](../README.md#楽天の実商品を確認する) を確認します。登録済みアプリの Application URL は公開済みURL、Allowed websites は `main.d3f6j2d66bsp2x.amplifyapp.com` です。
-
-Lambdaの「設定 → 環境変数」に `.env.example` の6項目（`RAKUTEN_AFFILIATE_ID` を含む）を設定します。キーとトークンをAmplifyのフロント環境変数やGitに設定しません。すべて設定した場合だけ `/api/health` のmodeが `live` になります。画面の「接続設定」には楽天のキーではなく `API_ACCESS_TOKEN` を入力します。API・DB未デプロイの段階ではフロントだけから楽天へアクセスできません。
-
-Lambdaのコード更新やCloudFormationによる再デプロイでは手動設定した環境変数が維持されるかを確認してください。テンプレート内のデフォルト環境変数はDB設定だけです。実商品設定の一部だけが残ると起動を停止します。
-
-OpenAIによる候補取得を使う場合は、Lambdaの環境変数に `OPENAI_API_KEY` と任意の `OPENAI_MODEL`（初期値 `gpt-6-luna`）を設定します。`POST /api/candidates` も同じAPIプロキシ・Bearerトークンを使用します。OpenAIキーの未設定では既存の商品URL確認を続けられます。Jevへの実商品評価はまだ接続していません。
-
-## レビュー対象・未確認事項
-
-- 承認済みSDKとlockfile、AWS SDKを当該adapterだけに許可したESLint設定、transportテストの限定依存、ローカル起動のscript変更、Knipへの実行入口の明示はレビュー対象です。検査は無効化していません。
-- ローカル検証とパッケージ作成は行いますが、実AWSアカウントへの作成・Data API接続・Amplifyのプロキシはデプロイ後に確認する必要があります。
-- フロントはGitHub連携で公開済みです。今回のバックエンドの変更はLambdaのパッケージ作成・デプロイが別途必要です。
-
-公式資料: [Data API](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/data-api.html)、[Aurora自動停止](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/aurora-serverless-v2-auto-pause.html)、[CloudFormation package](https://docs.aws.amazon.com/cli/latest/reference/cloudformation/package.html)、[Amplifyプロキシ](https://docs.aws.amazon.com/amplify/latest/userguide/redirect-rewrite-examples.html)。
+公式資料：[Hosting＋Functions](https://firebase.google.com/docs/hosting/functions)、[Functionsのランタイム](https://firebase.google.com/docs/functions/manage-functions)、[JSON Secret](https://firebase.google.com/docs/functions/config-env#structured_json_secrets)、[Admin SDK](https://firebase.google.com/docs/admin/setup)、[Node.js buildpacksとpnpm](https://docs.cloud.google.com/docs/buildpacks/nodejs)。

@@ -23,6 +23,7 @@ export function parseRakutenUrl(
   const item = segments?.[2];
   const tracking = [
     "scid",
+    "rafcid",
     "s-id",
     "utm_source",
     "utm_medium",

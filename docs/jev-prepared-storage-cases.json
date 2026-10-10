@@ -1,0 +1,206 @@
+{
+  "version": "jev-prepared-v1",
+  "model": "jev-1.13.0",
+  "labelAuthor": "Codex; fixed before live API execution",
+  "note": "Synthetic regression for preference reversal and explicitly accepted workaround. Not real-product recommendation accuracy.",
+  "products": [
+    {
+      "model": "fixture-folding",
+      "manufacturer": "Example",
+      "color": null,
+      "source": "https://example.com/fixture-folding",
+      "facts": { "plugDescription": "The AC plug folds into the charger body." }
+    },
+    {
+      "model": "fixture-fixed",
+      "manufacturer": "Example",
+      "color": null,
+      "source": "https://example.com/fixture-fixed",
+      "facts": {
+        "plugDescription": "The AC plug is rigid, fixed and exposed, with no folding hinge or protective cap."
+      }
+    },
+    {
+      "model": "fixture-capped",
+      "manufacturer": "Example",
+      "color": null,
+      "source": "https://example.com/fixture-capped",
+      "facts": {
+        "plugDescription": "The AC plug is fixed, and the exposed prongs can be protected by a separate removable supplied cap."
+      }
+    }
+  ],
+  "policy": {
+    "version": "storage-preference-regression-v1",
+    "category": "usb-c-wall-charger",
+    "mode": "evaluation-only",
+    "tieMargin": 0,
+    "minimumConfidence": 0.7,
+    "criteria": [
+      {
+        "id": "plug_storage",
+        "weight": 1,
+        "factKeys": ["plugDescription"],
+        "instructions": "Evaluate only how the verified plug design supports the explicit storage preference in preferences. Use plugDescription and its excerpt. Folding is not inherently better than a fixed plug. Do not infer weight, size or electrical performance.",
+        "levels": [
+          "The verified plug design conflicts with the user's explicit storage preference or requires a handling step the user explicitly rejects.",
+          "The verified plug design supports the user's explicit storage preference only through a workaround the user explicitly accepts.",
+          "The verified plug design directly supports the user's explicit storage preference. Folding is not preferable when the user requests a fixed plug."
+        ]
+      }
+    ]
+  },
+  "cases": [
+    {
+      "id": "en-fixed-fixture-fixed",
+      "group": "preference-reversal",
+      "model": "fixture-fixed",
+      "preferences": [
+        {
+          "id": "plug_storage",
+          "status": "confirmed",
+          "preference": "I want a rigid fixed plug with no folding hinge. The charger stays plugged in on my desk, and I do not need to cover its prongs."
+        }
+      ],
+      "unverifiedKeys": [],
+      "expectedError": null,
+      "expected": { "plug_storage": 2 }
+    },
+    {
+      "id": "en-fixed-fixture-folding",
+      "group": "preference-reversal",
+      "model": "fixture-folding",
+      "preferences": [
+        {
+          "id": "plug_storage",
+          "status": "confirmed",
+          "preference": "I want a rigid fixed plug with no folding hinge. The charger stays plugged in on my desk, and I do not need to cover its prongs."
+        }
+      ],
+      "unverifiedKeys": [],
+      "expectedError": null,
+      "expected": { "plug_storage": 0 }
+    },
+    {
+      "id": "en-folding-fixture-fixed",
+      "group": "preference-reversal",
+      "model": "fixture-fixed",
+      "preferences": [
+        {
+          "id": "plug_storage",
+          "status": "confirmed",
+          "preference": "I carry the charger in a bag and want the prongs protected without handling a separate cap. I prefer a folding plug."
+        }
+      ],
+      "unverifiedKeys": [],
+      "expectedError": null,
+      "expected": { "plug_storage": 0 }
+    },
+    {
+      "id": "en-folding-fixture-folding",
+      "group": "preference-reversal",
+      "model": "fixture-folding",
+      "preferences": [
+        {
+          "id": "plug_storage",
+          "status": "confirmed",
+          "preference": "I carry the charger in a bag and want the prongs protected without handling a separate cap. I prefer a folding plug."
+        }
+      ],
+      "unverifiedKeys": [],
+      "expectedError": null,
+      "expected": { "plug_storage": 2 }
+    },
+    {
+      "id": "ja-fixed-fixture-fixed",
+      "group": "preference-reversal",
+      "model": "fixture-fixed",
+      "preferences": [
+        {
+          "id": "plug_storage",
+          "status": "confirmed",
+          "preference": "机に挿したまま使う。折り畳みの可動ヒンジがない固定プラグを希望。端子を覆う必要はない。"
+        }
+      ],
+      "unverifiedKeys": [],
+      "expectedError": null,
+      "expected": { "plug_storage": 2 }
+    },
+    {
+      "id": "ja-fixed-fixture-folding",
+      "group": "preference-reversal",
+      "model": "fixture-folding",
+      "preferences": [
+        {
+          "id": "plug_storage",
+          "status": "confirmed",
+          "preference": "机に挿したまま使う。折り畳みの可動ヒンジがない固定プラグを希望。端子を覆う必要はない。"
+        }
+      ],
+      "unverifiedKeys": [],
+      "expectedError": null,
+      "expected": { "plug_storage": 0 }
+    },
+    {
+      "id": "ja-folding-fixture-fixed",
+      "group": "preference-reversal",
+      "model": "fixture-fixed",
+      "preferences": [
+        {
+          "id": "plug_storage",
+          "status": "confirmed",
+          "preference": "かばんで持ち歩く。別の保護キャップを管理せず端子を収納できる折り畳みプラグを希望。"
+        }
+      ],
+      "unverifiedKeys": [],
+      "expectedError": null,
+      "expected": { "plug_storage": 0 }
+    },
+    {
+      "id": "ja-folding-fixture-folding",
+      "group": "preference-reversal",
+      "model": "fixture-folding",
+      "preferences": [
+        {
+          "id": "plug_storage",
+          "status": "confirmed",
+          "preference": "かばんで持ち歩く。別の保護キャップを管理せず端子を収納できる折り畳みプラグを希望。"
+        }
+      ],
+      "unverifiedKeys": [],
+      "expectedError": null,
+      "expected": { "plug_storage": 2 }
+    },
+    {
+      "id": "cap-workaround-accepted",
+      "group": "explicit-workaround",
+      "model": "fixture-capped",
+      "preferences": [
+        {
+          "id": "plug_storage",
+          "status": "confirmed",
+          "preference": "I prefer a folding plug for bag storage, but using and keeping a separate protective cap is an acceptable workaround."
+        }
+      ],
+      "unverifiedKeys": [],
+      "expectedError": null,
+      "expected": { "plug_storage": 1 }
+    },
+    {
+      "id": "cap-workaround-rejected",
+      "group": "explicit-workaround",
+      "model": "fixture-capped",
+      "preferences": [
+        {
+          "id": "plug_storage",
+          "status": "confirmed",
+          "preference": "I carry the charger in a bag and want the prongs protected without handling a separate cap. I prefer a folding plug."
+        }
+      ],
+      "unverifiedKeys": [],
+      "expectedError": null,
+      "expected": { "plug_storage": 0 }
+    }
+  ],
+  "repeats": []
+}
