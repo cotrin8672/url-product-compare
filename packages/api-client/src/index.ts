@@ -23,6 +23,7 @@ export type {
 export {
   clearComparisonSession,
   comparisonJobCannotResume,
+  comparisonErrorMessage,
   parseConsumerComparison,
   parseDetectResult,
   parseProductCatalog,

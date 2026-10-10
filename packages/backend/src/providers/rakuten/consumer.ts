@@ -41,6 +41,7 @@ export function createRakutenConsumerProvider(
   const enrichListings = createRakutenEnricher(configuration, clock, undefined, fetcher);
   const resolveGenreLineage = createRakutenGenreResolver(configuration, clock, fetcher);
   const rawListings = new WeakMap<ConsumerListing, RakutenListing>();
+  const sourceCache = new Map<string, ConsumerListing>();
   const normalize = (raw: RakutenListing): ConsumerListing => {
     const listing: ConsumerListing = Object.freeze({
       provider: "rakuten",
@@ -82,8 +83,34 @@ export function createRakutenConsumerProvider(
       return reference.tag === "ok" && reference.value.tag !== "none";
     },
     async lookup(url, keyword, options) {
+      options?.signal?.throwIfAborted();
+      const key = JSON.stringify([url, keyword?.trim() ?? null]);
+      const now = clock();
+      const cached = sourceCache.get(key);
+      // Detect and job start request the same source; reuse only its still-authorized snapshot.
+      if (
+        cached !== undefined &&
+        cached.expiresAt > valueOf(now) &&
+        permitted(configuration.rights.fetch, now) &&
+        permitted(configuration.rights.display, now) &&
+        permitted(configuration.rights.affiliate, now)
+      ) {
+        return ok(cached);
+      }
+      sourceCache.delete(key);
       const result = await lookup(url, keyword, options?.fallbackKeyword, options);
-      return result.tag === "err" ? err(mapLookupError(result.error)) : ok(normalize(result.value));
+      if (result.tag === "err") {
+        return err(mapLookupError(result.error));
+      }
+      const listing = normalize(result.value);
+      if (sourceCache.size >= 128) {
+        const oldest = sourceCache.keys().next().value;
+        if (oldest !== undefined) {
+          sourceCache.delete(oldest);
+        }
+      }
+      sourceCache.set(key, listing);
+      return ok(listing);
     },
     resolveGenreLineage,
     categoryMatchesLineage(category, genreId, lineage) {

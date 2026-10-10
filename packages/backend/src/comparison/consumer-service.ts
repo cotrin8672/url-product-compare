@@ -195,7 +195,7 @@ export function createConsumerComparisonService(
       if (lookup.value.expiresAt <= valueOf(now) || !provider.permissions(now).display) {
         return err({ code: "source_not_authorized" });
       }
-      if (!consumerListingConditionEligible(lookup.value.condition)) {
+      if (lookup.value.condition === "used" || lookup.value.condition === "refurbished") {
         return ok(
           Object.freeze({
             status: "unsupported",
@@ -209,8 +209,10 @@ export function createConsumerComparisonService(
       options?.signal?.throwIfAborted();
       const categories = Object.freeze(
         catalog.categories
-          .filter((category) =>
-            provider.categoryMatchesLineage(category, lookup.value.genreId, lineage),
+          .filter(
+            (category) =>
+              provider.categoryMatchesLineage(category, lookup.value.genreId, lineage) &&
+              consumerListingConditionEligible(lookup.value.condition, category),
           )
           .map((category) => category.id),
       );
@@ -288,7 +290,7 @@ export function createConsumerComparisonService(
       if (!validAffiliate(original.value, provider)) {
         return err({ code: "invalid_affiliate_url" });
       }
-      if (!consumerListingConditionEligible(original.value.condition)) {
+      if (!consumerListingConditionEligible(original.value.condition, category)) {
         return err({ code: "listing_not_eligible" });
       }
       const lineage = await provider.resolveGenreLineage(original.value.genreId ?? null, options);
@@ -304,7 +306,10 @@ export function createConsumerComparisonService(
         return err({ code: "listing_not_found" });
       }
       options?.signal?.throwIfAborted();
-      if (!consumerListingConditionEligible(first.condition) || !validAffiliate(first, provider)) {
+      if (
+        !consumerListingConditionEligible(first.condition, category) ||
+        !validAffiliate(first, provider)
+      ) {
         return err({ code: "listing_not_eligible" });
       }
       let collected: ConsumerAttachedListing[] = [attach(first)];
@@ -347,7 +352,7 @@ export function createConsumerComparisonService(
           examined += 1;
           options?.signal?.throwIfAborted();
           if (
-            !consumerListingConditionEligible(listing.condition) ||
+            !consumerListingConditionEligible(listing.condition, category) ||
             !validAffiliate(listing, provider)
           ) {
             continue;
@@ -385,7 +390,7 @@ export function createConsumerComparisonService(
         for (const listing of await provider.enrich(batch, options)) {
           options?.signal?.throwIfAborted();
           if (
-            !consumerListingConditionEligible(listing.condition) ||
+            !consumerListingConditionEligible(listing.condition, category) ||
             !validAffiliate(listing, provider)
           ) {
             continue;

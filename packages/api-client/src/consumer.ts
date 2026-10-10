@@ -35,6 +35,7 @@ export type {
 export {
   clearComparisonSession,
   comparisonJobCannotResume,
+  comparisonErrorMessage,
   createComparisonOperation,
   parseConsumerComparison,
   parseDetectResult,

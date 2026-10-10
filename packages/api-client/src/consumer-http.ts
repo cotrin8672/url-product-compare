@@ -20,6 +20,7 @@ export type CatalogCategory = Readonly<{
   fields: readonly CatalogField[];
   mainFields: readonly string[];
   axes: readonly CatalogAxis[];
+  allowUnknownCondition?: boolean;
 }>;
 
 type CatalogProvider = Readonly<{
@@ -270,6 +271,8 @@ function parseCategory(input: unknown): CatalogCategory | null {
     typeof input["label"] !== "string" ||
     input["label"].length === 0 ||
     typeof input["description"] !== "string" ||
+    (input["allowUnknownCondition"] !== undefined &&
+      typeof input["allowUnknownCondition"] !== "boolean") ||
     !Array.isArray(input["fields"]) ||
     input["fields"].length === 0 ||
     input["fields"].length > 64
@@ -315,6 +318,9 @@ function parseCategory(input: unknown): CatalogCategory | null {
     fields: Object.freeze(fields.flatMap((field) => (field === null ? [] : [field]))),
     mainFields,
     axes: Object.freeze(axes.flatMap((axis) => (axis === null ? [] : [axis]))),
+    ...(typeof input["allowUnknownCondition"] === "boolean"
+      ? { allowUnknownCondition: input["allowUnknownCondition"] }
+      : {}),
   });
 }
 
@@ -851,7 +857,10 @@ export function parseConsumerComparison(
       throw new Error("比較対象を検証できませんでした");
     }
     const listing = parseConsumerListing(entry, providerDefinitions, definition);
-    if (listing.condition !== "new") {
+    if (
+      listing.condition !== "new" &&
+      !(listing.condition === "unknown" && definition.allowUnknownCondition === true)
+    ) {
       throw new Error("比較対象は新品掲載のみです");
     }
     const info = listing.consumerInformation;
@@ -924,7 +933,10 @@ export function parseConsumerComparison(
     });
   });
   const source = parseConsumerListing(value["source"], providerDefinitions, definition);
-  if (source.condition !== "new") {
+  if (
+    source.condition !== "new" &&
+    !(source.condition === "unknown" && definition.allowUnknownCondition === true)
+  ) {
     throw new Error("比較対象は新品掲載のみです");
   }
   const sourceProduct = products.find(
@@ -1239,17 +1251,27 @@ const errorMessages: Readonly<Record<string, string>> = {
   idempotency_conflict: "同じ操作キーで入力内容が変わっています。やり直してください",
   result_storage_denied: "比較サービスを利用できません。時間をおいて再度お試しください",
   consumer_rate_limited: "少し待ってからもう一度比較してください",
+  provider_rate_limited: "楽天の商品取得が混み合っています。1分ほど待ってから再度お試しください",
+  provider_unavailable: "楽天から商品情報を取得できませんでした。時間をおいて再度お試しください",
+  provider_unauthorized: "商品取得の接続設定を確認できません。管理者による確認が必要です",
+  listing_not_found: "楽天APIにこの商品の掲載が見つかりませんでした。別の商品URLをお試しください",
+  lookup_incomplete: "このURLの商品を楽天APIで特定できませんでした。別の商品URLをお試しください",
+  listing_not_eligible: "この商品は比較対象外です。中古品・再生品は比較できません",
+  source_not_authorized: "商品情報の利用期限が切れています。管理者による更新が必要です",
+  cancelled: "比較をキャンセルしました",
   origin_forbidden: "比較サービスに接続できません",
   method_not_allowed: "APIの呼び出し方法が対応していません",
 };
+
+export function comparisonErrorMessage(code: string): string {
+  return errorMessages[code] ?? "商品を確認できませんでした";
+}
 
 function throwApiError(input: Record<string, unknown>): never {
   const error = input["error"];
   const code = record(error) ? error["code"] : null;
   throw new Error(
-    typeof code === "string"
-      ? (errorMessages[code] ?? "商品を確認できませんでした")
-      : "APIの応答を読み取れませんでした",
+    typeof code === "string" ? comparisonErrorMessage(code) : "APIの応答を読み取れませんでした",
     { cause: { code } },
   );
 }

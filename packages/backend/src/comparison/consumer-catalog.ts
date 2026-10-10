@@ -37,6 +37,7 @@ export type ConsumerCategoryDefinition = Readonly<{
   mainFields: readonly string[];
   fields: readonly ConsumerFieldDefinition[];
   axes: readonly ConsumerCategoryAxis[];
+  allowUnknownCondition?: boolean;
 }>;
 
 export type ConsumerCatalogCategory = Readonly<{
@@ -46,6 +47,7 @@ export type ConsumerCatalogCategory = Readonly<{
   fields: readonly ConsumerField[];
   mainFields: readonly string[];
   axes: readonly ConsumerCategoryAxis[];
+  allowUnknownCondition?: boolean;
 }>;
 
 export type ConsumerCatalog = Readonly<{
@@ -139,7 +141,7 @@ const screen = field(
   Object.freeze({
     kind: "numberPattern",
     pattern:
-      "(?:画面サイズ|パネルサイズ|ディスプレイサイズ|対角サイズ|screen\\s*size)\\s*[:：]?\\s*(\\d+(?:\\.\\d+)?)\\s*(インチ|型|inch(?:es)?)",
+      "(?:画面サイズ|画面の大きさ|パネルサイズ|モニターサイズ|ディスプレイ(?:タイプ|サイズ)?|対角サイズ|screen\\s*size)\\s*[:：]?\\s*(?:約\\s*)?(\\d+(?:\\.\\d+)?)\\s*(インチ|V?型|inch(?:es)?)",
   }),
 );
 const width = field(
@@ -563,6 +565,7 @@ const defaultCategoryEntries: readonly ConsumerCategoryDefinition[] = Object.fre
   [
     Object.freeze({
       id: "laptop",
+      allowUnknownCondition: true,
       label: "ノートPC",
       description: "仕事、学習、持ち運びに",
       providerBindings: {
@@ -635,6 +638,7 @@ const defaultCategoryEntries: readonly ConsumerCategoryDefinition[] = Object.fre
     }),
     Object.freeze({
       id: "desktop",
+      allowUnknownCondition: true,
       label: "デスクトップPC",
       description: "自宅で使うパソコンに",
       providerBindings: {
@@ -706,6 +710,7 @@ const defaultCategoryEntries: readonly ConsumerCategoryDefinition[] = Object.fre
     }),
     Object.freeze({
       id: "tablet",
+      allowUnknownCondition: true,
       label: "タブレット",
       description: "動画、読書、学習に",
       providerBindings: {
@@ -732,6 +737,7 @@ const defaultCategoryEntries: readonly ConsumerCategoryDefinition[] = Object.fre
     }),
     Object.freeze({
       id: "smartphone",
+      allowUnknownCondition: true,
       label: "スマートフォン",
       description: "毎日使うスマホの買い替えに",
       providerBindings: {
@@ -757,6 +763,7 @@ const defaultCategoryEntries: readonly ConsumerCategoryDefinition[] = Object.fre
     }),
     Object.freeze({
       id: "television",
+      allowUnknownCondition: true,
       label: "テレビ",
       description: "リビングや寝室での視聴に",
       providerBindings: {
@@ -781,6 +788,7 @@ const defaultCategoryEntries: readonly ConsumerCategoryDefinition[] = Object.fre
     }),
     Object.freeze({
       id: "monitor",
+      allowUnknownCondition: true,
       label: "モニター",
       description: "パソコンの画面を広く快適に",
       providerBindings: {
@@ -820,6 +828,9 @@ function toPublicCategory(category: ConsumerCategoryDefinition): ConsumerCatalog
     description: category.description,
     mainFields: category.mainFields,
     axes: category.axes,
+    ...(category.allowUnknownCondition === undefined
+      ? {}
+      : { allowUnknownCondition: category.allowUnknownCondition }),
     fields: Object.freeze(
       category.fields.map((fieldDefinition) =>
         Object.freeze({
@@ -847,7 +858,12 @@ export function buildConsumerCatalog(
     }
     ids.add(category.id);
     const fields = new Map(category.fields.map((definition) => [definition.id, definition]));
-    if (fields.size !== category.fields.length || category.label.trim().length === 0) {
+    if (
+      fields.size !== category.fields.length ||
+      category.label.trim().length === 0 ||
+      (category.allowUnknownCondition !== undefined &&
+        typeof category.allowUnknownCondition !== "boolean")
+    ) {
       throw new Error(`Invalid consumer fields: ${category.id}`);
     }
     for (const definition of category.fields) {
@@ -1007,8 +1023,13 @@ export function readConsumerListingCondition(
   return "unknown";
 }
 
-export function consumerListingConditionEligible(condition: ConsumerListingCondition): boolean {
-  return condition === "new";
+export function consumerListingConditionEligible(
+  condition: ConsumerListingCondition,
+  category?: Pick<ConsumerCategoryDefinition, "allowUnknownCondition">,
+): boolean {
+  return (
+    condition === "new" || (condition === "unknown" && category?.allowUnknownCondition === true)
+  );
 }
 
 export function readFieldNumberPattern(definition: ConsumerFieldDefinition): string | null {

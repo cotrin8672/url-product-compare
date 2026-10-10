@@ -103,6 +103,56 @@ await test("six consumer categories have distinct fields, validated conditions, 
   }
 });
 
+await test("flat tablet captions and bullet-separated phone specs retain labelled evidence", () => {
+  const tablet = consumerCategory("tablet");
+  const phone = consumerCategory("smartphone");
+  const television = consumerCategory("television");
+  const monitor = consumerCategory("monitor");
+  assert.ok(tablet !== null && phone !== null && television !== null && monitor !== null);
+  const tabletCaption =
+    "OS Android 14 ディスプレイ 12.7 型ワイドパネル (2944x1840 ドット) CPU MediaTek Dimensity 8300 プロセッサー メモリ 8GB LPDDR5X 記憶装置 256GB フラッシュメモリー 本体質量 約 620g";
+  const tabletInfo = readConsumerInformation(tablet, "shop:tablet", url, tabletCaption);
+  assert.equal(tabletInfo.specs["ramGb"], 8);
+  assert.equal(tabletInfo.specs["storageGb"], 256);
+  assert.equal(tabletInfo.specs["screenInches"], 12.7);
+  assert.equal(tabletInfo.specs["weightG"], 620);
+  const phoneInfo = readConsumerInformation(
+    phone,
+    "shop:phone",
+    url,
+    "●OS:Android 14(初期出荷時)●CPU:Snapdragon 7s Gen 2 Mobile Platform●メモリ:RAM 6GB●ストレージ:ROM 128GB●ディスプレイ:約6.1インチ FHD+ OLED●質量:約166g",
+  );
+  assert.equal(phoneInfo.specs["cpu"], "Snapdragon 7s Gen 2 Mobile Platform");
+  assert.equal(phoneInfo.specs["ramGb"], 6);
+  assert.equal(phoneInfo.specs["storageGb"], 128);
+  assert.equal(phoneInfo.specs["screenInches"], 6.1);
+  const televisionInfo = readConsumerInformation(
+    television,
+    "shop:tv",
+    url,
+    "画面サイズ43 V型(インチ)画素数3840x2160",
+  );
+  assert.equal(televisionInfo.specs["screenInches"], 43);
+  assert.equal(televisionInfo.specs["widthPx"], 3840);
+  const monitorInfo = readConsumerInformation(
+    monitor,
+    "shop:monitor",
+    url,
+    "モニターサイズ：27インチ解像度：3840×2160モニタータイプ：ワイド",
+  );
+  assert.equal(monitorInfo.specs["screenInches"], 27);
+  assert.equal(monitorInfo.specs["widthPx"], 3840);
+  assert.ok(tabletInfo.facts.every((fact) => tabletCaption.includes(fact.quote)));
+  const ambiguous = readConsumerInformation(
+    tablet,
+    "shop:tablet",
+    url,
+    "ディスプレイ:11インチ\nディスプレイ:12.7インチ\n最大メモリ:64GB",
+  );
+  assert.equal(ambiguous.specs["screenInches"], null);
+  assert.equal(ambiguous.specs["ramGb"], null);
+});
+
 await test("capacity extraction refuses upgrade limits, VRAM, variants and contradictions", () => {
   const unknown = readConsumerInformation(
     laptop,
