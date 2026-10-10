@@ -2823,12 +2823,7 @@ function discoveryRiceItem(id: string, donation = true) {
 }
 
 await test("automatic category selection rejects malformed Jev responses and malformed attribute dictionaries", async (context) => {
-  let answer: unknown = {
-    type: "choice",
-    choice: "major",
-    confidence: 0.7,
-    probabilities: { major: 0.7, supporting: 0.3, exclude: 0, unknown: 0 },
-  };
+  let answer: unknown = { type: "noul", noul: 0.7 };
   let rawAttributes: unknown = discoveryAttributes
     .slice(0, 2)
     .map((attribute) => ({ attributeId: attribute.id, nameJa: attribute.label }));
@@ -2840,6 +2835,10 @@ await test("automatic category selection rejects malformed Jev responses and mal
       const body: unknown = JSON.parse(init.body);
       assert.ok(record(body) && record(body["questions"]));
       assert.equal(body["model"], "jev-1.13.0");
+      for (const question of Object.values(body["questions"])) {
+        assert.ok(record(question));
+        assert.equal(question["type"], "noul");
+      }
       return Promise.resolve(
         Response.json({
           model: "jev-1.13.0",
@@ -2862,30 +2861,11 @@ await test("automatic category selection rejects malformed Jev responses and mal
     body: JSON.stringify({ url: "https://item.rakuten.co.jp/shop/source/" }),
   };
   for (const invalid of [
-    {
-      type: "choice",
-      choice: "invented",
-      confidence: 1,
-      probabilities: { major: 1, supporting: 0, exclude: 0, unknown: 0 },
-    },
-    {
-      type: "choice",
-      choice: "major",
-      confidence: 1,
-      probabilities: { major: 0.98, supporting: 0.01, exclude: 0, unknown: 0 },
-    },
-    {
-      type: "choice",
-      choice: "major",
-      confidence: 2,
-      probabilities: { major: 1, supporting: 0, exclude: 0, unknown: 0 },
-    },
-    {
-      type: "choice",
-      choice: "major",
-      confidence: 1,
-      probabilities: { major: 0.2, supporting: 0.8, exclude: 0, unknown: 0 },
-    },
+    { type: "choice", noul: 1 },
+    { type: "noul", noul: "1" },
+    { type: "noul", noul: -0.1 },
+    { type: "noul", noul: 1.1 },
+    { type: "noul", noul: Number.NaN },
   ]) {
     answer = invalid;
     const response = await createApiHandler(false, discoverySettings, null, discoveryJevSettings, {
@@ -2896,6 +2876,19 @@ await test("automatic category selection rejects malformed Jev responses and mal
     assert.ok(record(body) && record(body["value"]) && record(body["value"]["categoryDefinition"]));
     assert.equal(body["value"]["categorySelectionStatus"], "unavailable");
     assert.deepEqual(body["value"]["categoryDefinition"]["mainFields"], []);
+  }
+  for (const probability of [0, 0.69, 0.7, 1]) {
+    answer = { type: "noul", noul: probability };
+    const response = await createApiHandler(false, discoverySettings, null, discoveryJevSettings, {
+      clock: discoveryClock,
+    })(event);
+    const body: unknown = JSON.parse(response.body);
+    assert.ok(record(body) && record(body["value"]) && record(body["value"]["categoryDefinition"]));
+    assert.equal(body["value"]["categorySelectionStatus"], "applied");
+    assert.deepEqual(
+      body["value"]["categoryDefinition"]["mainFields"],
+      probability >= 0.7 ? ["attribute11", "attribute12"] : [],
+    );
   }
   const beforeInvalidDictionary = calls;
   for (const invalid of [
@@ -2929,15 +2922,7 @@ await test("HTTP comparison unlocks rice, reuses Jev selection, preserves HTML e
         Response.json({
           model: "jev-1.13.0",
           answers: Object.fromEntries(
-            Object.keys(body["questions"]).map((id) => [
-              id,
-              {
-                type: "choice",
-                choice: "major",
-                confidence: 0.7,
-                probabilities: { major: 0.7, supporting: 0.3, exclude: 0, unknown: 0 },
-              },
-            ]),
+            Object.keys(body["questions"]).map((id) => [id, { type: "noul", noul: 0.7 }]),
           ),
         }),
       );
