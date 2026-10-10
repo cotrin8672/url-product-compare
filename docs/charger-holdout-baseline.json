@@ -1,0 +1,214 @@
+{
+  "inputSha256": "caab664a84aad14440b00f653479423761b8692fa990a19711a22d50c1694cd8",
+  "fetchedAt": "2026-10-02T13:06:22.091Z",
+  "phase": "before-product-registration",
+  "realManufacturerRequests": 1,
+  "scope": "One previously unsupported product, labelled from the official specification before registration. Specification compatibility, not measured charging performance or independent third-party evaluation.",
+  "lookup": {
+    "status": 422,
+    "body": { "tag": "err", "error": { "code": "unsupported_official_url" } },
+    "fetchCalls": 0
+  },
+  "summary": {
+    "cases": 26,
+    "engineAgrees": 26,
+    "apiAgrees": null,
+    "falseCompatible": 0,
+    "falseExcluded": 0,
+    "pending": 1
+  },
+  "rows": [
+    {
+      "id": "pd-65w",
+      "expected": "compatible",
+      "engine": {
+        "status": "compatible",
+        "assignments": [{ "deviceId": "device-1", "port": "C1" }],
+        "evidence": { "provider": {}, "source": {}, "observedAt": {} }
+      },
+      "engineAgrees": true
+    },
+    {
+      "id": "pd-over-current",
+      "expected": "incompatible",
+      "engine": { "status": "incompatible", "reason": "output_configuration" },
+      "engineAgrees": true
+    },
+    {
+      "id": "pd-12v",
+      "expected": "compatible",
+      "engine": {
+        "status": "compatible",
+        "assignments": [{ "deviceId": "device-1", "port": "C1" }],
+        "evidence": { "provider": {}, "source": {}, "observedAt": {} }
+      },
+      "engineAgrees": true
+    },
+    {
+      "id": "pd-not-continuous",
+      "expected": "incompatible",
+      "engine": { "status": "incompatible", "reason": "output_configuration" },
+      "engineAgrees": true
+    },
+    {
+      "id": "pd-5v-limit",
+      "expected": "compatible",
+      "engine": {
+        "status": "compatible",
+        "assignments": [{ "deviceId": "device-1", "port": "C1" }],
+        "evidence": { "provider": {}, "source": {}, "observedAt": {} }
+      },
+      "engineAgrees": true
+    },
+    {
+      "id": "pd-9v-over-current",
+      "expected": "incompatible",
+      "engine": { "status": "incompatible", "reason": "output_configuration" },
+      "engineAgrees": true
+    },
+    {
+      "id": "pps-low-range-high-current",
+      "expected": "compatible",
+      "engine": {
+        "status": "compatible",
+        "assignments": [{ "deviceId": "device-1", "port": "C1" }],
+        "evidence": { "provider": {}, "source": {}, "observedAt": {} }
+      },
+      "engineAgrees": true
+    },
+    {
+      "id": "pps-low-range-upper-bound",
+      "expected": "compatible",
+      "engine": {
+        "status": "compatible",
+        "assignments": [{ "deviceId": "device-1", "port": "C1" }],
+        "evidence": { "provider": {}, "source": {}, "observedAt": {} }
+      },
+      "engineAgrees": true
+    },
+    {
+      "id": "pps-low-range-over-current",
+      "expected": "incompatible",
+      "engine": { "status": "incompatible", "reason": "output_configuration" },
+      "engineAgrees": true
+    },
+    {
+      "id": "pps-high-range-cannot-borrow-current",
+      "expected": "incompatible",
+      "engine": { "status": "incompatible", "reason": "output_configuration" },
+      "engineAgrees": true
+    },
+    {
+      "id": "pps-high-range-limit",
+      "expected": "compatible",
+      "engine": {
+        "status": "compatible",
+        "assignments": [{ "deviceId": "device-1", "port": "C1" }],
+        "evidence": { "provider": {}, "source": {}, "observedAt": {} }
+      },
+      "engineAgrees": true
+    },
+    {
+      "id": "pps-high-range-over-current",
+      "expected": "incompatible",
+      "engine": { "status": "incompatible", "reason": "output_configuration" },
+      "engineAgrees": true
+    },
+    {
+      "id": "pps-61w",
+      "expected": "compatible",
+      "engine": {
+        "status": "compatible",
+        "assignments": [{ "deviceId": "device-1", "port": "C1" }],
+        "evidence": { "provider": {}, "source": {}, "observedAt": {} }
+      },
+      "engineAgrees": true
+    },
+    {
+      "id": "pd-65w-does-not-imply-pps-65w",
+      "expected": "incompatible",
+      "engine": { "status": "incompatible", "reason": "output_configuration" },
+      "engineAgrees": true
+    },
+    {
+      "id": "pps-21v-boundary",
+      "expected": "compatible",
+      "engine": {
+        "status": "compatible",
+        "assignments": [{ "deviceId": "device-1", "port": "C1" }],
+        "evidence": { "provider": {}, "source": {}, "observedAt": {} }
+      },
+      "engineAgrees": true
+    },
+    {
+      "id": "pps-21v-20v-cable",
+      "expected": "incompatible",
+      "engine": { "status": "incompatible", "reason": "cable_capacity" },
+      "engineAgrees": true
+    },
+    {
+      "id": "pps-lower-bound",
+      "expected": "compatible",
+      "engine": {
+        "status": "compatible",
+        "assignments": [{ "deviceId": "device-1", "port": "C1" }],
+        "evidence": { "provider": {}, "source": {}, "observedAt": {} }
+      },
+      "engineAgrees": true
+    },
+    {
+      "id": "pps-below-lower-bound",
+      "expected": "incompatible",
+      "engine": { "status": "incompatible", "reason": "output_configuration" },
+      "engineAgrees": true
+    },
+    {
+      "id": "pps-3-point-3-unlike-old-65w",
+      "expected": "incompatible",
+      "engine": { "status": "incompatible", "reason": "output_configuration" },
+      "engineAgrees": true
+    },
+    {
+      "id": "pd-65w-3a-cable",
+      "expected": "incompatible",
+      "engine": { "status": "incompatible", "reason": "cable_capacity" },
+      "engineAgrees": true
+    },
+    {
+      "id": "pps-high-current-3a-cable",
+      "expected": "incompatible",
+      "engine": { "status": "incompatible", "reason": "cable_capacity" },
+      "engineAgrees": true
+    },
+    {
+      "id": "unknown-cable-compatible-output",
+      "expected": "unknown",
+      "engine": { "status": "unknown", "reason": "cable_unknown" },
+      "engineAgrees": true
+    },
+    {
+      "id": "unknown-cable-impossible-output",
+      "expected": "incompatible",
+      "engine": { "status": "incompatible", "reason": "output_configuration" },
+      "engineAgrees": true
+    },
+    {
+      "id": "two-devices-below-total-power",
+      "expected": "incompatible",
+      "engine": { "status": "incompatible", "reason": "output_configuration" },
+      "engineAgrees": true
+    },
+    {
+      "id": "two-devices-unknown-cables",
+      "expected": "incompatible",
+      "engine": { "status": "incompatible", "reason": "output_configuration" },
+      "engineAgrees": true
+    },
+    {
+      "id": "pd-100w-over-total",
+      "expected": "incompatible",
+      "engine": { "status": "incompatible", "reason": "output_configuration" },
+      "engineAgrees": true
+    }
+  ]
+}

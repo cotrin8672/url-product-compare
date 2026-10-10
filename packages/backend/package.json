@@ -8,6 +8,7 @@
     "test": "tsc --noEmit false --outDir dist && node --test dist/infrastructure/testing/*.test.js"
   },
   "dependencies": {
-    "@aws-sdk/client-rds-data": "3.1140.0"
+    "firebase-admin": "14.5.0",
+    "firebase-functions": "7.4.0"
   }
 }

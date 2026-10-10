@@ -30,3 +30,7 @@ run = "pnpm test:guardrails"
 [tasks.verify]
 description = "Run all read-only quality checks"
 run = "pnpm verify"
+
+[tasks."firebase:package"]
+description = "Build and check the Firebase production package without deploying"
+run = "node tooling/package-firebase.mjs"

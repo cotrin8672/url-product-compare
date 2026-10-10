@@ -1,0 +1,312 @@
+{
+  "inputSha256": "259acdb44d748ef84a3c9fe54a4bf05f5ef11632deb65d0baa653cb64ba375af",
+  "observedAt": "2026-10-02T13:21:42.055Z",
+  "scope": "Reviewed factual inputs into the existing generic requirement core, using a local judge probe. No real Jev calls here. Bottle URL ingestion is unsupported.",
+  "sources": [
+    {
+      "model": "JNL-S501",
+      "source": "https://www.thermos.jp/english/product/detail/jnl-s501.html",
+      "featureSource": "https://www.thermos.jp/product/series/jnl-s01.html",
+      "observedAt": "2026-10-02T13:21:42.055Z"
+    },
+    {
+      "model": "JOQ-481",
+      "source": "https://www.thermos.jp/product/detail/joq-481.html",
+      "featureSource": "https://www.thermos.jp/product/series/joq-01.html",
+      "observedAt": "2026-10-02T13:21:42.055Z"
+    }
+  ],
+  "urlResults": [
+    {
+      "model": "JNL-S501",
+      "status": 422,
+      "body": { "tag": "err", "error": { "code": "unsupported_url" } }
+    },
+    {
+      "model": "JOQ-481",
+      "status": 422,
+      "body": { "tag": "err", "error": { "code": "unsupported_url" } }
+    }
+  ],
+  "summary": {
+    "independentRealProducts": 2,
+    "decisions": 34,
+    "agrees": 33,
+    "falseEligible": 0,
+    "pending": 6
+  },
+  "rows": [
+    {
+      "id": "minimum-500ml",
+      "model": "JNL-S501",
+      "expected": "eligible",
+      "actual": "eligible",
+      "agrees": true,
+      "localJudgeCalls": 2
+    },
+    {
+      "id": "minimum-500ml",
+      "model": "JOQ-481",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "localJudgeCalls": 1
+    },
+    {
+      "id": "maximum-480ml",
+      "model": "JNL-S501",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "localJudgeCalls": 1
+    },
+    {
+      "id": "maximum-480ml",
+      "model": "JOQ-481",
+      "expected": "eligible",
+      "actual": "eligible",
+      "agrees": true,
+      "localJudgeCalls": 2
+    },
+    {
+      "id": "minimum-480ml-inclusive",
+      "model": "JNL-S501",
+      "expected": "eligible",
+      "actual": "eligible",
+      "agrees": true,
+      "localJudgeCalls": 2
+    },
+    {
+      "id": "minimum-480ml-inclusive",
+      "model": "JOQ-481",
+      "expected": "eligible",
+      "actual": "eligible",
+      "agrees": true,
+      "localJudgeCalls": 2
+    },
+    {
+      "id": "minimum-501ml",
+      "model": "JNL-S501",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "localJudgeCalls": 1
+    },
+    {
+      "id": "minimum-501ml",
+      "model": "JOQ-481",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "localJudgeCalls": 1
+    },
+    {
+      "id": "warm-70c-6h",
+      "model": "JNL-S501",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "localJudgeCalls": 1
+    },
+    {
+      "id": "warm-70c-6h",
+      "model": "JOQ-481",
+      "expected": "eligible",
+      "actual": "eligible",
+      "agrees": true,
+      "localJudgeCalls": 2
+    },
+    {
+      "id": "warm-71c-6h-inclusive",
+      "model": "JNL-S501",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "localJudgeCalls": 1
+    },
+    {
+      "id": "warm-71c-6h-inclusive",
+      "model": "JOQ-481",
+      "expected": "eligible",
+      "actual": "eligible",
+      "agrees": true,
+      "localJudgeCalls": 2
+    },
+    {
+      "id": "warm-72c-6h",
+      "model": "JNL-S501",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "localJudgeCalls": 1
+    },
+    {
+      "id": "warm-72c-6h",
+      "model": "JOQ-481",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "localJudgeCalls": 1
+    },
+    {
+      "id": "cold-9c-6h",
+      "model": "JNL-S501",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "localJudgeCalls": 1
+    },
+    {
+      "id": "cold-9c-6h",
+      "model": "JOQ-481",
+      "expected": "eligible",
+      "actual": "eligible",
+      "agrees": true,
+      "localJudgeCalls": 2
+    },
+    {
+      "id": "cold-10c-6h-inclusive",
+      "model": "JNL-S501",
+      "expected": "eligible",
+      "actual": "eligible",
+      "agrees": true,
+      "localJudgeCalls": 2
+    },
+    {
+      "id": "cold-10c-6h-inclusive",
+      "model": "JOQ-481",
+      "expected": "eligible",
+      "actual": "eligible",
+      "agrees": true,
+      "localJudgeCalls": 2
+    },
+    {
+      "id": "cold-8c-6h",
+      "model": "JNL-S501",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "localJudgeCalls": 1
+    },
+    {
+      "id": "cold-8c-6h",
+      "model": "JOQ-481",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "localJudgeCalls": 1
+    },
+    {
+      "id": "all-parts-dishwasher",
+      "model": "JNL-S501",
+      "expected": "eligible",
+      "actual": "eligible",
+      "agrees": true,
+      "localJudgeCalls": 2
+    },
+    {
+      "id": "all-parts-dishwasher",
+      "model": "JOQ-481",
+      "expected": "eligible",
+      "actual": "eligible",
+      "agrees": true,
+      "localJudgeCalls": 2
+    },
+    {
+      "id": "button-required",
+      "model": "JNL-S501",
+      "expected": "eligible",
+      "actual": "eligible",
+      "agrees": true,
+      "localJudgeCalls": 2
+    },
+    {
+      "id": "button-required",
+      "model": "JOQ-481",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "localJudgeCalls": 1
+    },
+    {
+      "id": "screw-required",
+      "model": "JNL-S501",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "localJudgeCalls": 1
+    },
+    {
+      "id": "screw-required",
+      "model": "JOQ-481",
+      "expected": "eligible",
+      "actual": "eligible",
+      "agrees": true,
+      "localJudgeCalls": 2
+    },
+    {
+      "id": "capacity-cannot-compensate-retention",
+      "model": "JNL-S501",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "localJudgeCalls": 1
+    },
+    {
+      "id": "capacity-cannot-compensate-retention",
+      "model": "JOQ-481",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "localJudgeCalls": 1
+    },
+    {
+      "id": "weight-not-precisely-verified",
+      "model": "JNL-S501",
+      "expected": "pending",
+      "actual": "pending",
+      "agrees": true,
+      "localJudgeCalls": 0
+    },
+    {
+      "id": "weight-not-precisely-verified",
+      "model": "JOQ-481",
+      "expected": "pending",
+      "actual": "pending",
+      "agrees": true,
+      "localJudgeCalls": 0
+    },
+    {
+      "id": "retention-12h-not-verified",
+      "model": "JNL-S501",
+      "expected": "pending",
+      "actual": "pending",
+      "agrees": true,
+      "localJudgeCalls": 0
+    },
+    {
+      "id": "retention-12h-not-verified",
+      "model": "JOQ-481",
+      "expected": "pending",
+      "actual": "pending",
+      "agrees": true,
+      "localJudgeCalls": 0
+    },
+    {
+      "id": "known-mismatch-before-missing-fact",
+      "model": "JNL-S501",
+      "expected": "pending",
+      "actual": "pending",
+      "agrees": true,
+      "localJudgeCalls": 0
+    },
+    {
+      "id": "known-mismatch-before-missing-fact",
+      "model": "JOQ-481",
+      "expected": "excluded",
+      "actual": "pending",
+      "agrees": false,
+      "localJudgeCalls": 0
+    }
+  ]
+}

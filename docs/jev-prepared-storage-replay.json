@@ -1,0 +1,664 @@
+{
+  "evaluatedAt": "2026-10-02T14:26:12.744Z",
+  "inputSha256": "a6312cbb434fb1f8e5889d079580084f6fca9547df6470b10223c61d7cb2ab67",
+  "model": "jev-1.13.0",
+  "note": "Synthetic regression for preference reversal and explicitly accepted workaround. Not real-product recommendation accuracy.",
+  "replay": true,
+  "totalCalls": 10,
+  "rows": [
+    {
+      "id": "en-fixed-fixture-fixed",
+      "group": "preference-reversal",
+      "model": "fixture-fixed",
+      "expectedError": null,
+      "actualError": null,
+      "agrees": true,
+      "calls": 1,
+      "axes": [
+        {
+          "id": "plug_storage",
+          "score": 1.98,
+          "confidence": 0.97,
+          "probabilities": { "0": 0.01, "1": 0, "2": 0.99 },
+          "expected": 2,
+          "decision": 2,
+          "agrees": true
+        }
+      ],
+      "transport": [
+        {
+          "request": {
+            "model": "jev-1.13.0",
+            "state": {
+              "category": "usb-c-wall-charger",
+              "mode": "evaluation-only",
+              "preferences": "I want a rigid fixed plug with no folding hinge. The charger stays plugged in on my desk, and I do not need to cover its prongs.",
+              "facts": {
+                "plugDescription": "The AC plug is rigid, fixed and exposed, with no folding hinge or protective cap."
+              },
+              "excerpts": {
+                "plugDescription": "The AC plug is rigid, fixed and exposed, with no folding hinge or protective cap."
+              }
+            },
+            "questions": {
+              "plug_storage": {
+                "type": "score",
+                "instructions": "Evaluate only how the verified plug design supports the explicit storage preference in preferences. Use plugDescription and its excerpt. Folding is not inherently better than a fixed plug. Do not infer weight, size or electrical performance.",
+                "criteria": [
+                  "The verified plug design conflicts with the user's explicit storage preference or requires a handling step the user explicitly rejects.",
+                  "The verified plug design supports the user's explicit storage preference only through a workaround the user explicitly accepts.",
+                  "The verified plug design directly supports the user's explicit storage preference. Folding is not preferable when the user requests a fixed plug."
+                ]
+              }
+            }
+          },
+          "status": 200,
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "plug_storage": {
+                "type": "score",
+                "score": 1.98,
+                "confidence": 0.97,
+                "legend": {
+                  "0": "The verified plug design conflicts with the user's explicit storage preference or requires a handling step the user explicitly rejects.",
+                  "1": "The verified plug design supports the user's explicit storage preference only through a workaround the user explicitly accepts.",
+                  "2": "The verified plug design directly supports the user's explicit storage preference. Folding is not preferable when the user requests a fixed plug."
+                },
+                "probabilities": { "0": 0.01, "1": 0, "2": 0.99 }
+              }
+            },
+            "usage": { "input_tokens": 530, "output_tokens": 18 }
+          }
+        }
+      ]
+    },
+    {
+      "id": "en-fixed-fixture-folding",
+      "group": "preference-reversal",
+      "model": "fixture-folding",
+      "expectedError": null,
+      "actualError": null,
+      "agrees": true,
+      "calls": 1,
+      "axes": [
+        {
+          "id": "plug_storage",
+          "score": 0.01,
+          "confidence": 0.99,
+          "probabilities": { "0": 1, "1": 0, "2": 0 },
+          "expected": 0,
+          "decision": 0,
+          "agrees": true
+        }
+      ],
+      "transport": [
+        {
+          "request": {
+            "model": "jev-1.13.0",
+            "state": {
+              "category": "usb-c-wall-charger",
+              "mode": "evaluation-only",
+              "preferences": "I want a rigid fixed plug with no folding hinge. The charger stays plugged in on my desk, and I do not need to cover its prongs.",
+              "facts": { "plugDescription": "The AC plug folds into the charger body." },
+              "excerpts": { "plugDescription": "The AC plug folds into the charger body." }
+            },
+            "questions": {
+              "plug_storage": {
+                "type": "score",
+                "instructions": "Evaluate only how the verified plug design supports the explicit storage preference in preferences. Use plugDescription and its excerpt. Folding is not inherently better than a fixed plug. Do not infer weight, size or electrical performance.",
+                "criteria": [
+                  "The verified plug design conflicts with the user's explicit storage preference or requires a handling step the user explicitly rejects.",
+                  "The verified plug design supports the user's explicit storage preference only through a workaround the user explicitly accepts.",
+                  "The verified plug design directly supports the user's explicit storage preference. Folding is not preferable when the user requests a fixed plug."
+                ]
+              }
+            }
+          },
+          "status": 200,
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "plug_storage": {
+                "type": "score",
+                "score": 0.01,
+                "confidence": 0.99,
+                "legend": {
+                  "0": "The verified plug design conflicts with the user's explicit storage preference or requires a handling step the user explicitly rejects.",
+                  "1": "The verified plug design supports the user's explicit storage preference only through a workaround the user explicitly accepts.",
+                  "2": "The verified plug design directly supports the user's explicit storage preference. Folding is not preferable when the user requests a fixed plug."
+                },
+                "probabilities": { "0": 1, "1": 0, "2": 0 }
+              }
+            },
+            "usage": { "input_tokens": 512, "output_tokens": 18 }
+          }
+        }
+      ]
+    },
+    {
+      "id": "en-folding-fixture-fixed",
+      "group": "preference-reversal",
+      "model": "fixture-fixed",
+      "expectedError": null,
+      "actualError": null,
+      "agrees": true,
+      "calls": 1,
+      "axes": [
+        {
+          "id": "plug_storage",
+          "score": 0,
+          "confidence": 1,
+          "probabilities": { "0": 1, "1": 0, "2": 0 },
+          "expected": 0,
+          "decision": 0,
+          "agrees": true
+        }
+      ],
+      "transport": [
+        {
+          "request": {
+            "model": "jev-1.13.0",
+            "state": {
+              "category": "usb-c-wall-charger",
+              "mode": "evaluation-only",
+              "preferences": "I carry the charger in a bag and want the prongs protected without handling a separate cap. I prefer a folding plug.",
+              "facts": {
+                "plugDescription": "The AC plug is rigid, fixed and exposed, with no folding hinge or protective cap."
+              },
+              "excerpts": {
+                "plugDescription": "The AC plug is rigid, fixed and exposed, with no folding hinge or protective cap."
+              }
+            },
+            "questions": {
+              "plug_storage": {
+                "type": "score",
+                "instructions": "Evaluate only how the verified plug design supports the explicit storage preference in preferences. Use plugDescription and its excerpt. Folding is not inherently better than a fixed plug. Do not infer weight, size or electrical performance.",
+                "criteria": [
+                  "The verified plug design conflicts with the user's explicit storage preference or requires a handling step the user explicitly rejects.",
+                  "The verified plug design supports the user's explicit storage preference only through a workaround the user explicitly accepts.",
+                  "The verified plug design directly supports the user's explicit storage preference. Folding is not preferable when the user requests a fixed plug."
+                ]
+              }
+            }
+          },
+          "status": 200,
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "plug_storage": {
+                "type": "score",
+                "score": 0,
+                "confidence": 1,
+                "legend": {
+                  "0": "The verified plug design conflicts with the user's explicit storage preference or requires a handling step the user explicitly rejects.",
+                  "1": "The verified plug design supports the user's explicit storage preference only through a workaround the user explicitly accepts.",
+                  "2": "The verified plug design directly supports the user's explicit storage preference. Folding is not preferable when the user requests a fixed plug."
+                },
+                "probabilities": { "0": 1, "1": 0, "2": 0 }
+              }
+            },
+            "usage": { "input_tokens": 524, "output_tokens": 18 }
+          }
+        }
+      ]
+    },
+    {
+      "id": "en-folding-fixture-folding",
+      "group": "preference-reversal",
+      "model": "fixture-folding",
+      "expectedError": null,
+      "actualError": null,
+      "agrees": true,
+      "calls": 1,
+      "axes": [
+        {
+          "id": "plug_storage",
+          "score": 1.97,
+          "confidence": 0.95,
+          "probabilities": { "0": 0.01, "1": 0.01, "2": 0.98 },
+          "expected": 2,
+          "decision": 2,
+          "agrees": true
+        }
+      ],
+      "transport": [
+        {
+          "request": {
+            "model": "jev-1.13.0",
+            "state": {
+              "category": "usb-c-wall-charger",
+              "mode": "evaluation-only",
+              "preferences": "I carry the charger in a bag and want the prongs protected without handling a separate cap. I prefer a folding plug.",
+              "facts": { "plugDescription": "The AC plug folds into the charger body." },
+              "excerpts": { "plugDescription": "The AC plug folds into the charger body." }
+            },
+            "questions": {
+              "plug_storage": {
+                "type": "score",
+                "instructions": "Evaluate only how the verified plug design supports the explicit storage preference in preferences. Use plugDescription and its excerpt. Folding is not inherently better than a fixed plug. Do not infer weight, size or electrical performance.",
+                "criteria": [
+                  "The verified plug design conflicts with the user's explicit storage preference or requires a handling step the user explicitly rejects.",
+                  "The verified plug design supports the user's explicit storage preference only through a workaround the user explicitly accepts.",
+                  "The verified plug design directly supports the user's explicit storage preference. Folding is not preferable when the user requests a fixed plug."
+                ]
+              }
+            }
+          },
+          "status": 200,
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "plug_storage": {
+                "type": "score",
+                "score": 1.97,
+                "confidence": 0.95,
+                "legend": {
+                  "0": "The verified plug design conflicts with the user's explicit storage preference or requires a handling step the user explicitly rejects.",
+                  "1": "The verified plug design supports the user's explicit storage preference only through a workaround the user explicitly accepts.",
+                  "2": "The verified plug design directly supports the user's explicit storage preference. Folding is not preferable when the user requests a fixed plug."
+                },
+                "probabilities": { "0": 0.01, "1": 0.01, "2": 0.98 }
+              }
+            },
+            "usage": { "input_tokens": 506, "output_tokens": 18 }
+          }
+        }
+      ]
+    },
+    {
+      "id": "ja-fixed-fixture-fixed",
+      "group": "preference-reversal",
+      "model": "fixture-fixed",
+      "expectedError": null,
+      "actualError": null,
+      "agrees": true,
+      "calls": 1,
+      "axes": [
+        {
+          "id": "plug_storage",
+          "score": 1.98,
+          "confidence": 0.98,
+          "probabilities": { "0": 0.01, "1": 0, "2": 0.99 },
+          "expected": 2,
+          "decision": 2,
+          "agrees": true
+        }
+      ],
+      "transport": [
+        {
+          "request": {
+            "model": "jev-1.13.0",
+            "state": {
+              "category": "usb-c-wall-charger",
+              "mode": "evaluation-only",
+              "preferences": "机に挿したまま使う。折り畳みの可動ヒンジがない固定プラグを希望。端子を覆う必要はない。",
+              "facts": {
+                "plugDescription": "The AC plug is rigid, fixed and exposed, with no folding hinge or protective cap."
+              },
+              "excerpts": {
+                "plugDescription": "The AC plug is rigid, fixed and exposed, with no folding hinge or protective cap."
+              }
+            },
+            "questions": {
+              "plug_storage": {
+                "type": "score",
+                "instructions": "Evaluate only how the verified plug design supports the explicit storage preference in preferences. Use plugDescription and its excerpt. Folding is not inherently better than a fixed plug. Do not infer weight, size or electrical performance.",
+                "criteria": [
+                  "The verified plug design conflicts with the user's explicit storage preference or requires a handling step the user explicitly rejects.",
+                  "The verified plug design supports the user's explicit storage preference only through a workaround the user explicitly accepts.",
+                  "The verified plug design directly supports the user's explicit storage preference. Folding is not preferable when the user requests a fixed plug."
+                ]
+              }
+            }
+          },
+          "status": 200,
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "plug_storage": {
+                "type": "score",
+                "score": 1.98,
+                "confidence": 0.98,
+                "legend": {
+                  "0": "The verified plug design conflicts with the user's explicit storage preference or requires a handling step the user explicitly rejects.",
+                  "1": "The verified plug design supports the user's explicit storage preference only through a workaround the user explicitly accepts.",
+                  "2": "The verified plug design directly supports the user's explicit storage preference. Folding is not preferable when the user requests a fixed plug."
+                },
+                "probabilities": { "0": 0.01, "1": 0, "2": 0.99 }
+              }
+            },
+            "usage": { "input_tokens": 544, "output_tokens": 18 }
+          }
+        }
+      ]
+    },
+    {
+      "id": "ja-fixed-fixture-folding",
+      "group": "preference-reversal",
+      "model": "fixture-folding",
+      "expectedError": null,
+      "actualError": null,
+      "agrees": true,
+      "calls": 1,
+      "axes": [
+        {
+          "id": "plug_storage",
+          "score": 0.03,
+          "confidence": 0.96,
+          "probabilities": { "0": 0.99, "1": 0, "2": 0.01 },
+          "expected": 0,
+          "decision": 0,
+          "agrees": true
+        }
+      ],
+      "transport": [
+        {
+          "request": {
+            "model": "jev-1.13.0",
+            "state": {
+              "category": "usb-c-wall-charger",
+              "mode": "evaluation-only",
+              "preferences": "机に挿したまま使う。折り畳みの可動ヒンジがない固定プラグを希望。端子を覆う必要はない。",
+              "facts": { "plugDescription": "The AC plug folds into the charger body." },
+              "excerpts": { "plugDescription": "The AC plug folds into the charger body." }
+            },
+            "questions": {
+              "plug_storage": {
+                "type": "score",
+                "instructions": "Evaluate only how the verified plug design supports the explicit storage preference in preferences. Use plugDescription and its excerpt. Folding is not inherently better than a fixed plug. Do not infer weight, size or electrical performance.",
+                "criteria": [
+                  "The verified plug design conflicts with the user's explicit storage preference or requires a handling step the user explicitly rejects.",
+                  "The verified plug design supports the user's explicit storage preference only through a workaround the user explicitly accepts.",
+                  "The verified plug design directly supports the user's explicit storage preference. Folding is not preferable when the user requests a fixed plug."
+                ]
+              }
+            }
+          },
+          "status": 200,
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "plug_storage": {
+                "type": "score",
+                "score": 0.03,
+                "confidence": 0.96,
+                "legend": {
+                  "0": "The verified plug design conflicts with the user's explicit storage preference or requires a handling step the user explicitly rejects.",
+                  "1": "The verified plug design supports the user's explicit storage preference only through a workaround the user explicitly accepts.",
+                  "2": "The verified plug design directly supports the user's explicit storage preference. Folding is not preferable when the user requests a fixed plug."
+                },
+                "probabilities": { "0": 0.99, "1": 0, "2": 0.01 }
+              }
+            },
+            "usage": { "input_tokens": 526, "output_tokens": 18 }
+          }
+        }
+      ]
+    },
+    {
+      "id": "ja-folding-fixture-fixed",
+      "group": "preference-reversal",
+      "model": "fixture-fixed",
+      "expectedError": null,
+      "actualError": null,
+      "agrees": true,
+      "calls": 1,
+      "axes": [
+        {
+          "id": "plug_storage",
+          "score": 0,
+          "confidence": 0.99,
+          "probabilities": { "0": 1, "1": 0, "2": 0 },
+          "expected": 0,
+          "decision": 0,
+          "agrees": true
+        }
+      ],
+      "transport": [
+        {
+          "request": {
+            "model": "jev-1.13.0",
+            "state": {
+              "category": "usb-c-wall-charger",
+              "mode": "evaluation-only",
+              "preferences": "かばんで持ち歩く。別の保護キャップを管理せず端子を収納できる折り畳みプラグを希望。",
+              "facts": {
+                "plugDescription": "The AC plug is rigid, fixed and exposed, with no folding hinge or protective cap."
+              },
+              "excerpts": {
+                "plugDescription": "The AC plug is rigid, fixed and exposed, with no folding hinge or protective cap."
+              }
+            },
+            "questions": {
+              "plug_storage": {
+                "type": "score",
+                "instructions": "Evaluate only how the verified plug design supports the explicit storage preference in preferences. Use plugDescription and its excerpt. Folding is not inherently better than a fixed plug. Do not infer weight, size or electrical performance.",
+                "criteria": [
+                  "The verified plug design conflicts with the user's explicit storage preference or requires a handling step the user explicitly rejects.",
+                  "The verified plug design supports the user's explicit storage preference only through a workaround the user explicitly accepts.",
+                  "The verified plug design directly supports the user's explicit storage preference. Folding is not preferable when the user requests a fixed plug."
+                ]
+              }
+            }
+          },
+          "status": 200,
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "plug_storage": {
+                "type": "score",
+                "score": 0,
+                "confidence": 0.99,
+                "legend": {
+                  "0": "The verified plug design conflicts with the user's explicit storage preference or requires a handling step the user explicitly rejects.",
+                  "1": "The verified plug design supports the user's explicit storage preference only through a workaround the user explicitly accepts.",
+                  "2": "The verified plug design directly supports the user's explicit storage preference. Folding is not preferable when the user requests a fixed plug."
+                },
+                "probabilities": { "0": 1, "1": 0, "2": 0 }
+              }
+            },
+            "usage": { "input_tokens": 541, "output_tokens": 18 }
+          }
+        }
+      ]
+    },
+    {
+      "id": "ja-folding-fixture-folding",
+      "group": "preference-reversal",
+      "model": "fixture-folding",
+      "expectedError": null,
+      "actualError": null,
+      "agrees": true,
+      "calls": 1,
+      "axes": [
+        {
+          "id": "plug_storage",
+          "score": 1.88,
+          "confidence": 0.83,
+          "probabilities": { "0": 0.04, "1": 0.04, "2": 0.92 },
+          "expected": 2,
+          "decision": 2,
+          "agrees": true
+        }
+      ],
+      "transport": [
+        {
+          "request": {
+            "model": "jev-1.13.0",
+            "state": {
+              "category": "usb-c-wall-charger",
+              "mode": "evaluation-only",
+              "preferences": "かばんで持ち歩く。別の保護キャップを管理せず端子を収納できる折り畳みプラグを希望。",
+              "facts": { "plugDescription": "The AC plug folds into the charger body." },
+              "excerpts": { "plugDescription": "The AC plug folds into the charger body." }
+            },
+            "questions": {
+              "plug_storage": {
+                "type": "score",
+                "instructions": "Evaluate only how the verified plug design supports the explicit storage preference in preferences. Use plugDescription and its excerpt. Folding is not inherently better than a fixed plug. Do not infer weight, size or electrical performance.",
+                "criteria": [
+                  "The verified plug design conflicts with the user's explicit storage preference or requires a handling step the user explicitly rejects.",
+                  "The verified plug design supports the user's explicit storage preference only through a workaround the user explicitly accepts.",
+                  "The verified plug design directly supports the user's explicit storage preference. Folding is not preferable when the user requests a fixed plug."
+                ]
+              }
+            }
+          },
+          "status": 200,
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "plug_storage": {
+                "type": "score",
+                "score": 1.88,
+                "confidence": 0.83,
+                "legend": {
+                  "0": "The verified plug design conflicts with the user's explicit storage preference or requires a handling step the user explicitly rejects.",
+                  "1": "The verified plug design supports the user's explicit storage preference only through a workaround the user explicitly accepts.",
+                  "2": "The verified plug design directly supports the user's explicit storage preference. Folding is not preferable when the user requests a fixed plug."
+                },
+                "probabilities": { "0": 0.04, "1": 0.04, "2": 0.92 }
+              }
+            },
+            "usage": { "input_tokens": 523, "output_tokens": 18 }
+          }
+        }
+      ]
+    },
+    {
+      "id": "cap-workaround-accepted",
+      "group": "explicit-workaround",
+      "model": "fixture-capped",
+      "expectedError": null,
+      "actualError": null,
+      "agrees": true,
+      "calls": 1,
+      "axes": [
+        {
+          "id": "plug_storage",
+          "score": 1,
+          "confidence": 1,
+          "probabilities": { "0": 0, "1": 1, "2": 0 },
+          "expected": 1,
+          "decision": 1,
+          "agrees": true
+        }
+      ],
+      "transport": [
+        {
+          "request": {
+            "model": "jev-1.13.0",
+            "state": {
+              "category": "usb-c-wall-charger",
+              "mode": "evaluation-only",
+              "preferences": "I prefer a folding plug for bag storage, but using and keeping a separate protective cap is an acceptable workaround.",
+              "facts": {
+                "plugDescription": "The AC plug is fixed, and the exposed prongs can be protected by a separate removable supplied cap."
+              },
+              "excerpts": {
+                "plugDescription": "The AC plug is fixed, and the exposed prongs can be protected by a separate removable supplied cap."
+              }
+            },
+            "questions": {
+              "plug_storage": {
+                "type": "score",
+                "instructions": "Evaluate only how the verified plug design supports the explicit storage preference in preferences. Use plugDescription and its excerpt. Folding is not inherently better than a fixed plug. Do not infer weight, size or electrical performance.",
+                "criteria": [
+                  "The verified plug design conflicts with the user's explicit storage preference or requires a handling step the user explicitly rejects.",
+                  "The verified plug design supports the user's explicit storage preference only through a workaround the user explicitly accepts.",
+                  "The verified plug design directly supports the user's explicit storage preference. Folding is not preferable when the user requests a fixed plug."
+                ]
+              }
+            }
+          },
+          "status": 200,
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "plug_storage": {
+                "type": "score",
+                "score": 1,
+                "confidence": 1,
+                "legend": {
+                  "0": "The verified plug design conflicts with the user's explicit storage preference or requires a handling step the user explicitly rejects.",
+                  "1": "The verified plug design supports the user's explicit storage preference only through a workaround the user explicitly accepts.",
+                  "2": "The verified plug design directly supports the user's explicit storage preference. Folding is not preferable when the user requests a fixed plug."
+                },
+                "probabilities": { "0": 0, "1": 1, "2": 0 }
+              }
+            },
+            "usage": { "input_tokens": 527, "output_tokens": 18 }
+          }
+        }
+      ]
+    },
+    {
+      "id": "cap-workaround-rejected",
+      "group": "explicit-workaround",
+      "model": "fixture-capped",
+      "expectedError": null,
+      "actualError": null,
+      "agrees": true,
+      "calls": 1,
+      "axes": [
+        {
+          "id": "plug_storage",
+          "score": 0,
+          "confidence": 1,
+          "probabilities": { "0": 1, "1": 0, "2": 0 },
+          "expected": 0,
+          "decision": 0,
+          "agrees": true
+        }
+      ],
+      "transport": [
+        {
+          "request": {
+            "model": "jev-1.13.0",
+            "state": {
+              "category": "usb-c-wall-charger",
+              "mode": "evaluation-only",
+              "preferences": "I carry the charger in a bag and want the prongs protected without handling a separate cap. I prefer a folding plug.",
+              "facts": {
+                "plugDescription": "The AC plug is fixed, and the exposed prongs can be protected by a separate removable supplied cap."
+              },
+              "excerpts": {
+                "plugDescription": "The AC plug is fixed, and the exposed prongs can be protected by a separate removable supplied cap."
+              }
+            },
+            "questions": {
+              "plug_storage": {
+                "type": "score",
+                "instructions": "Evaluate only how the verified plug design supports the explicit storage preference in preferences. Use plugDescription and its excerpt. Folding is not inherently better than a fixed plug. Do not infer weight, size or electrical performance.",
+                "criteria": [
+                  "The verified plug design conflicts with the user's explicit storage preference or requires a handling step the user explicitly rejects.",
+                  "The verified plug design supports the user's explicit storage preference only through a workaround the user explicitly accepts.",
+                  "The verified plug design directly supports the user's explicit storage preference. Folding is not preferable when the user requests a fixed plug."
+                ]
+              }
+            }
+          },
+          "status": 200,
+          "response": {
+            "model": "jev-1.13.0",
+            "answers": {
+              "plug_storage": {
+                "type": "score",
+                "score": 0,
+                "confidence": 1,
+                "legend": {
+                  "0": "The verified plug design conflicts with the user's explicit storage preference or requires a handling step the user explicitly rejects.",
+                  "1": "The verified plug design supports the user's explicit storage preference only through a workaround the user explicitly accepts.",
+                  "2": "The verified plug design directly supports the user's explicit storage preference. Folding is not preferable when the user requests a fixed plug."
+                },
+                "probabilities": { "0": 1, "1": 0, "2": 0 }
+              }
+            },
+            "usage": { "input_tokens": 530, "output_tokens": 18 }
+          }
+        }
+      ]
+    }
+  ]
+}

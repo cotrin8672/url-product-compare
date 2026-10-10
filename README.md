@@ -1,77 +1,84 @@
 # url-product-compare
 
-商品URLから比較候補を探し、AIで条件に合う商品を比較するサービス。
+商品URLから、入力商品と候補の価格・仕様を比較するサービスです。現在の通販APIは楽天で、ノートPC・デスクトップPC・タブレット・スマートフォン・テレビ・モニターの6カテゴリを用意しています。カテゴリ・比較項目・評価軸はbackendのカタログに集約し、通販APIは登録したプロバイダへ委譲します。
 
-現在はURL検査・製品同定・価格比較条件・成果リンクの検証境界と、Jevを使う候補評価ロジック、Solid.jsの動作確認UIとローカルAPIを実装しています。実商品API接続、ライバル探索、実データに基づくJev評価は未実装です。
+新品と確認でき、検証済みの成果リンクがある掲載を比較対象にします。容量・重さ・画面サイズなどの条件判定、価格順位、単位換算、おすすめ度の計算はプログラムが処理します。おすすめ度は確認済み数値の相対比較指数です。CPUの型番から総合性能を推測しません。条件を満たす安価な商品も候補に含めます。
 
-## 商品同定ロジック
+メイン経路 `POST /api/comparisons` は非同期ジョブを開始し、進捗・取消・期限内の結果復元を提供します。同期の `POST /api/compare` も互換用に保持します。いずれも **OpenAIを呼びません**。楽天APIの明示された仕様を先に抽出し、容量の記述の割り当てなど判断が必要な場合だけ、任意設定のJevへChoiceを1回まとめて送ります。本文中にある値と引用だけを選ばせ、未知・矛盾・低確信・失敗は未確認のまま表示します。Jev未設定でも比較できます。
 
-`packages/backend/src/comparison/investigate.ts` の `investigateProduct(input, providers, clock)` が入口です。登録済みの `ProductDataProvider` からURLを解決し、取得許諾・掲載ID・出典・時刻・製品の一致を検証します。楽天のURL規則は `providers/rakuten` にあり、別媒体はProvider登録で追加できます。
+## 起動
 
-`Result` は処理失敗、`Option` は欠損を表します。掲載ID・製品IDは提供元ごとに区別し、スキーマ検証済みの `Product` と同定根拠付きの `IdentifiedProduct` は別型です。バリエーションの未確認と確認済みの非該当も区別します。価格は通貨・税・送料・在庫・数量・配送条件・取得時刻・期限が揃う場合だけ総額比較できます。取得・表示・保存・AI送信・成果リンクの許諾は独立しています。
-
-`AffiliateProvider` は商品データProviderとは独立して注入します。成果リンクには製品・掲載・バリエーション・期限・遷移先の照合とProviderによる遷移先検証が必要です。利用できない候補を通常購入リンクで埋めません。実際の提携・遷移確認を行うAdapterはまだありません。`httpsUrl` 型はURL構文の検証のみで、外部URLを安全に取得できる保証ではありません。公開時には項目ごとの表示・保持・AI送信許諾を実契約で確認する必要があります。
-
-候補評価は、確認済みの必須条件をコードで判定した後、各候補へ同じ複数のScore質問をJevに送り、固定した重みで集計します。出典やAI送信権限が欠ける候補、低信頼の回答、Jev障害では順位を作りません。僅差は同順位です。内部指数は校正前なので公開用の適合度％ではありません。価格の安い順は別途、確認済み総額をコードで並べる必要があります。
-
-最初のCLIは架空の商品だけを扱うローカルデモで、外部API・アフィリエイト・Jevには接続しません。2番目は同じく架空の商品を実際のJev APIで評価する接続確認です。`TYPESAFE_API_KEY` が必要で、結果は公開用評価ではありません。
+Windowsでは `C:\Users\gummy\.codex\RTK.md` に従い、シェルコマンドに `rtk` を付けます。Node.js/pnpmはmiseの固定版を使います。
 
 ```sh
-rtk mise exec -- pnpm --filter @app/worker demo --demo
-rtk mise exec -- pnpm --filter @app/worker exec tsc --noEmit false
-rtk mise exec -- node --env-file=.env apps/worker/dist/apps/worker/src/index.js --jev-demo
+rtk mise trust
+rtk mise install
+rtk mise run install
 rtk mise run verify
 ```
 
-`verify` は機能テストも実行します。Solid.js画面にはSolid.js・Vite・ViteのSolidプラグインを追加しました。新しいworkspaceの設定とverifyへのテスト追加はレビュー対象です。
+Git対象外の `.env` に、`.env.example` の楽天設定6項目を設定します。楽天キーとJevキーはサーバーだけに置きます。`RAKUTEN_DATA_AUTHORIZED_UNTIL` は取得・表示・成果リンク・AI送信条件を再確認する内部停止期限です。
 
-## セットアップ
-
-AWSの公開構成・パッケージ作成・DB初期化は [infrastructure/README.md](infrastructure/README.md) にまとめています。Lambdaでも商品同定はデモです。Auroraには操作の成否だけを保存し、実商品データや入力URLは保存しません。
-
-```sh
-mise trust
-mise install
-mise run install
-mise run verify
+```powershell
+rtk mise run firebase:package
+rtk mise exec -- node --env-file=.env apps/api/dist/firebase/apps/api/src/local.js
 ```
 
-## ブラウザーでの動作確認
+別のターミナルで画面を起動します。
 
-別々のターミナルでAPIとSolid.js画面を起動し、`http://127.0.0.1:5173/` を開きます。
-
-```sh
-rtk mise exec -- pnpm --filter @app/api dev
+```powershell
 rtk mise exec -- pnpm --filter @app/web dev --host 127.0.0.1
 ```
 
-入力済みの `https://item.rakuten.co.jp/demo-shop/demo-product/` は架空データで商品同定まで確認できます。他のURLではエラーを表示します。価格・送料・在庫のAPIは未実装で、画面にも架空の比較結果は出しません。
+`http://127.0.0.1:5173/` を開き、楽天の商品URLを入力して比較します。カテゴリは自動判定し、曖昧な場合だけ利用者が選択します。ブラウザーにトークンや楽天キーを入力する必要はありません。APIサーバーの公開入口が比較用の経路だけにサーバー内の認証を渡します。ローカルでは画面のオリジンを `http://127.0.0.1:5173` に限定します。配置先が異なる場合はサーバーの `API_ALLOWED_ORIGIN` を指定します。
 
-Node.js / pnpm は `mise.toml` に固定。workspace対象は `apps/*` と `packages/*` です。パッケージは必要になった時点で追加し、各tsconfigから `tsconfig.base.json` の厳格設定を継承します。
+Jevの抽出補助を使う場合だけ `JEV_API_KEY` と `JEV_MODEL=jev-1.13.0` を設定します。キーを設定しなくても価格・明示仕様の比較は動作します。旧診断経路向けの `OPENAI_API_KEY` はメイン画面に不要です。
 
-## タスク
+## 比較の挙動
 
-| コマンド                   | 内容                                   |
-| -------------------------- | -------------------------------------- |
-| `mise run lint`            | 型情報付きESLint・依存境界、警告0件    |
-| `mise run lint:fix`        | Lint自動修正                           |
-| `mise run format`          | Oxfmt整形                              |
-| `mise run format:check`    | 整形確認                               |
-| `mise run typecheck`       | TypeScript・各workspaceのtypecheck     |
-| `mise run knip`            | 未使用ファイル・export・依存検査       |
-| `mise run test:guardrails` | 違反が期待したruleIdで検出されるか検査 |
-| `mise run verify`          | 上記の読み取り専用検査を順に実行       |
+評価の内訳はカタログ順に主要6項目までを通常表示します。「詳細項目を表示」で、残りの評価軸とCPU・GPU型番、OS、通信規格などの仕様を全商品まとめて開閉します。未確認項目の行は残し、開閉で総合点・順位は変えません。PCのコア数・GPUメモリ・端子数などは数量の相対評価で、CPU/GPUのベンチマーク性能点ではありません。
 
-同じタスクは `mise exec -- pnpm <タスク名>` でも実行できます。未使用変数検査はESLintに集約し、整形・import順はOxfmtに集約します。`eslint-disable` は無効、型アサーションは `as const` のみ許可。例外は中央設定で管理します。
+- 入力URLと掲載URLの完全一致を確認します。URL末尾を楽天の掲載IDだと仮定しません。URL末尾の検索で見つからなければ、カテゴリ語によるショップ内検索も試し、最大3回で打ち切ります。
+- カテゴリ語と楽天ジャンルで最大3ページ、各6掲載を探索します。入力商品と別に最大18掲載を調べ、条件外や重複の後も適合候補を補充します。応答には入力商品と最大5候補を残します。
+- 型番と有効なJANを製品APIで照合し、同定済みJANの重複を整理します。入力商品が条件外でも表示します。
+- 仕様の欠損、矛盾、選択式バリエーション、増設上限を標準仕様として埋めません。出典APIの区分と引用は内部データとAPI応答に保持します。
+- 価格順位は、表示対象の必須条件が確認でき、適合商品の正の税込掲載価格が単一値の場合に限ります。同額は同順位です。送料・ポイント・クーポンは順位に含みません。
+- 確認済みの数値が2商品以上ある項目を、最良値＝100で相対換算します。端子数などカタログで0を許可した項目は、明記された0も採点します。JAN未同定でも掲載に明記された仕様は採点します。欠損を0で補完せず、他商品の既知の点数を消しません。価格・重さは小さい方、容量・画面サイズ・解像度・更新回数は大きい方を基準にします。
+- 総合は適合商品すべてで確認できる共通項目の重み付き平均です。価格以外の共通項目が必要で、既存6カテゴリは均等な重みです。価格幅や欠損で全評価軸が揃わない場合も、適合商品が2件以上あり共通項目で総合点が出れば、その点数でおすすめ順位を付けます。必須条件の確認待ちや共通項目不足では順位を保留します。同点は同順位です。おすすめ候補は入力商品の既知の仕様項目が揃う掲載を優先して補充します。
+- 探索範囲、除外・保留・重複件数と打ち切り理由はAPI応答に保持します。順位は取得した商品の比較で、全市場の最安を意味しません。
+- 商品URLの変更時に旧結果を消し、取得情報と広告リンクの期限が切れたら再取得を案内します。
 
-依存境界は添付方針のweb/API/worker/contracts/api-client/backendに設定済みです。WebにはNext.jsとReact Hooksの推奨規約を追加し、Hooksの条件付き呼び出し・依存配列の不足をエラーにします。
+ローカルのジョブはメモリで実行します。FirebaseではFirestoreのジョブ作成トリガーで実行し、操作キー・入力ハッシュ・リビジョンで再送と取消の競合を制御します。結果の保存・復元はプロバイダの保存許諾がある場合だけ有効です。楽天設定の任意の `resultStorageAuthorizedUntil` は、実際に得た保存許諾の期限を指定する欄です。未設定では商品結果の永続保存を拒否します。結果の期限は最大15分と掲載・許諾期限のうち最も早い時刻です。
 
-アプリ内のJavaScript、未分類コード、直接fetch、変数を使うdynamic import、初期化を断定する `!`、Lint・Formatterの無視コメントも禁止します。生成ファイルの除外は生成処理と整合性検査を導入するまで作りません。宣言ファイルも型検査します。
+共有キャッシュ、匿名認証・App Check、収益計測、WordPress移行は追加していません。公開入口は1インスタンスにつき接続元アドレスごとに有料処理を伴うPOSTを毎分6回まで受け付けます。これは共有された利用者別上限ではありません。操作ごとのアクセス鍵で結果を保護し、旧診断用のBearer認証は維持します。
 
-Lintは業務ロジックの正しさ、外部データ検証の妥当性、深い不変性、意味のない抽象化までは保証しません。これらは機能実装時のテストとレビューで検証します。
+## 検証と資料
 
-## 設定の保護
+`rtk mise run verify` が整形、型情報付きESLint、TypeScript、Knip、guardrail、機能テストを実行します。6カテゴリ、数値判定、誤抽出防止、追加探索、入力商品保持、重複、Jevの0回/1回と失敗、外部応答・出典・価格順位の検証をモックで確認します。通常の検査で外部の課金APIを呼びません。
 
-CODEOWNERSとCIを用意しています。マージを強制的に止めるには、GitHub側でmainのPR必須・Code Ownerレビュー必須・ステータスチェック `verify` 必須・迂回制限を別途有効にする必要があります。CODEOWNERS単体では保護されません。
+実商品での仕様充足率、Jevの抽出精度、バリエーション一致、成果反映、収益はまだ実測していません。Jev使用時にはAPI費用、その他の処理には基盤費用が発生し得ます。
 
-設定仕様: [typescript-eslint](https://typescript-eslint.io/blog/project-service/)、[JS Boundaries](https://www.jsboundaries.dev/docs/rules/dependencies/)、[Oxfmt](https://oxc.rs/docs/guide/usage/formatter/config-file-reference)、[mise tasks](https://mise.jdx.dev/tasks/)。
+多項目のPC画面を確認する4商品のサンプルは、外部API・キーなしで起動できます。実商品の情報ではありません。
+
+```powershell
+rtk mise exec -- pnpm --filter @app/web build
+rtk mise exec -- node tooling/verify-comparison-flow.mjs --serve --pc
+```
+
+`http://127.0.0.1:3001/` を開き、`https://shop.example.test/products/source/` を入力します。主要6項目、追加評価、型番・通信仕様、欠損の「—」を確認できます。ポート3001を使う通常のAPIは先に停止してください。画面のローカル表示と通常のAPI応答を使用し、サンプル用のUI分岐はありません。
+
+- [カテゴリと仕様](docs/product-specification.md)
+- [APIと取得・抽出フロー](docs/comparison-flow.md)
+- [実装状況](docs/implementation-plan.md)
+- [カテゴリ・比較項目・通販APIの追加](docs/category-provider-extension.md)
+- [公開ページ生成とXserverへの配置](docs/xserver-static-site.md)
+- [DBを使わないRender Freeへの公開](docs/render-free.md)
+- [Firebaseの設定・公開手順](infrastructure/README.md)
+
+従来の充電器画面は `/compare/charger/`、仕事用モニター専用画面は `/compare/monitor/` に保持します。`/api/investigate`・`/api/candidates` とJev CLIは旧検証用です。旧経路は設定によりOpenAI・Jevを呼ぶ場合があります。
+
+## 構成の保護
+
+TypeScriptはESM・named export・`type`・分離した`import type`を使います。WebはAPIクライアントだけでデータを取得し、API/workerはbackendへ委譲します。比較ロジックはDB・キュー・フレームワークに依存しません。外部の`unknown`は境界で検証します。
+
+依存・lockfile・Lint/formatter/TypeScript/Knip設定・除外・生成タスク・CI・guardrail・CODEOWNERSの変更には人のレビューが必要です。今回の公開ページ生成とFirestoreジョブのTTL設定もレビュー対象です。検査を弱めず、リモート保護設定やマージを自動変更しません。

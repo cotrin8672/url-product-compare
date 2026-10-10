@@ -17,10 +17,13 @@ import type { Evidence, Instant, Permissions, ProductId, Schema, SchemaError } f
 export type Fact = Readonly<{
   productId: ProductId;
   key: string;
-  value: string | number | boolean;
   evidence: Evidence;
   permissions: Permissions;
-}>;
+}> &
+  (
+    | Readonly<{ status: "confirmed"; value: string | number | boolean; excerpt: string }>
+    | Readonly<{ status: "unknown" | "conflicting"; value: null; excerpt: null }>
+  );
 export const factSchema: Schema<Fact> = Object.freeze({
   parse(input: unknown): Result<Fact, SchemaError> {
     if (!record(input)) {
@@ -30,6 +33,7 @@ export const factSchema: Schema<Fact> = Object.freeze({
     const source = evidence(input["evidence"]);
     const rights = permissions(input["permissions"]);
     const value = input["value"];
+    const status = input["status"];
     if (key.tag === "err") {
       return key;
     }
@@ -43,6 +47,21 @@ export const factSchema: Schema<Fact> = Object.freeze({
     if (target.tag === "err") {
       return target;
     }
+    const common = {
+      productId: target.value,
+      key: key.value,
+      evidence: source.value,
+      permissions: rights.value,
+    };
+    if (status === "unknown" || status === "conflicting") {
+      return value === null && input["excerpt"] === null
+        ? ok(Object.freeze({ ...common, status, value: null, excerpt: null }))
+        : err({ code: "invalid_data", field: "fact_status" });
+    }
+    const excerpt = text(input["excerpt"], "fact_excerpt");
+    if (status !== "confirmed" || excerpt.tag === "err") {
+      return err({ code: "invalid_data", field: "fact_confirmation" });
+    }
     if (
       (typeof value !== "string" || value.trim().length === 0) &&
       (typeof value !== "number" || !Number.isFinite(value)) &&
@@ -50,15 +69,46 @@ export const factSchema: Schema<Fact> = Object.freeze({
     ) {
       return err({ code: "invalid_data", field: "fact_value" });
     }
-    return ok(
-      Object.freeze({
-        productId: target.value,
-        key: key.value,
-        value,
-        evidence: source.value,
-        permissions: rights.value,
-      }),
-    );
+    return ok(Object.freeze({ ...common, status, value, excerpt: excerpt.value }));
+  },
+});
+
+export type Preference =
+  | Readonly<{ id: string; status: "confirmed"; preference: string }>
+  | Readonly<{ id: string; status: "not_applicable" | "needs_confirmation" }>;
+export const preferencesSchema: Schema<readonly Preference[]> = Object.freeze({
+  parse(input: unknown): Result<readonly Preference[], SchemaError> {
+    if (!Array.isArray(input) || input.length === 0 || input.length > 10) {
+      return err({ code: "invalid_data", field: "preferences" });
+    }
+    const output: Preference[] = [];
+    for (const entry of input) {
+      if (!record(entry)) {
+        return err({ code: "invalid_data", field: "preference" });
+      }
+      const id = entry["id"];
+      const status = entry["status"];
+      if (typeof id !== "string" || !/^[a-z][a-z0-9_]{0,63}$/.test(id)) {
+        return err({ code: "invalid_data", field: "preference_id" });
+      }
+      if (status === "confirmed") {
+        const preference = text(entry["preference"], "preference");
+        if (preference.tag === "err") {
+          return preference;
+        }
+        output.push(Object.freeze({ id, status, preference: preference.value }));
+      } else if (
+        (status === "not_applicable" || status === "needs_confirmation") &&
+        entry["preference"] === undefined
+      ) {
+        output.push(Object.freeze({ id, status }));
+      } else {
+        return err({ code: "invalid_data", field: "preference_status" });
+      }
+    }
+    return new Set(output.map((entry) => entry.id)).size === output.length
+      ? ok(Object.freeze(output))
+      : err({ code: "invalid_data", field: "preference_id" });
   },
 });
 
@@ -71,7 +121,8 @@ type Criterion = Readonly<{
   weight: number;
   factKeys: readonly string[];
   instructions: string;
-  levels: readonly [string, string, string, string, string];
+  levels: readonly string[];
+  minimumConfidence?: number;
 }>;
 export type RankingPolicy = Readonly<{
   version: string;
@@ -92,10 +143,16 @@ export type JudgeRequest = Readonly<{
     mode: string;
     preferences: string;
     facts: Readonly<Record<string, string | number | boolean>>;
+    excerpts: Readonly<Record<string, string>>;
   }>;
   questions: Readonly<Record<string, ScoreQuestion>>;
 }>;
-type JudgeAnswer = Readonly<{ score: number; confidence: number }>;
+type JudgeAnswer = Readonly<{
+  score: number;
+  confidence: number;
+  legend: Readonly<Record<string, string>>;
+  probabilities: Readonly<Record<string, number>>;
+}>;
 export type JudgeResponse = Readonly<{
   model: string;
   answers: Readonly<Record<string, JudgeAnswer>>;
@@ -108,6 +165,8 @@ export type Judge = (
 export type RankingError = Readonly<{
   code:
     | "invalid_request"
+    | "conditions_need_confirmation"
+    | "no_assessment_requested"
     | "insufficient_evidence"
     | "source_not_authorized"
     | "ai_not_authorized"
@@ -123,9 +182,7 @@ type RankedProduct = Readonly<{
   index: number;
   model: string;
   policyVersion: string;
-  criteria: ReadonlyArray<
-    Readonly<{ id: string; score: number; confidence: number; evidence: readonly Evidence[] }>
-  >;
+  criteria: ReadonlyArray<Readonly<JudgeAnswer & { id: string; evidence: readonly Evidence[] }>>;
 }>;
 export type Ranking = Readonly<{
   ranked: readonly RankedProduct[];
@@ -147,18 +204,112 @@ function validPolicy(policy: RankingPolicy): boolean {
     Number.isFinite(policy.minimumConfidence) &&
     policy.minimumConfidence >= 0 &&
     policy.minimumConfidence <= 1 &&
+    Number.isFinite(policy.criteria.reduce((total, criterion) => total + criterion.weight, 0)) &&
     new Set(policy.criteria.map((criterion) => criterion.id)).size === policy.criteria.length &&
     policy.criteria.every(
       (criterion) =>
-        criterion.id.trim().length > 0 &&
+        /^[a-z][a-z0-9_]{0,63}$/.test(criterion.id) &&
         criterion.instructions.trim().length > 0 &&
         Number.isFinite(criterion.weight) &&
         criterion.weight > 0 &&
         criterion.factKeys.length > 0 &&
         new Set(criterion.factKeys).size === criterion.factKeys.length &&
         criterion.factKeys.every((key) => key.trim().length > 0) &&
-        criterion.levels.every((level) => level.trim().length > 0),
+        criterion.levels.length >= 2 &&
+        criterion.levels.length <= 10 &&
+        new Set(criterion.levels).size === criterion.levels.length &&
+        criterion.levels.every((level) => level.trim().length > 0) &&
+        (criterion.minimumConfidence === undefined ||
+          (Number.isFinite(criterion.minimumConfidence) &&
+            criterion.minimumConfidence >= 0 &&
+            criterion.minimumConfidence <= 1)),
     )
+  );
+}
+
+// Validate both HTTP responses and injected judges at the same trust boundary.
+function roundingRadius(value: number): number {
+  // jev-1.13.0 live responses independently round scores and probabilities to hundredths.
+  return Math.abs(value * 100 - Math.round(value * 100)) < 1e-9 ? 0.005 : 1e-9;
+}
+
+export function parseScoreAnswer(
+  input: unknown,
+  levels: readonly string[],
+): Result<JudgeAnswer, "invalid_response"> {
+  if (
+    !record(input) ||
+    typeof input["score"] !== "number" ||
+    !Number.isFinite(input["score"]) ||
+    input["score"] < 0 ||
+    input["score"] > levels.length - 1 ||
+    typeof input["confidence"] !== "number" ||
+    !Number.isFinite(input["confidence"]) ||
+    input["confidence"] < 0 ||
+    input["confidence"] > 1 ||
+    !record(input["legend"]) ||
+    !record(input["probabilities"]) ||
+    Object.keys(input["legend"]).length !== levels.length ||
+    Object.keys(input["probabilities"]).length !== levels.length
+  ) {
+    return err("invalid_response");
+  }
+  const legend: Record<string, string> = {};
+  const probabilities: Record<string, number> = {};
+  const bounds: Array<Readonly<{ index: number; minimum: number; maximum: number }>> = [];
+  for (const [index, level] of levels.entries()) {
+    const probability = input["probabilities"][String(index)];
+    if (
+      input["legend"][String(index)] !== level ||
+      typeof probability !== "number" ||
+      !Number.isFinite(probability) ||
+      probability < 0 ||
+      probability > 1
+    ) {
+      return err("invalid_response");
+    }
+    legend[String(index)] = level;
+    probabilities[String(index)] = probability;
+    const radius = roundingRadius(probability);
+    bounds.push(
+      Object.freeze({
+        index,
+        minimum: Math.max(0, probability - radius),
+        maximum: Math.min(1, probability + radius),
+      }),
+    );
+  }
+  const minimumTotal = bounds.reduce((sum, bound) => sum + bound.minimum, 0);
+  const maximumTotal = bounds.reduce((sum, bound) => sum + bound.maximum, 0);
+  if (minimumTotal > 1 + 1e-9 || maximumTotal < 1 - 1e-9) {
+    return err("invalid_response");
+  }
+  const meanBound = (descending: boolean): number => {
+    let remaining = Math.max(0, 1 - minimumTotal);
+    let mean = bounds.reduce((sum, bound) => sum + bound.index * bound.minimum, 0);
+    for (const bound of descending ? bounds.toReversed() : bounds) {
+      const added = Math.min(remaining, bound.maximum - bound.minimum);
+      mean += bound.index * added;
+      remaining -= added;
+    }
+    return mean;
+  };
+  // There must exist a unit-sum distribution whose mean and entries round to the response.
+  // Keep the reported values; never normalize, clamp or replace an inconsistent response.
+  const scoreRadius = roundingRadius(input["score"]);
+  if (
+    meanBound(false) > input["score"] + scoreRadius + 1e-9 ||
+    meanBound(true) < input["score"] - scoreRadius - 1e-9
+  ) {
+    return err("invalid_response");
+  }
+  return ok(
+    Object.freeze({
+      score: input["score"],
+      confidence: input["confidence"],
+      legend: Object.freeze(legend),
+      probabilities: Object.freeze(probabilities),
+    }),
   );
 }
 
@@ -181,16 +332,16 @@ function meets(facts: ReadonlyMap<string, Fact>, requirement: Requirement): bool
 export async function rankProducts(
   candidates: readonly Candidate[],
   requirements: readonly Requirement[],
-  preferences: string,
+  preferences: readonly Preference[],
   policy: RankingPolicy,
   judge: Judge,
   now: Instant,
+  clock: () => Instant = () => now,
 ): Promise<Result<Ranking, RankingError>> {
   if (
     !validPolicy(policy) ||
     candidates.length < 1 ||
     candidates.length > 6 ||
-    preferences.trim().length === 0 ||
     requirements.some(
       (requirement) =>
         requirement.key.trim().length === 0 ||
@@ -215,10 +366,42 @@ export async function rankProducts(
     return err({ code: "invalid_request" });
   }
 
-  const prepared = candidates.map((candidate) =>
-    Object.freeze({ candidate, facts: new Map(candidate.facts.map((fact) => [fact.key, fact])) }),
+  const conditions = preferencesSchema.parse(preferences);
+  if (
+    conditions.tag === "err" ||
+    conditions.value.length !== policy.criteria.length ||
+    conditions.value.some(
+      (entry) => !policy.criteria.some((criterion) => criterion.id === entry.id),
+    )
+  ) {
+    return err({ code: "invalid_request" });
+  }
+  if (conditions.value.some((entry) => entry.status === "needs_confirmation")) {
+    return err({ code: "conditions_need_confirmation" });
+  }
+  const criteria = policy.criteria.filter((criterion) =>
+    conditions.value.some((entry) => entry.id === criterion.id && entry.status === "confirmed"),
   );
-  if (prepared.some(({ candidate, facts }) => facts.size !== candidate.facts.length)) {
+  if (criteria.length === 0) {
+    return err({ code: "no_assessment_requested" });
+  }
+
+  const prepared = candidates.map((candidate) =>
+    Object.freeze({
+      candidate,
+      facts: new Map(
+        candidate.facts
+          .filter((fact) => fact.status === "confirmed")
+          .map((fact) => [fact.key, fact]),
+      ),
+    }),
+  );
+  if (
+    prepared.some(
+      ({ candidate }) =>
+        new Set(candidate.facts.map((fact) => fact.key)).size !== candidate.facts.length,
+    )
+  ) {
     return err({ code: "invalid_request" });
   }
   if (
@@ -235,23 +418,21 @@ export async function rankProducts(
   ) {
     return err({ code: "source_not_authorized" });
   }
+  const excluded = prepared.filter(({ facts }) =>
+    requirements.some((requirement) => facts.has(requirement.key) && !meets(facts, requirement)),
+  );
+  const eligible = prepared.filter((entry) => !excluded.includes(entry));
   if (
-    prepared.some(({ facts }) => requirements.some((requirement) => !facts.has(requirement.key)))
+    eligible.some(({ facts }) => requirements.some((requirement) => !facts.has(requirement.key)))
   ) {
     return err({ code: "insufficient_evidence" });
   }
-  const excluded = prepared.filter(({ facts }) =>
-    requirements.some((requirement) => !meets(facts, requirement)),
-  );
-  const eligible = prepared.filter(({ facts }) =>
-    requirements.every((requirement) => meets(facts, requirement)),
-  );
   if (eligible.length === 0) {
     return err({ code: "insufficient_evidence" });
   }
   if (
     eligible.some(({ facts }) =>
-      policy.criteria.some((criterion) => criterion.factKeys.some((key) => !facts.has(key))),
+      criteria.some((criterion) => criterion.factKeys.some((key) => !facts.has(key))),
     )
   ) {
     return err({ code: "insufficient_evidence" });
@@ -265,120 +446,156 @@ export async function rankProducts(
   ) {
     return err({ code: "ai_not_authorized" });
   }
+  const requestedKeys = new Set(criteria.flatMap((criterion) => criterion.factKeys));
   if (
     eligible.some(({ candidate }) =>
-      candidate.facts.some(
-        (fact) =>
-          !permitted(fact.permissions.ai, now) || valueOf(fact.evidence.observedAt) > valueOf(now),
-      ),
+      candidate.facts
+        .filter((fact) => requestedKeys.has(fact.key))
+        .some(
+          (fact) =>
+            !permitted(fact.permissions.ai, now) ||
+            valueOf(fact.evidence.observedAt) > valueOf(now),
+        ),
     )
   ) {
     return err({ code: "ai_not_authorized" });
   }
 
-  const questions = Object.fromEntries(
-    policy.criteria.map((criterion) => [
-      criterion.id,
-      Object.freeze({
-        type: "score",
-        instructions: criterion.instructions,
-        criteria: criterion.levels,
-      }),
-    ]),
-  ) satisfies Record<string, ScoreQuestion>;
-  const weightTotal = policy.criteria.reduce((total, criterion) => total + criterion.weight, 0);
+  const weightTotal = criteria.reduce((total, criterion) => total + criterion.weight, 0);
   const responses = await Promise.all(
-    eligible.map(async ({ facts }) => {
-      const state = Object.freeze({
-        category: policy.category,
-        mode: policy.mode,
-        preferences,
-        facts: Object.freeze(
-          Object.fromEntries(Array.from(facts, ([key, fact]) => [key, fact.value])),
+    eligible.map(
+      async ({ facts }) =>
+        await Promise.all(
+          criteria.map(async (criterion) => {
+            const preference = conditions.value.find((entry) => entry.id === criterion.id);
+            if (preference?.status !== "confirmed") {
+              return err("invalid_response" as const);
+            }
+            const selected = Array.from(facts).filter(([key]) => criterion.factKeys.includes(key));
+            const state = Object.freeze({
+              category: policy.category,
+              mode: policy.mode,
+              preferences: preference.preference,
+              facts: Object.freeze(
+                Object.fromEntries(selected.map(([key, fact]) => [key, fact.value])),
+              ),
+              excerpts: Object.freeze(
+                Object.fromEntries(selected.map(([key, fact]) => [key, fact.excerpt])),
+              ),
+            });
+            const questions = {
+              [criterion.id]: {
+                type: "score",
+                instructions: criterion.instructions,
+                criteria: criterion.levels,
+              },
+            } satisfies Record<string, ScoreQuestion>;
+            try {
+              return await judge(Object.freeze({ state, questions }));
+            } catch {
+              return err("unavailable" as const);
+            }
+          }),
         ),
-      });
-      try {
-        return await judge(Object.freeze({ state, questions }));
-      } catch {
-        return err("unavailable" as const);
-      }
-    }),
+    ),
   );
-  if (responses.some((response) => response.tag === "err" && response.error === "unavailable")) {
+  const completedAt = clock();
+  if (valueOf(completedAt) < valueOf(now)) {
+    return err({ code: "source_not_authorized" });
+  }
+  if (
+    eligible.some(
+      ({ candidate }) =>
+        !permitted(readProduct(candidate.product).permissions.display, completedAt) ||
+        candidate.facts.some((fact) => !permitted(fact.permissions.display, completedAt)),
+    )
+  ) {
+    return err({ code: "source_not_authorized" });
+  }
+  if (
+    eligible.some(
+      ({ candidate }) =>
+        !permitted(readProduct(candidate.product).permissions.ai, completedAt) ||
+        candidate.facts
+          .filter((fact) => requestedKeys.has(fact.key))
+          .some((fact) => !permitted(fact.permissions.ai, completedAt)),
+    )
+  ) {
+    return err({ code: "ai_not_authorized" });
+  }
+  const individual = responses.flat();
+  if (individual.some((response) => response.tag === "err" && response.error === "unavailable")) {
     return err({ code: "jev_unavailable" });
   }
   if (
-    responses.some((response) => response.tag === "err" && response.error === "payment_required")
+    individual.some((response) => response.tag === "err" && response.error === "payment_required")
   ) {
     return err({ code: "jev_payment_required" });
   }
-  if (responses.some((response) => response.tag === "err" && response.error === "unauthorized")) {
+  if (individual.some((response) => response.tag === "err" && response.error === "unauthorized")) {
     return err({ code: "jev_unauthorized" });
   }
-  if (responses.some((response) => response.tag === "err")) {
+  if (individual.some((response) => response.tag === "err")) {
     return err({ code: "invalid_jev_response" });
   }
-  const models = responses.flatMap((response) =>
+  const models = individual.flatMap((response) =>
     response.tag === "ok" ? [response.value.model] : [],
   );
   if (new Set(models).size !== 1) {
     return err({ code: "invalid_jev_response" });
   }
   const ranked: RankedProduct[] = [];
-  for (const [index, response] of responses.entries()) {
+  for (const [index, axes] of responses.entries()) {
     const entry = eligible[index];
-    if (response.tag !== "ok" || entry === undefined) {
+    if (entry === undefined) {
       return err({ code: "invalid_jev_response" });
     }
-    if (
-      response.value.model.trim().length === 0 ||
-      Object.keys(response.value.answers).length !== policy.criteria.length
-    ) {
-      return err({ code: "invalid_jev_response" });
-    }
-    const scores = policy.criteria.map((criterion) => {
-      const answer = response.value.answers[criterion.id];
+    const scores = criteria.map((criterion, axisIndex) => {
+      const response = axes[axisIndex];
       if (
-        answer === undefined ||
-        !Number.isFinite(answer.score) ||
-        answer.score < 0 ||
-        answer.score > 4 ||
-        !Number.isFinite(answer.confidence) ||
-        answer.confidence < 0 ||
-        answer.confidence > 1
+        response?.tag !== "ok" ||
+        response.value.model.trim().length === 0 ||
+        Object.keys(response.value.answers).length !== 1
       ) {
+        return undefined;
+      }
+      const answer = parseScoreAnswer(response.value.answers[criterion.id], criterion.levels);
+      if (answer.tag === "err") {
         return undefined;
       }
       const sources = criterion.factKeys.flatMap((key) => {
         const fact = entry.facts.get(key);
         return fact === undefined ? [] : [fact.evidence];
       });
-      return Object.freeze({
-        id: criterion.id,
-        score: answer.score,
-        confidence: answer.confidence,
-        evidence: Object.freeze(sources),
-      });
+      return Object.freeze({ id: criterion.id, ...answer.value, evidence: Object.freeze(sources) });
     });
     if (scores.some((score) => score === undefined)) {
       return err({ code: "invalid_jev_response" });
     }
     const validScores = scores.flatMap((score) => (score === undefined ? [] : [score]));
-    if (validScores.some((score) => score.confidence < policy.minimumConfidence)) {
+    if (
+      validScores.some(
+        (score) =>
+          score.confidence <
+          (criteria.find((criterion) => criterion.id === score.id)?.minimumConfidence ??
+            policy.minimumConfidence),
+      )
+    ) {
       return err({ code: "assessment_uncertain" });
     }
     const weighted =
       validScores.reduce((total, score) => {
-        const criterion = policy.criteria.find((value) => value.id === score.id);
-        return total + score.score * (criterion?.weight ?? 0);
-      }, 0) /
-      (4 * weightTotal);
+        const criterion = criteria.find((value) => value.id === score.id);
+        return (
+          total + (score.score / ((criterion?.levels.length ?? 2) - 1)) * (criterion?.weight ?? 0)
+        );
+      }, 0) / weightTotal;
     ranked.push(
       Object.freeze({
         product: entry.candidate.product,
         rank: 0,
         index: weighted,
-        model: response.value.model,
+        model: models[0] ?? "",
         policyVersion: policy.version,
         criteria: Object.freeze(validScores),
       }),

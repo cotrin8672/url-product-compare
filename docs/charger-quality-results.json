@@ -1,0 +1,953 @@
+{
+  "inputSha256": "d434d4cfc816554d7a1fc24dc45aeb5f315ae721853a1391161c6cae9de28e4e",
+  "fetchedAt": "2026-10-02T14:28:40.890Z",
+  "realManufacturerRequests": 4,
+  "independentProductCount": 3,
+  "scope": "Manufacturer specification compatibility; three SKUs, correlated scenarios, no measured charging speed or safety claim",
+  "summary": {
+    "decisions": 96,
+    "agrees": 96,
+    "falseCompatible": 0,
+    "falseExcluded": 0,
+    "determinate": 86,
+    "safeguardChecks": 9,
+    "safeguardPassed": 9
+  },
+  "safeguards": [
+    { "id": "changed-output", "passed": true },
+    { "id": "changed-gtin", "passed": true },
+    { "id": "changed-model", "passed": true },
+    { "id": "changed-weight", "passed": true },
+    { "id": "unavailable-source", "passed": true },
+    { "id": "unverified-printed-label-prefer_roles", "passed": true },
+    { "id": "unverified-printed-label-require_numbers", "passed": true },
+    { "id": "required-fixed-never-compensated", "passed": true },
+    { "id": "unknown-SKU-no-fetch", "passed": true }
+  ],
+  "rows": [
+    {
+      "id": "single-65W",
+      "model": "MPA-ACCP4245WH",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "reasons": ["output_configuration"],
+      "assignments": []
+    },
+    {
+      "id": "single-65W",
+      "model": "MPA-ACCP4365BK",
+      "expected": "eligible",
+      "actual": "eligible",
+      "agrees": true,
+      "reasons": [],
+      "assignments": [{ "deviceId": "device-1", "port": "C1" }]
+    },
+    {
+      "id": "single-65W",
+      "model": "MPA-AC113100BK",
+      "expected": "eligible",
+      "actual": "eligible",
+      "agrees": true,
+      "reasons": [],
+      "assignments": [{ "deviceId": "device-1", "port": "C1" }]
+    },
+    {
+      "id": "single-45W",
+      "model": "MPA-ACCP4245WH",
+      "expected": "eligible",
+      "actual": "eligible",
+      "agrees": true,
+      "reasons": [],
+      "assignments": [{ "deviceId": "device-1", "port": "C1" }]
+    },
+    {
+      "id": "single-45W",
+      "model": "MPA-ACCP4365BK",
+      "expected": "eligible",
+      "actual": "eligible",
+      "agrees": true,
+      "reasons": [],
+      "assignments": [{ "deviceId": "device-1", "port": "C1" }]
+    },
+    {
+      "id": "single-45W",
+      "model": "MPA-AC113100BK",
+      "expected": "eligible",
+      "actual": "eligible",
+      "agrees": true,
+      "reasons": [],
+      "assignments": [{ "deviceId": "device-1", "port": "C1" }]
+    },
+    {
+      "id": "single-100W",
+      "model": "MPA-ACCP4245WH",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "reasons": ["output_configuration"],
+      "assignments": []
+    },
+    {
+      "id": "single-100W",
+      "model": "MPA-ACCP4365BK",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "reasons": ["output_configuration"],
+      "assignments": []
+    },
+    {
+      "id": "single-100W",
+      "model": "MPA-AC113100BK",
+      "expected": "eligible",
+      "actual": "eligible",
+      "agrees": true,
+      "reasons": [],
+      "assignments": [{ "deviceId": "device-1", "port": "C1" }]
+    },
+    {
+      "id": "single-100W-3A-cable",
+      "model": "MPA-ACCP4245WH",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "reasons": ["cable_capacity"],
+      "assignments": []
+    },
+    {
+      "id": "single-100W-3A-cable",
+      "model": "MPA-ACCP4365BK",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "reasons": ["cable_capacity"],
+      "assignments": []
+    },
+    {
+      "id": "single-100W-3A-cable",
+      "model": "MPA-AC113100BK",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "reasons": ["cable_capacity"],
+      "assignments": []
+    },
+    {
+      "id": "single-65W-unknown-cable",
+      "model": "MPA-ACCP4245WH",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "reasons": ["output_configuration"],
+      "assignments": []
+    },
+    {
+      "id": "single-65W-unknown-cable",
+      "model": "MPA-ACCP4365BK",
+      "expected": "pending",
+      "actual": "pending",
+      "agrees": true,
+      "reasons": ["cable_unknown"],
+      "assignments": []
+    },
+    {
+      "id": "single-65W-unknown-cable",
+      "model": "MPA-AC113100BK",
+      "expected": "pending",
+      "actual": "pending",
+      "agrees": true,
+      "reasons": ["cable_unknown"],
+      "assignments": []
+    },
+    {
+      "id": "single-12V",
+      "model": "MPA-ACCP4245WH",
+      "expected": "eligible",
+      "actual": "eligible",
+      "agrees": true,
+      "reasons": [],
+      "assignments": [{ "deviceId": "device-1", "port": "C1" }]
+    },
+    {
+      "id": "single-12V",
+      "model": "MPA-ACCP4365BK",
+      "expected": "eligible",
+      "actual": "eligible",
+      "agrees": true,
+      "reasons": [],
+      "assignments": [{ "deviceId": "device-1", "port": "C1" }]
+    },
+    {
+      "id": "single-12V",
+      "model": "MPA-AC113100BK",
+      "expected": "pending",
+      "actual": "pending",
+      "agrees": true,
+      "reasons": ["incomplete_configurations"],
+      "assignments": []
+    },
+    {
+      "id": "dual-65W-plus-15W",
+      "model": "MPA-ACCP4245WH",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "reasons": ["output_configuration"],
+      "assignments": []
+    },
+    {
+      "id": "dual-65W-plus-15W",
+      "model": "MPA-ACCP4365BK",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "reasons": ["output_configuration"],
+      "assignments": []
+    },
+    {
+      "id": "dual-65W-plus-15W",
+      "model": "MPA-AC113100BK",
+      "expected": "eligible",
+      "actual": "eligible",
+      "agrees": true,
+      "reasons": [],
+      "assignments": [
+        { "deviceId": "device-1", "port": "C1" },
+        { "deviceId": "device-2", "port": "C2" }
+      ]
+    },
+    {
+      "id": "dual-45W-plus-15W",
+      "model": "MPA-ACCP4245WH",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "reasons": ["output_configuration"],
+      "assignments": []
+    },
+    {
+      "id": "dual-45W-plus-15W",
+      "model": "MPA-ACCP4365BK",
+      "expected": "eligible",
+      "actual": "eligible",
+      "agrees": true,
+      "reasons": [],
+      "assignments": [
+        { "deviceId": "device-1", "port": "C1" },
+        { "deviceId": "device-2", "port": "C2" }
+      ]
+    },
+    {
+      "id": "dual-45W-plus-15W",
+      "model": "MPA-AC113100BK",
+      "expected": "eligible",
+      "actual": "eligible",
+      "agrees": true,
+      "reasons": [],
+      "assignments": [
+        { "deviceId": "device-1", "port": "C1" },
+        { "deviceId": "device-2", "port": "C2" }
+      ]
+    },
+    {
+      "id": "dual-45W-plus-19.98W",
+      "model": "MPA-ACCP4245WH",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "reasons": ["output_configuration"],
+      "assignments": []
+    },
+    {
+      "id": "dual-45W-plus-19.98W",
+      "model": "MPA-ACCP4365BK",
+      "expected": "eligible",
+      "actual": "eligible",
+      "agrees": true,
+      "reasons": [],
+      "assignments": [
+        { "deviceId": "device-1", "port": "C1" },
+        { "deviceId": "device-2", "port": "C2" }
+      ]
+    },
+    {
+      "id": "dual-45W-plus-19.98W",
+      "model": "MPA-AC113100BK",
+      "expected": "eligible",
+      "actual": "eligible",
+      "agrees": true,
+      "reasons": [],
+      "assignments": [
+        { "deviceId": "device-1", "port": "C1" },
+        { "deviceId": "device-2", "port": "C2" }
+      ]
+    },
+    {
+      "id": "dual-45W-plus-exact-20W",
+      "model": "MPA-ACCP4245WH",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "reasons": ["output_configuration"],
+      "assignments": []
+    },
+    {
+      "id": "dual-45W-plus-exact-20W",
+      "model": "MPA-ACCP4365BK",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "reasons": ["output_configuration"],
+      "assignments": []
+    },
+    {
+      "id": "dual-45W-plus-exact-20W",
+      "model": "MPA-AC113100BK",
+      "expected": "eligible",
+      "actual": "eligible",
+      "agrees": true,
+      "reasons": [],
+      "assignments": [
+        { "deviceId": "device-1", "port": "C1" },
+        { "deviceId": "device-2", "port": "C2" }
+      ]
+    },
+    {
+      "id": "dual-70W-plus-30W",
+      "model": "MPA-ACCP4245WH",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "reasons": ["output_configuration"],
+      "assignments": []
+    },
+    {
+      "id": "dual-70W-plus-30W",
+      "model": "MPA-ACCP4365BK",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "reasons": ["output_configuration"],
+      "assignments": []
+    },
+    {
+      "id": "dual-70W-plus-30W",
+      "model": "MPA-AC113100BK",
+      "expected": "eligible",
+      "actual": "eligible",
+      "agrees": true,
+      "reasons": [],
+      "assignments": [
+        { "deviceId": "device-1", "port": "C1" },
+        { "deviceId": "device-2", "port": "C2" }
+      ]
+    },
+    {
+      "id": "dual-71W-plus-29W",
+      "model": "MPA-ACCP4245WH",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "reasons": ["output_configuration"],
+      "assignments": []
+    },
+    {
+      "id": "dual-71W-plus-29W",
+      "model": "MPA-ACCP4365BK",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "reasons": ["output_configuration"],
+      "assignments": []
+    },
+    {
+      "id": "dual-71W-plus-29W",
+      "model": "MPA-AC113100BK",
+      "expected": "pending",
+      "actual": "pending",
+      "agrees": true,
+      "reasons": ["incomplete_configurations"],
+      "assignments": []
+    },
+    {
+      "id": "dual-65W-twice",
+      "model": "MPA-ACCP4245WH",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "reasons": ["output_configuration"],
+      "assignments": []
+    },
+    {
+      "id": "dual-65W-twice",
+      "model": "MPA-ACCP4365BK",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "reasons": ["output_configuration"],
+      "assignments": []
+    },
+    {
+      "id": "dual-65W-twice",
+      "model": "MPA-AC113100BK",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "reasons": ["output_configuration"],
+      "assignments": []
+    },
+    {
+      "id": "dual-phones-15W",
+      "model": "MPA-ACCP4245WH",
+      "expected": "eligible",
+      "actual": "eligible",
+      "agrees": true,
+      "reasons": [],
+      "assignments": [
+        { "deviceId": "device-1", "port": "C1" },
+        { "deviceId": "device-2", "port": "C2" }
+      ]
+    },
+    {
+      "id": "dual-phones-15W",
+      "model": "MPA-ACCP4365BK",
+      "expected": "eligible",
+      "actual": "eligible",
+      "agrees": true,
+      "reasons": [],
+      "assignments": [
+        { "deviceId": "device-1", "port": "C1" },
+        { "deviceId": "device-2", "port": "C2" }
+      ]
+    },
+    {
+      "id": "dual-phones-15W",
+      "model": "MPA-AC113100BK",
+      "expected": "eligible",
+      "actual": "eligible",
+      "agrees": true,
+      "reasons": [],
+      "assignments": [
+        { "deviceId": "device-1", "port": "C1" },
+        { "deviceId": "device-2", "port": "C2" }
+      ]
+    },
+    {
+      "id": "dual-phones-25W-and-19.98W",
+      "model": "MPA-ACCP4245WH",
+      "expected": "eligible",
+      "actual": "eligible",
+      "agrees": true,
+      "reasons": [],
+      "assignments": [
+        { "deviceId": "device-1", "port": "C1" },
+        { "deviceId": "device-2", "port": "C2" }
+      ]
+    },
+    {
+      "id": "dual-phones-25W-and-19.98W",
+      "model": "MPA-ACCP4365BK",
+      "expected": "eligible",
+      "actual": "eligible",
+      "agrees": true,
+      "reasons": [],
+      "assignments": [
+        { "deviceId": "device-1", "port": "C1" },
+        { "deviceId": "device-2", "port": "C2" }
+      ]
+    },
+    {
+      "id": "dual-phones-25W-and-19.98W",
+      "model": "MPA-AC113100BK",
+      "expected": "eligible",
+      "actual": "eligible",
+      "agrees": true,
+      "reasons": [],
+      "assignments": [
+        { "deviceId": "device-1", "port": "C1" },
+        { "deviceId": "device-2", "port": "C2" }
+      ]
+    },
+    {
+      "id": "dual-phones-25W-twice",
+      "model": "MPA-ACCP4245WH",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "reasons": ["output_configuration"],
+      "assignments": []
+    },
+    {
+      "id": "dual-phones-25W-twice",
+      "model": "MPA-ACCP4365BK",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "reasons": ["output_configuration"],
+      "assignments": []
+    },
+    {
+      "id": "dual-phones-25W-twice",
+      "model": "MPA-AC113100BK",
+      "expected": "eligible",
+      "actual": "eligible",
+      "agrees": true,
+      "reasons": [],
+      "assignments": [
+        { "deviceId": "device-1", "port": "C1" },
+        { "deviceId": "device-2", "port": "C2" }
+      ]
+    },
+    {
+      "id": "reversed-port-allocation",
+      "model": "MPA-ACCP4245WH",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "reasons": ["output_configuration"],
+      "assignments": []
+    },
+    {
+      "id": "reversed-port-allocation",
+      "model": "MPA-ACCP4365BK",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "reasons": ["output_configuration"],
+      "assignments": []
+    },
+    {
+      "id": "reversed-port-allocation",
+      "model": "MPA-AC113100BK",
+      "expected": "eligible",
+      "actual": "eligible",
+      "agrees": true,
+      "reasons": [],
+      "assignments": [
+        { "deviceId": "device-1", "port": "C2" },
+        { "deviceId": "device-2", "port": "C1" }
+      ]
+    },
+    {
+      "id": "single-PPS-11V-3A",
+      "model": "MPA-ACCP4245WH",
+      "expected": "eligible",
+      "actual": "eligible",
+      "agrees": true,
+      "reasons": [],
+      "assignments": [{ "deviceId": "device-1", "port": "C1" }]
+    },
+    {
+      "id": "single-PPS-11V-3A",
+      "model": "MPA-ACCP4365BK",
+      "expected": "eligible",
+      "actual": "eligible",
+      "agrees": true,
+      "reasons": [],
+      "assignments": [{ "deviceId": "device-1", "port": "C1" }]
+    },
+    {
+      "id": "single-PPS-11V-3A",
+      "model": "MPA-AC113100BK",
+      "expected": "eligible",
+      "actual": "eligible",
+      "agrees": true,
+      "reasons": [],
+      "assignments": [{ "deviceId": "device-1", "port": "C1" }]
+    },
+    {
+      "id": "single-PPS-20V-3A",
+      "model": "MPA-ACCP4245WH",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "reasons": ["output_configuration"],
+      "assignments": []
+    },
+    {
+      "id": "single-PPS-20V-3A",
+      "model": "MPA-ACCP4365BK",
+      "expected": "eligible",
+      "actual": "eligible",
+      "agrees": true,
+      "reasons": [],
+      "assignments": [{ "deviceId": "device-1", "port": "C1" }]
+    },
+    {
+      "id": "single-PPS-20V-3A",
+      "model": "MPA-AC113100BK",
+      "expected": "eligible",
+      "actual": "eligible",
+      "agrees": true,
+      "reasons": [],
+      "assignments": [{ "deviceId": "device-1", "port": "C1" }]
+    },
+    {
+      "id": "single-PPS-21V-3.25A-exceeds-65W",
+      "model": "MPA-ACCP4245WH",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "reasons": ["output_configuration"],
+      "assignments": []
+    },
+    {
+      "id": "single-PPS-21V-3.25A-exceeds-65W",
+      "model": "MPA-ACCP4365BK",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "reasons": ["output_configuration"],
+      "assignments": []
+    },
+    {
+      "id": "single-PPS-21V-3.25A-exceeds-65W",
+      "model": "MPA-AC113100BK",
+      "expected": "eligible",
+      "actual": "eligible",
+      "agrees": true,
+      "reasons": [],
+      "assignments": [{ "deviceId": "device-1", "port": "C1" }]
+    },
+    {
+      "id": "single-PPS-below-100W-range",
+      "model": "MPA-ACCP4245WH",
+      "expected": "eligible",
+      "actual": "eligible",
+      "agrees": true,
+      "reasons": [],
+      "assignments": [{ "deviceId": "device-1", "port": "C1" }]
+    },
+    {
+      "id": "single-PPS-below-100W-range",
+      "model": "MPA-ACCP4365BK",
+      "expected": "eligible",
+      "actual": "eligible",
+      "agrees": true,
+      "reasons": [],
+      "assignments": [{ "deviceId": "device-1", "port": "C1" }]
+    },
+    {
+      "id": "single-PPS-below-100W-range",
+      "model": "MPA-AC113100BK",
+      "expected": "pending",
+      "actual": "pending",
+      "agrees": true,
+      "reasons": ["incomplete_configurations"],
+      "assignments": []
+    },
+    {
+      "id": "single-PPS-11V-5A",
+      "model": "MPA-ACCP4245WH",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "reasons": ["output_configuration"],
+      "assignments": []
+    },
+    {
+      "id": "single-PPS-11V-5A",
+      "model": "MPA-ACCP4365BK",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "reasons": ["output_configuration"],
+      "assignments": []
+    },
+    {
+      "id": "single-PPS-11V-5A",
+      "model": "MPA-AC113100BK",
+      "expected": "eligible",
+      "actual": "eligible",
+      "agrees": true,
+      "reasons": [],
+      "assignments": [{ "deviceId": "device-1", "port": "C1" }]
+    },
+    {
+      "id": "dual-PPS-11V-5A-plus-PD-30W",
+      "model": "MPA-ACCP4245WH",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "reasons": ["output_configuration"],
+      "assignments": []
+    },
+    {
+      "id": "dual-PPS-11V-5A-plus-PD-30W",
+      "model": "MPA-ACCP4365BK",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "reasons": ["output_configuration"],
+      "assignments": []
+    },
+    {
+      "id": "dual-PPS-11V-5A-plus-PD-30W",
+      "model": "MPA-AC113100BK",
+      "expected": "eligible",
+      "actual": "eligible",
+      "agrees": true,
+      "reasons": [],
+      "assignments": [
+        { "deviceId": "device-1", "port": "C1" },
+        { "deviceId": "device-2", "port": "C2" }
+      ]
+    },
+    {
+      "id": "dual-PPS-12V-5A",
+      "model": "MPA-ACCP4245WH",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "reasons": ["output_configuration"],
+      "assignments": []
+    },
+    {
+      "id": "dual-PPS-12V-5A",
+      "model": "MPA-ACCP4365BK",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "reasons": ["output_configuration"],
+      "assignments": []
+    },
+    {
+      "id": "dual-PPS-12V-5A",
+      "model": "MPA-AC113100BK",
+      "expected": "pending",
+      "actual": "pending",
+      "agrees": true,
+      "reasons": ["incomplete_configurations"],
+      "assignments": []
+    },
+    {
+      "id": "dual-PPS-5.9V-3A-twice",
+      "model": "MPA-ACCP4245WH",
+      "expected": "eligible",
+      "actual": "eligible",
+      "agrees": true,
+      "reasons": [],
+      "assignments": [
+        { "deviceId": "device-1", "port": "C1" },
+        { "deviceId": "device-2", "port": "C2" }
+      ]
+    },
+    {
+      "id": "dual-PPS-5.9V-3A-twice",
+      "model": "MPA-ACCP4365BK",
+      "expected": "eligible",
+      "actual": "eligible",
+      "agrees": true,
+      "reasons": [],
+      "assignments": [
+        { "deviceId": "device-1", "port": "C1" },
+        { "deviceId": "device-2", "port": "C2" }
+      ]
+    },
+    {
+      "id": "dual-PPS-5.9V-3A-twice",
+      "model": "MPA-AC113100BK",
+      "expected": "eligible",
+      "actual": "eligible",
+      "agrees": true,
+      "reasons": [],
+      "assignments": [
+        { "deviceId": "device-1", "port": "C1" },
+        { "deviceId": "device-2", "port": "C2" }
+      ]
+    },
+    {
+      "id": "dual-PPS-6V-3A-twice",
+      "model": "MPA-ACCP4245WH",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "reasons": ["output_configuration"],
+      "assignments": []
+    },
+    {
+      "id": "dual-PPS-6V-3A-twice",
+      "model": "MPA-ACCP4365BK",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "reasons": ["output_configuration"],
+      "assignments": []
+    },
+    {
+      "id": "dual-PPS-6V-3A-twice",
+      "model": "MPA-AC113100BK",
+      "expected": "eligible",
+      "actual": "eligible",
+      "agrees": true,
+      "reasons": [],
+      "assignments": [
+        { "deviceId": "device-1", "port": "C1" },
+        { "deviceId": "device-2", "port": "C2" }
+      ]
+    },
+    {
+      "id": "three-PD-devices-protocol-unverified",
+      "model": "MPA-ACCP4245WH",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "reasons": ["output_configuration"],
+      "assignments": []
+    },
+    {
+      "id": "three-PD-devices-protocol-unverified",
+      "model": "MPA-ACCP4365BK",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "reasons": ["output_configuration"],
+      "assignments": []
+    },
+    {
+      "id": "three-PD-devices-protocol-unverified",
+      "model": "MPA-AC113100BK",
+      "expected": "pending",
+      "actual": "pending",
+      "agrees": true,
+      "reasons": ["incomplete_configurations"],
+      "assignments": []
+    },
+    {
+      "id": "four-devices",
+      "model": "MPA-ACCP4245WH",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "reasons": ["output_configuration"],
+      "assignments": []
+    },
+    {
+      "id": "four-devices",
+      "model": "MPA-ACCP4365BK",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "reasons": ["output_configuration"],
+      "assignments": []
+    },
+    {
+      "id": "four-devices",
+      "model": "MPA-AC113100BK",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "reasons": ["output_configuration"],
+      "assignments": []
+    },
+    {
+      "id": "three-100W-laptops",
+      "model": "MPA-ACCP4245WH",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "reasons": ["output_configuration"],
+      "assignments": []
+    },
+    {
+      "id": "three-100W-laptops",
+      "model": "MPA-ACCP4365BK",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "reasons": ["output_configuration"],
+      "assignments": []
+    },
+    {
+      "id": "three-100W-laptops",
+      "model": "MPA-AC113100BK",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "reasons": ["output_configuration"],
+      "assignments": []
+    },
+    {
+      "id": "voltage-rating-cable-too-low",
+      "model": "MPA-ACCP4245WH",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "reasons": ["cable_capacity"],
+      "assignments": []
+    },
+    {
+      "id": "voltage-rating-cable-too-low",
+      "model": "MPA-ACCP4365BK",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "reasons": ["cable_capacity"],
+      "assignments": []
+    },
+    {
+      "id": "voltage-rating-cable-too-low",
+      "model": "MPA-AC113100BK",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "reasons": ["cable_capacity"],
+      "assignments": []
+    },
+    {
+      "id": "unknown-cable-supported-power",
+      "model": "MPA-ACCP4245WH",
+      "expected": "pending",
+      "actual": "pending",
+      "agrees": true,
+      "reasons": ["cable_unknown"],
+      "assignments": []
+    },
+    {
+      "id": "unknown-cable-supported-power",
+      "model": "MPA-ACCP4365BK",
+      "expected": "pending",
+      "actual": "pending",
+      "agrees": true,
+      "reasons": ["cable_unknown"],
+      "assignments": []
+    },
+    {
+      "id": "unknown-cable-supported-power",
+      "model": "MPA-AC113100BK",
+      "expected": "pending",
+      "actual": "pending",
+      "agrees": true,
+      "reasons": ["cable_unknown"],
+      "assignments": []
+    },
+    {
+      "id": "PD-28V-unsupported-or-over-total",
+      "model": "MPA-ACCP4245WH",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "reasons": ["output_configuration"],
+      "assignments": []
+    },
+    {
+      "id": "PD-28V-unsupported-or-over-total",
+      "model": "MPA-ACCP4365BK",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "reasons": ["output_configuration"],
+      "assignments": []
+    },
+    {
+      "id": "PD-28V-unsupported-or-over-total",
+      "model": "MPA-AC113100BK",
+      "expected": "excluded",
+      "actual": "excluded",
+      "agrees": true,
+      "reasons": ["output_configuration"],
+      "assignments": []
+    }
+  ]
+}

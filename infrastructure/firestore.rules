@@ -1,0 +1,9 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // API-only storage. The Admin SDK uses IAM; browser access is denied.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

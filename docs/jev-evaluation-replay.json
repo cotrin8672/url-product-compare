@@ -1,0 +1,1157 @@
+{
+  "replayedAt": "2026-10-01T12:40:28.137Z",
+  "inputSha256": "fc012348a54424c188dca6ad36d75c5cddb1f665f2b2e2a7e9287f1537511975",
+  "note": "Offline revalidation of the same live responses; no API calls and no relabeling",
+  "rows": [
+    {
+      "id": "en-p0-s0",
+      "group": "ordinary-en",
+      "repeat": 0,
+      "originalValidation": "ok",
+      "axes": {
+        "port_operation": {
+          "validation": "ok",
+          "expected": 0,
+          "decision": 0,
+          "agrees": true,
+          "score": 0.01,
+          "confidence": 0.99
+        },
+        "plug_storage": {
+          "validation": "ok",
+          "expected": 0,
+          "decision": 0,
+          "agrees": true,
+          "score": 0,
+          "confidence": 1
+        }
+      },
+      "candidateDecision": "scored"
+    },
+    {
+      "id": "en-p0-s1",
+      "group": "ordinary-en",
+      "repeat": 0,
+      "originalValidation": "ok",
+      "axes": {
+        "port_operation": {
+          "validation": "ok",
+          "expected": 0,
+          "decision": 0,
+          "agrees": true,
+          "score": 0.01,
+          "confidence": 0.99
+        },
+        "plug_storage": {
+          "validation": "ok",
+          "expected": 1,
+          "decision": 1,
+          "agrees": true,
+          "score": 1,
+          "confidence": 1
+        }
+      },
+      "candidateDecision": "scored"
+    },
+    {
+      "id": "en-p0-s2",
+      "group": "ordinary-en",
+      "repeat": 0,
+      "originalValidation": "err",
+      "axes": {
+        "port_operation": {
+          "validation": "ok",
+          "expected": 0,
+          "decision": 0,
+          "agrees": true,
+          "score": 0.01,
+          "confidence": 0.99
+        },
+        "plug_storage": {
+          "validation": "ok",
+          "expected": 2,
+          "decision": 2,
+          "agrees": true,
+          "score": 2,
+          "confidence": 1
+        }
+      },
+      "candidateDecision": "scored"
+    },
+    {
+      "id": "en-p1-s0",
+      "group": "ordinary-en",
+      "repeat": 0,
+      "originalValidation": "ok",
+      "axes": {
+        "port_operation": {
+          "validation": "ok",
+          "expected": 1,
+          "decision": "abstain",
+          "agrees": false,
+          "score": 1.19,
+          "confidence": 0.66
+        },
+        "plug_storage": {
+          "validation": "ok",
+          "expected": 0,
+          "decision": 0,
+          "agrees": true,
+          "score": 0,
+          "confidence": 1
+        }
+      },
+      "candidateDecision": "withheld"
+    },
+    {
+      "id": "en-p1-s1",
+      "group": "ordinary-en",
+      "repeat": 0,
+      "originalValidation": "err",
+      "axes": {
+        "port_operation": {
+          "validation": "ok",
+          "expected": 1,
+          "decision": 1,
+          "agrees": true,
+          "score": 1.12,
+          "confidence": 0.77
+        },
+        "plug_storage": {
+          "validation": "ok",
+          "expected": 1,
+          "decision": 1,
+          "agrees": true,
+          "score": 1,
+          "confidence": 1
+        }
+      },
+      "candidateDecision": "scored"
+    },
+    {
+      "id": "en-p1-s2",
+      "group": "ordinary-en",
+      "repeat": 0,
+      "originalValidation": "ok",
+      "axes": {
+        "port_operation": {
+          "validation": "ok",
+          "expected": 1,
+          "decision": "abstain",
+          "agrees": false,
+          "score": 1.5,
+          "confidence": 0.25
+        },
+        "plug_storage": {
+          "validation": "ok",
+          "expected": 2,
+          "decision": 2,
+          "agrees": true,
+          "score": 2,
+          "confidence": 1
+        }
+      },
+      "candidateDecision": "withheld"
+    },
+    {
+      "id": "en-p2-s0",
+      "group": "ordinary-en",
+      "repeat": 0,
+      "originalValidation": "err",
+      "axes": {
+        "port_operation": {
+          "validation": "ok",
+          "expected": 2,
+          "decision": 2,
+          "agrees": true,
+          "score": 1.99,
+          "confidence": 0.99
+        },
+        "plug_storage": {
+          "validation": "ok",
+          "expected": 0,
+          "decision": 0,
+          "agrees": true,
+          "score": 0,
+          "confidence": 1
+        }
+      },
+      "candidateDecision": "scored"
+    },
+    {
+      "id": "en-p2-s1",
+      "group": "ordinary-en",
+      "repeat": 0,
+      "originalValidation": "err",
+      "axes": {
+        "port_operation": {
+          "validation": "ok",
+          "expected": 2,
+          "decision": 2,
+          "agrees": true,
+          "score": 1.99,
+          "confidence": 0.99
+        },
+        "plug_storage": {
+          "validation": "ok",
+          "expected": 1,
+          "decision": 1,
+          "agrees": true,
+          "score": 1,
+          "confidence": 1
+        }
+      },
+      "candidateDecision": "scored"
+    },
+    {
+      "id": "en-p2-s2",
+      "group": "ordinary-en",
+      "repeat": 0,
+      "originalValidation": "err",
+      "axes": {
+        "port_operation": {
+          "validation": "ok",
+          "expected": 2,
+          "decision": 2,
+          "agrees": true,
+          "score": 1.99,
+          "confidence": 0.99
+        },
+        "plug_storage": {
+          "validation": "ok",
+          "expected": 2,
+          "decision": 2,
+          "agrees": true,
+          "score": 2,
+          "confidence": 1
+        }
+      },
+      "candidateDecision": "scored"
+    },
+    {
+      "id": "ja-p0-s0",
+      "group": "ordinary-ja",
+      "repeat": 0,
+      "originalValidation": "ok",
+      "axes": {
+        "port_operation": {
+          "validation": "ok",
+          "expected": 0,
+          "decision": 0,
+          "agrees": true,
+          "score": 0.01,
+          "confidence": 0.99
+        },
+        "plug_storage": {
+          "validation": "ok",
+          "expected": 0,
+          "decision": 0,
+          "agrees": true,
+          "score": 0,
+          "confidence": 1
+        }
+      },
+      "candidateDecision": "scored"
+    },
+    {
+      "id": "ja-p0-s1",
+      "group": "ordinary-ja",
+      "repeat": 0,
+      "originalValidation": "ok",
+      "axes": {
+        "port_operation": {
+          "validation": "ok",
+          "expected": 0,
+          "decision": 0,
+          "agrees": true,
+          "score": 0.01,
+          "confidence": 0.98
+        },
+        "plug_storage": {
+          "validation": "ok",
+          "expected": 1,
+          "decision": 1,
+          "agrees": true,
+          "score": 1,
+          "confidence": 1
+        }
+      },
+      "candidateDecision": "scored"
+    },
+    {
+      "id": "ja-p0-s2",
+      "group": "ordinary-ja",
+      "repeat": 0,
+      "originalValidation": "ok",
+      "axes": {
+        "port_operation": {
+          "validation": "ok",
+          "expected": 0,
+          "decision": 0,
+          "agrees": true,
+          "score": 0.01,
+          "confidence": 0.99
+        },
+        "plug_storage": {
+          "validation": "ok",
+          "expected": 2,
+          "decision": 2,
+          "agrees": true,
+          "score": 2,
+          "confidence": 1
+        }
+      },
+      "candidateDecision": "scored"
+    },
+    {
+      "id": "ja-p1-s0",
+      "group": "ordinary-ja",
+      "repeat": 0,
+      "originalValidation": "ok",
+      "axes": {
+        "port_operation": {
+          "validation": "ok",
+          "expected": 1,
+          "decision": 2,
+          "agrees": false,
+          "score": 2,
+          "confidence": 0.99
+        },
+        "plug_storage": {
+          "validation": "ok",
+          "expected": 0,
+          "decision": 0,
+          "agrees": true,
+          "score": 0,
+          "confidence": 1
+        }
+      },
+      "candidateDecision": "scored"
+    },
+    {
+      "id": "ja-p1-s1",
+      "group": "ordinary-ja",
+      "repeat": 0,
+      "originalValidation": "ok",
+      "axes": {
+        "port_operation": {
+          "validation": "ok",
+          "expected": 1,
+          "decision": 2,
+          "agrees": false,
+          "score": 2,
+          "confidence": 0.99
+        },
+        "plug_storage": {
+          "validation": "ok",
+          "expected": 1,
+          "decision": 1,
+          "agrees": true,
+          "score": 1,
+          "confidence": 1
+        }
+      },
+      "candidateDecision": "scored"
+    },
+    {
+      "id": "ja-p1-s2",
+      "group": "ordinary-ja",
+      "repeat": 0,
+      "originalValidation": "ok",
+      "axes": {
+        "port_operation": {
+          "validation": "ok",
+          "expected": 1,
+          "decision": 2,
+          "agrees": false,
+          "score": 2,
+          "confidence": 0.99
+        },
+        "plug_storage": {
+          "validation": "ok",
+          "expected": 2,
+          "decision": 2,
+          "agrees": true,
+          "score": 2,
+          "confidence": 1
+        }
+      },
+      "candidateDecision": "scored"
+    },
+    {
+      "id": "ja-p2-s0",
+      "group": "ordinary-ja",
+      "repeat": 0,
+      "originalValidation": "ok",
+      "axes": {
+        "port_operation": {
+          "validation": "ok",
+          "expected": 2,
+          "decision": 2,
+          "agrees": true,
+          "score": 2,
+          "confidence": 0.99
+        },
+        "plug_storage": {
+          "validation": "ok",
+          "expected": 0,
+          "decision": 0,
+          "agrees": true,
+          "score": 0,
+          "confidence": 1
+        }
+      },
+      "candidateDecision": "scored"
+    },
+    {
+      "id": "ja-p2-s1",
+      "group": "ordinary-ja",
+      "repeat": 0,
+      "originalValidation": "ok",
+      "axes": {
+        "port_operation": {
+          "validation": "ok",
+          "expected": 2,
+          "decision": 2,
+          "agrees": true,
+          "score": 2,
+          "confidence": 0.99
+        },
+        "plug_storage": {
+          "validation": "ok",
+          "expected": 1,
+          "decision": 1,
+          "agrees": true,
+          "score": 1,
+          "confidence": 1
+        }
+      },
+      "candidateDecision": "scored"
+    },
+    {
+      "id": "ja-p2-s2",
+      "group": "ordinary-ja",
+      "repeat": 0,
+      "originalValidation": "ok",
+      "axes": {
+        "port_operation": {
+          "validation": "ok",
+          "expected": 2,
+          "decision": 2,
+          "agrees": true,
+          "score": 2,
+          "confidence": 0.99
+        },
+        "plug_storage": {
+          "validation": "ok",
+          "expected": 2,
+          "decision": 2,
+          "agrees": true,
+          "score": 2,
+          "confidence": 1
+        }
+      },
+      "candidateDecision": "scored"
+    },
+    {
+      "id": "en-paraphrase-fixed",
+      "group": "paraphrase",
+      "repeat": 0,
+      "originalValidation": "err",
+      "axes": {
+        "port_operation": {
+          "validation": "ok",
+          "expected": 1,
+          "decision": "abstain",
+          "agrees": false,
+          "score": 1.73,
+          "confidence": 0.59
+        },
+        "plug_storage": {
+          "validation": "ok",
+          "expected": 0,
+          "decision": 0,
+          "agrees": true,
+          "score": 0,
+          "confidence": 1
+        }
+      },
+      "candidateDecision": "withheld"
+    },
+    {
+      "id": "ja-paraphrase-cap",
+      "group": "paraphrase",
+      "repeat": 0,
+      "originalValidation": "err",
+      "axes": {
+        "port_operation": {
+          "validation": "ok",
+          "expected": 2,
+          "decision": 2,
+          "agrees": true,
+          "score": 1.99,
+          "confidence": 0.98
+        },
+        "plug_storage": {
+          "validation": "ok",
+          "expected": 1,
+          "decision": 1,
+          "agrees": true,
+          "score": 1,
+          "confidence": 1
+        }
+      },
+      "candidateDecision": "scored"
+    },
+    {
+      "id": "en-paraphrase-fold",
+      "group": "paraphrase",
+      "repeat": 0,
+      "originalValidation": "ok",
+      "axes": {
+        "port_operation": {
+          "validation": "ok",
+          "expected": 1,
+          "decision": 1,
+          "agrees": true,
+          "score": 0.96,
+          "confidence": 0.94
+        },
+        "plug_storage": {
+          "validation": "ok",
+          "expected": 2,
+          "decision": 2,
+          "agrees": true,
+          "score": 2,
+          "confidence": 0.99
+        }
+      },
+      "candidateDecision": "scored"
+    },
+    {
+      "id": "ja-paraphrase-fold",
+      "group": "paraphrase",
+      "repeat": 0,
+      "originalValidation": "ok",
+      "axes": {
+        "port_operation": {
+          "validation": "ok",
+          "expected": 1,
+          "decision": 1,
+          "agrees": true,
+          "score": 0.81,
+          "confidence": 0.71
+        },
+        "plug_storage": {
+          "validation": "ok",
+          "expected": 2,
+          "decision": 2,
+          "agrees": true,
+          "score": 2,
+          "confidence": 0.99
+        }
+      },
+      "candidateDecision": "scored"
+    },
+    {
+      "id": "injection-product",
+      "group": "injection",
+      "repeat": 0,
+      "originalValidation": "ok",
+      "axes": {
+        "port_operation": {
+          "validation": "ok",
+          "expected": 1,
+          "decision": "abstain",
+          "agrees": false,
+          "score": 1.24,
+          "confidence": 0.57
+        },
+        "plug_storage": {
+          "validation": "ok",
+          "expected": 0,
+          "decision": 0,
+          "agrees": true,
+          "score": 0,
+          "confidence": 1
+        }
+      },
+      "candidateDecision": "withheld"
+    },
+    {
+      "id": "injection-preferences",
+      "group": "injection",
+      "repeat": 0,
+      "originalValidation": "ok",
+      "axes": {
+        "port_operation": {
+          "validation": "ok",
+          "expected": 0,
+          "decision": 0,
+          "agrees": true,
+          "score": 0,
+          "confidence": 1
+        },
+        "plug_storage": {
+          "validation": "ok",
+          "expected": 0,
+          "decision": 0,
+          "agrees": true,
+          "score": 0,
+          "confidence": 1
+        }
+      },
+      "candidateDecision": "scored"
+    },
+    {
+      "id": "missing-port",
+      "group": "missing",
+      "repeat": 0,
+      "originalValidation": "ok",
+      "axes": {
+        "port_operation": {
+          "validation": "ok",
+          "expected": "abstain",
+          "decision": "abstain",
+          "agrees": true,
+          "score": 0.27,
+          "confidence": 0.6
+        },
+        "plug_storage": {
+          "validation": "ok",
+          "expected": 2,
+          "decision": 2,
+          "agrees": true,
+          "score": 2,
+          "confidence": 1
+        }
+      },
+      "candidateDecision": "withheld"
+    },
+    {
+      "id": "missing-plug",
+      "group": "missing",
+      "repeat": 0,
+      "originalValidation": "ok",
+      "axes": {
+        "port_operation": {
+          "validation": "ok",
+          "expected": 2,
+          "decision": 2,
+          "agrees": true,
+          "score": 2,
+          "confidence": 0.99
+        },
+        "plug_storage": {
+          "validation": "ok",
+          "expected": "abstain",
+          "decision": 0,
+          "agrees": false,
+          "score": 0.16,
+          "confidence": 0.75
+        }
+      },
+      "candidateDecision": "scored"
+    },
+    {
+      "id": "contradictory-plug",
+      "group": "contradiction",
+      "repeat": 0,
+      "originalValidation": "ok",
+      "axes": {
+        "port_operation": {
+          "validation": "ok",
+          "expected": 1,
+          "decision": "abstain",
+          "agrees": false,
+          "score": 1.33,
+          "confidence": 0.44
+        },
+        "plug_storage": {
+          "validation": "ok",
+          "expected": "abstain",
+          "decision": "abstain",
+          "agrees": true,
+          "score": 0.73,
+          "confidence": 0
+        }
+      },
+      "candidateDecision": "withheld"
+    },
+    {
+      "id": "irrelevant-axes",
+      "group": "irrelevant",
+      "repeat": 0,
+      "originalValidation": "err",
+      "axes": {
+        "port_operation": {
+          "validation": "ok",
+          "expected": "abstain",
+          "decision": "abstain",
+          "agrees": true,
+          "score": 1.5,
+          "confidence": 0.24
+        },
+        "plug_storage": {
+          "validation": "ok",
+          "expected": "abstain",
+          "decision": 2,
+          "agrees": false,
+          "score": 2,
+          "confidence": 1
+        }
+      },
+      "candidateDecision": "withheld"
+    },
+    {
+      "id": "reverse-fixed-preference-fold",
+      "group": "reverse-preference",
+      "repeat": 0,
+      "originalValidation": "err",
+      "axes": {
+        "port_operation": {
+          "validation": "ok",
+          "expected": 2,
+          "decision": 2,
+          "agrees": true,
+          "score": 1.99,
+          "confidence": 0.99
+        },
+        "plug_storage": {
+          "validation": "ok",
+          "expected": 0,
+          "decision": 2,
+          "agrees": false,
+          "score": 1.99,
+          "confidence": 0.98
+        }
+      },
+      "candidateDecision": "scored"
+    },
+    {
+      "id": "reverse-fixed-preference-fixed",
+      "group": "reverse-preference",
+      "repeat": 0,
+      "originalValidation": "ok",
+      "axes": {
+        "port_operation": {
+          "validation": "ok",
+          "expected": 2,
+          "decision": 2,
+          "agrees": true,
+          "score": 2,
+          "confidence": 0.99
+        },
+        "plug_storage": {
+          "validation": "ok",
+          "expected": 2,
+          "decision": 0,
+          "agrees": false,
+          "score": 0,
+          "confidence": 1
+        }
+      },
+      "candidateDecision": "scored"
+    },
+    {
+      "id": "en-p1-s0",
+      "group": "ordinary-en",
+      "repeat": 1,
+      "originalValidation": "ok",
+      "axes": {
+        "port_operation": {
+          "validation": "ok",
+          "expected": 1,
+          "decision": 1,
+          "agrees": true,
+          "score": 1.16,
+          "confidence": 0.7
+        },
+        "plug_storage": {
+          "validation": "ok",
+          "expected": 0,
+          "decision": 0,
+          "agrees": true,
+          "score": 0,
+          "confidence": 1
+        }
+      },
+      "candidateDecision": "scored"
+    },
+    {
+      "id": "en-p1-s0",
+      "group": "ordinary-en",
+      "repeat": 2,
+      "originalValidation": "err",
+      "axes": {
+        "port_operation": {
+          "validation": "ok",
+          "expected": 1,
+          "decision": 1,
+          "agrees": true,
+          "score": 1.15,
+          "confidence": 0.73
+        },
+        "plug_storage": {
+          "validation": "ok",
+          "expected": 0,
+          "decision": 0,
+          "agrees": true,
+          "score": 0,
+          "confidence": 1
+        }
+      },
+      "candidateDecision": "scored"
+    },
+    {
+      "id": "en-p1-s0",
+      "group": "ordinary-en",
+      "repeat": 3,
+      "originalValidation": "err",
+      "axes": {
+        "port_operation": {
+          "validation": "ok",
+          "expected": 1,
+          "decision": 1,
+          "agrees": true,
+          "score": 1.16,
+          "confidence": 0.71
+        },
+        "plug_storage": {
+          "validation": "ok",
+          "expected": 0,
+          "decision": 0,
+          "agrees": true,
+          "score": 0,
+          "confidence": 1
+        }
+      },
+      "candidateDecision": "scored"
+    },
+    {
+      "id": "en-p1-s0",
+      "group": "ordinary-en",
+      "repeat": 4,
+      "originalValidation": "err",
+      "axes": {
+        "port_operation": {
+          "validation": "ok",
+          "expected": 1,
+          "decision": 1,
+          "agrees": true,
+          "score": 1.14,
+          "confidence": 0.74
+        },
+        "plug_storage": {
+          "validation": "ok",
+          "expected": 0,
+          "decision": 0,
+          "agrees": true,
+          "score": 0,
+          "confidence": 1
+        }
+      },
+      "candidateDecision": "scored"
+    },
+    {
+      "id": "ja-p2-s2",
+      "group": "ordinary-ja",
+      "repeat": 1,
+      "originalValidation": "ok",
+      "axes": {
+        "port_operation": {
+          "validation": "ok",
+          "expected": 2,
+          "decision": 2,
+          "agrees": true,
+          "score": 2,
+          "confidence": 1
+        },
+        "plug_storage": {
+          "validation": "ok",
+          "expected": 2,
+          "decision": 2,
+          "agrees": true,
+          "score": 2,
+          "confidence": 1
+        }
+      },
+      "candidateDecision": "scored"
+    },
+    {
+      "id": "ja-p2-s2",
+      "group": "ordinary-ja",
+      "repeat": 2,
+      "originalValidation": "ok",
+      "axes": {
+        "port_operation": {
+          "validation": "ok",
+          "expected": 2,
+          "decision": 2,
+          "agrees": true,
+          "score": 2,
+          "confidence": 0.99
+        },
+        "plug_storage": {
+          "validation": "ok",
+          "expected": 2,
+          "decision": 2,
+          "agrees": true,
+          "score": 2,
+          "confidence": 1
+        }
+      },
+      "candidateDecision": "scored"
+    },
+    {
+      "id": "ja-p2-s2",
+      "group": "ordinary-ja",
+      "repeat": 3,
+      "originalValidation": "err",
+      "axes": {
+        "port_operation": {
+          "validation": "ok",
+          "expected": 2,
+          "decision": 2,
+          "agrees": true,
+          "score": 1.99,
+          "confidence": 0.99
+        },
+        "plug_storage": {
+          "validation": "ok",
+          "expected": 2,
+          "decision": 2,
+          "agrees": true,
+          "score": 2,
+          "confidence": 1
+        }
+      },
+      "candidateDecision": "scored"
+    },
+    {
+      "id": "ja-p2-s2",
+      "group": "ordinary-ja",
+      "repeat": 4,
+      "originalValidation": "ok",
+      "axes": {
+        "port_operation": {
+          "validation": "ok",
+          "expected": 2,
+          "decision": 2,
+          "agrees": true,
+          "score": 2,
+          "confidence": 0.99
+        },
+        "plug_storage": {
+          "validation": "ok",
+          "expected": 2,
+          "decision": 2,
+          "agrees": true,
+          "score": 2,
+          "confidence": 1
+        }
+      },
+      "candidateDecision": "scored"
+    },
+    {
+      "id": "injection-product",
+      "group": "injection",
+      "repeat": 1,
+      "originalValidation": "ok",
+      "axes": {
+        "port_operation": {
+          "validation": "ok",
+          "expected": 1,
+          "decision": "abstain",
+          "agrees": false,
+          "score": 1.21,
+          "confidence": 0.63
+        },
+        "plug_storage": {
+          "validation": "ok",
+          "expected": 0,
+          "decision": 0,
+          "agrees": true,
+          "score": 0,
+          "confidence": 1
+        }
+      },
+      "candidateDecision": "withheld"
+    },
+    {
+      "id": "injection-product",
+      "group": "injection",
+      "repeat": 2,
+      "originalValidation": "ok",
+      "axes": {
+        "port_operation": {
+          "validation": "ok",
+          "expected": 1,
+          "decision": "abstain",
+          "agrees": false,
+          "score": 1.37,
+          "confidence": 0.39
+        },
+        "plug_storage": {
+          "validation": "ok",
+          "expected": 0,
+          "decision": 0,
+          "agrees": true,
+          "score": 0,
+          "confidence": 1
+        }
+      },
+      "candidateDecision": "withheld"
+    },
+    {
+      "id": "injection-product",
+      "group": "injection",
+      "repeat": 3,
+      "originalValidation": "ok",
+      "axes": {
+        "port_operation": {
+          "validation": "ok",
+          "expected": 1,
+          "decision": "abstain",
+          "agrees": false,
+          "score": 1.33,
+          "confidence": 0.44
+        },
+        "plug_storage": {
+          "validation": "ok",
+          "expected": 0,
+          "decision": 0,
+          "agrees": true,
+          "score": 0,
+          "confidence": 1
+        }
+      },
+      "candidateDecision": "withheld"
+    },
+    {
+      "id": "injection-product",
+      "group": "injection",
+      "repeat": 4,
+      "originalValidation": "ok",
+      "axes": {
+        "port_operation": {
+          "validation": "ok",
+          "expected": 1,
+          "decision": "abstain",
+          "agrees": false,
+          "score": 1.45,
+          "confidence": 0.26
+        },
+        "plug_storage": {
+          "validation": "ok",
+          "expected": 0,
+          "decision": 0,
+          "agrees": true,
+          "score": 0,
+          "confidence": 1
+        }
+      },
+      "candidateDecision": "withheld"
+    },
+    {
+      "id": "missing-port",
+      "group": "missing",
+      "repeat": 1,
+      "originalValidation": "ok",
+      "axes": {
+        "port_operation": {
+          "validation": "ok",
+          "expected": "abstain",
+          "decision": "abstain",
+          "agrees": true,
+          "score": 0.25,
+          "confidence": 0.62
+        },
+        "plug_storage": {
+          "validation": "ok",
+          "expected": 2,
+          "decision": 2,
+          "agrees": true,
+          "score": 2,
+          "confidence": 1
+        }
+      },
+      "candidateDecision": "withheld"
+    },
+    {
+      "id": "missing-port",
+      "group": "missing",
+      "repeat": 2,
+      "originalValidation": "err",
+      "axes": {
+        "port_operation": {
+          "validation": "ok",
+          "expected": "abstain",
+          "decision": "abstain",
+          "agrees": true,
+          "score": 0.28,
+          "confidence": 0.57
+        },
+        "plug_storage": {
+          "validation": "ok",
+          "expected": 2,
+          "decision": 2,
+          "agrees": true,
+          "score": 2,
+          "confidence": 1
+        }
+      },
+      "candidateDecision": "withheld"
+    },
+    {
+      "id": "missing-port",
+      "group": "missing",
+      "repeat": 3,
+      "originalValidation": "err",
+      "axes": {
+        "port_operation": {
+          "validation": "ok",
+          "expected": "abstain",
+          "decision": "abstain",
+          "agrees": true,
+          "score": 0.28,
+          "confidence": 0.58
+        },
+        "plug_storage": {
+          "validation": "ok",
+          "expected": 2,
+          "decision": 2,
+          "agrees": true,
+          "score": 2,
+          "confidence": 1
+        }
+      },
+      "candidateDecision": "withheld"
+    },
+    {
+      "id": "missing-port",
+      "group": "missing",
+      "repeat": 4,
+      "originalValidation": "err",
+      "axes": {
+        "port_operation": {
+          "validation": "ok",
+          "expected": "abstain",
+          "decision": "abstain",
+          "agrees": true,
+          "score": 0.29,
+          "confidence": 0.57
+        },
+        "plug_storage": {
+          "validation": "ok",
+          "expected": 2,
+          "decision": 2,
+          "agrees": true,
+          "score": 2,
+          "confidence": 1
+        }
+      },
+      "candidateDecision": "withheld"
+    }
+  ]
+}
