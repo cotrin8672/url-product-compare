@@ -497,7 +497,7 @@ export function createRakutenSearch(
         !Number.isSafeInteger(options.hits ?? 10) ||
         (options.hits ?? 10) < 1 ||
         (options.hits ?? 10) > 30 ||
-        (search.length === 0 && genreId === undefined) ||
+        (search.length === 0 && genreId === undefined && shopCode === null) ||
         new TextEncoder().encode(search).length > 128 ||
         (options.excludeKeyword !== undefined &&
           (options.excludeKeyword.length === 0 ||
@@ -558,17 +558,23 @@ export function createRakutenSearch(
         return err({ code: "invalid_data", field: "rakuten_response_size" });
       }
       const body: unknown = JSON.parse(rawBody);
+      const itemsRaw =
+        record(body) && body["count"] === 0 && body["Items"] === undefined
+          ? []
+          : record(body)
+            ? body["Items"]
+            : undefined;
       if (
         !record(body) ||
-        !Array.isArray(body["Items"]) ||
-        body["Items"].length > (options.hits ?? (shopCode === null ? 10 : 30)) ||
+        !Array.isArray(itemsRaw) ||
+        itemsRaw.length > (options.hits ?? (shopCode === null ? 10 : 30)) ||
         typeof body["count"] !== "number" ||
         !Number.isSafeInteger(body["count"]) ||
         body["count"] < 0
       ) {
         return err({ code: "invalid_data", field: "rakuten_response" });
       }
-      const items: readonly unknown[] = body["Items"];
+      const items: readonly unknown[] = itemsRaw;
       const decoded = sequence(
         items
           .map((item) => parseItem(item, configuration.affiliateId))
@@ -659,6 +665,7 @@ export function createRakutenLookup(
       return err({ code: "unsupported_url" });
     }
     let query = keyword?.trim() ?? slug;
+    const backupQuery = fallbackKeyword ?? "";
     let page = 1;
     for (let attempt = 1; attempt <= Math.min(3, maxPages); attempt += 1) {
       if (options?.signal?.aborted === true) {
@@ -691,8 +698,8 @@ export function createRakutenLookup(
         });
       }
       if (result.value.count <= page * 30 || result.value.listings.length === 0) {
-        if (keyword === null && fallbackKeyword !== undefined && query !== fallbackKeyword) {
-          query = fallbackKeyword;
+        if (keyword === null && query !== backupQuery) {
+          query = backupQuery;
           page = 1;
         } else {
           return err({ code: "listing_not_found" });

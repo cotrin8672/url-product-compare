@@ -2822,6 +2822,63 @@ function discoveryRiceItem(id: string, donation = true) {
   };
 }
 
+await test("automatic category lookup falls back from an empty slug search without assuming the item code", async (context) => {
+  let searches = 0;
+  let scenario = "found";
+  context.mock.method(globalThis, "fetch", (input: unknown) => {
+    assert.ok(input instanceof URL && input.hostname === "openapi.rakuten.co.jp");
+    if (input.pathname.includes("IchibaGenre/Search")) {
+      return Promise.resolve(discoveryGenreResponse());
+    }
+    searches += 1;
+    assert.equal(input.searchParams.get("shopCode"), "shop");
+    if (input.searchParams.get("keyword") === "source") {
+      return Promise.resolve(Response.json({ count: scenario === "malformed" ? 1 : 0 }));
+    }
+    assert.equal(input.searchParams.has("keyword"), false);
+    return Promise.resolve(
+      Response.json({
+        count: scenario === "missing" ? 100 : 1,
+        Items: [
+          {
+            ...discoveryRiceItem(scenario === "missing" ? "unrelated" : "source"),
+            itemCode: "shop:987654",
+          },
+        ],
+      }),
+    );
+  });
+  const event = {
+    method: "POST",
+    path: "/api/detect",
+    headers: { authorization: `Bearer ${discoverySettings.accessToken}` },
+    body: JSON.stringify({ url: "https://item.rakuten.co.jp/shop/source/" }),
+  };
+  const detect = () =>
+    createApiHandler(false, discoverySettings, null, null, { clock: discoveryClock })(event);
+  const found = await detect();
+  assert.equal(found.statusCode, 200, found.body);
+  const body: unknown = JSON.parse(found.body);
+  assert.ok(record(body) && record(body["value"]) && record(body["value"]["source"]));
+  assert.equal(body["value"]["category"], "rakuten_201184");
+  assert.equal(body["value"]["source"]["listingId"], "shop:987654");
+  assert.equal(searches, 2);
+
+  scenario = "malformed";
+  searches = 0;
+  const malformed = await detect();
+  assert.equal(malformed.statusCode, 503, malformed.body);
+  assert.match(malformed.body, /provider_unavailable/);
+  assert.equal(searches, 1);
+
+  scenario = "missing";
+  searches = 0;
+  const missing = await detect();
+  assert.equal(missing.statusCode, 422, missing.body);
+  assert.match(missing.body, /lookup_incomplete/);
+  assert.equal(searches, 3);
+});
+
 await test("automatic category selection rejects malformed Jev responses and malformed attribute dictionaries", async (context) => {
   let answer: unknown = { type: "noul", noul: 0.7 };
   let rawAttributes: unknown = discoveryAttributes
