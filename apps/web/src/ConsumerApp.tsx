@@ -38,6 +38,29 @@ type PendingOperation = Readonly<{
   operation: ComparisonOperation;
 }>;
 
+const categoryIconPaths: Readonly<Record<string, string>> = {
+  laptop: "M5 5h14v11H5zM2 19l3-3h14l3 3H2Z",
+  desktop: "M3 5h12v10H3zM6 19h6m-3-4v4M18 4h4v16h-4zM20 7v1m0 3v1",
+  tablet: "M5 3h14v18H5zM11 18h2",
+  smartphone: "M7 2h10v20H7zM10 5h4m-3 14h2",
+  television: "M2 5h20v13H2zM7 21l2-3m8 3-2-3",
+  monitor: "M2 3h20v14H2zM12 17v4m-5 0h10",
+};
+
+function CategoryIcon(props: Readonly<{ category: string }>): JSX.Element {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d={categoryIconPaths[props.category] ?? categoryIconPaths["monitor"]}
+        stroke="currentColor"
+        stroke-width="1.5"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+    </svg>
+  );
+}
+
 function productDisplayTitle(title: string): string {
   const name = title
     .replace(/【[^】]*】/g, "")
@@ -606,9 +629,45 @@ export function ConsumerApp(): JSX.Element {
             </svg>
             商品比較
           </a>
+          <Show when={result() === undefined}>
+            <span class="consumer-home-provider">楽天市場の商品に対応</span>
+          </Show>
         </div>
       </header>
-      <main class="consumer-main">
+      <main class="consumer-main" classList={{ "consumer-home": result() === undefined }}>
+        <Show when={result() === undefined}>
+          <section class="consumer-home-intro" aria-labelledby="consumer-home-title">
+            <div>
+              <p class="consumer-home-eyebrow">家電・PC選びを、もっとシンプルに。</p>
+              <h1 id="consumer-home-title">
+                その商品、
+                <br />
+                <span>比べてから決めよう。</span>
+              </h1>
+              <p class="consumer-home-description">
+                気になる商品と、似ている商品の価格やスペックを比較。
+                <br />
+                楽天市場の商品URLを貼るだけで、違いが見えてきます。
+              </p>
+            </div>
+            <div class="consumer-home-visual" aria-hidden="true">
+              <div class="consumer-visual-card consumer-visual-source">
+                <span class="consumer-visual-label">気になる商品</span>
+                <CategoryIcon category="laptop" />
+                <span class="consumer-visual-line" />
+                <span class="consumer-visual-line consumer-visual-short" />
+              </div>
+              <span class="consumer-visual-vs">vs</span>
+              <div class="consumer-visual-card consumer-visual-candidate">
+                <span class="consumer-visual-label">似ている商品</span>
+                <CategoryIcon category="laptop" />
+                <span class="consumer-visual-line" />
+                <span class="consumer-visual-line consumer-visual-short" />
+              </div>
+              <span class="consumer-visual-caption">価格も、スペックも。並べてわかる。</span>
+            </div>
+          </section>
+        </Show>
         <form
           id="consumer-form"
           class="url-panel"
@@ -638,7 +697,7 @@ export function ConsumerApp(): JSX.Element {
                 required
                 aria-label="商品URL"
                 maxLength={2048}
-                placeholder="商品URL"
+                placeholder="https://item.rakuten.co.jp/..."
                 value={url()}
                 disabled={busy()}
                 onInput={(event) => {
@@ -666,6 +725,12 @@ export function ConsumerApp(): JSX.Element {
               {busy() ? "比較中…" : "比較する"}
             </button>
           </div>
+          <Show when={result() === undefined}>
+            <div class="consumer-home-form-note">
+              <span>楽天市場の商品ページのURLを入力してください。</span>
+              <span>カテゴリは自動で判定</span>
+            </div>
+          </Show>
         </form>
         <Show when={detection()?.status === "needs_confirmation" ? detection() : undefined}>
           {(detected) => (
@@ -696,6 +761,42 @@ export function ConsumerApp(): JSX.Element {
         </Show>
         <Show when={busy()}>
           <div class="consumer-spinner" role="status" aria-label="比較中" />
+        </Show>
+        <Show when={result() === undefined && !busy() && catalog() !== undefined}>
+          <section class="consumer-home-categories" aria-labelledby="consumer-categories-title">
+            <div class="consumer-home-section-heading">
+              <h2 id="consumer-categories-title">こんな商品を比較できます</h2>
+              <span>対応カテゴリ</span>
+            </div>
+            <ul class="consumer-home-category-list">
+              <For each={catalog()?.categories}>
+                {(category) => (
+                  <li>
+                    <CategoryIcon category={category.id} />
+                    <h3>{category.label}</h3>
+                    <p>
+                      {category.axes
+                        .slice(0, 2)
+                        .map((axis) => axis.label)
+                        .join("・")}
+                    </p>
+                  </li>
+                )}
+              </For>
+            </ul>
+            <ol class="consumer-home-steps" aria-label="比較の手順">
+              <li>
+                <span>01</span> 気になる商品のURLをコピー
+              </li>
+              <li>
+                <span>02</span> 貼り付けて「比較する」
+              </li>
+              <li>
+                <span>03</span> 価格とスペックを見比べる
+              </li>
+            </ol>
+            <p class="consumer-home-disclosure">商品リンクにはアフィリエイト広告を含みます。</p>
+          </section>
         </Show>
         <Show when={result()}>
           {(display) => (
