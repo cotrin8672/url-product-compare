@@ -7,6 +7,7 @@ import {
   comparisonDetailLayout,
   comparisonDisplayRemainingMs,
   comparisonJobCannotResume,
+  comparisonErrorMessage,
   createComparisonOperation,
   createComparisonRequestScope,
   detectProductCategory,
@@ -178,6 +179,14 @@ function ConsumerResults(
         <h1>{data.status === "ranked" ? "類似商品のおすすめランキング" : "類似商品の比較"}</h1>
         <span class="consumer-category-label">{data.categoryDefinition.label}</span>
       </div>
+      <Show when={data.source.availability === "unavailable"}>
+        <p class="muted">入力商品は現在売り切れです。</p>
+      </Show>
+      <Show when={data.status === "no_match"}>
+        <p role="status">
+          比較できる在庫のある候補が見つかりませんでした。別の商品URLをお試しください。
+        </p>
+      </Show>
       <div class="table-wrap" tabindex="0" role="region" aria-label="商品比較表">
         <table
           class="comparison-table consumer-comparison-table"
@@ -267,6 +276,9 @@ function ConsumerResults(
                     </div>
                     <h3 title={product.title}>{productDisplayTitle(product.title)}</h3>
                     <span class="consumer-shop-tag">{product.shopName}</span>
+                    <Show when={product.condition === "unknown"}>
+                      <small class="muted">商品状態：未確認</small>
+                    </Show>
                   </th>
                 )}
               </For>
@@ -462,7 +474,11 @@ export function ConsumerApp(): JSX.Element {
       }
       setSession(null);
       setPending(undefined);
-      throw new Error("比較できませんでした。");
+      throw new Error(
+        comparisonErrorMessage(
+          job.state === "cancelled" ? "cancelled" : (job.error?.code ?? "internal_error"),
+        ),
+      );
     }
   };
 

@@ -14,6 +14,7 @@ import {
   createComparisonOperation,
   createComparisonRequestScope,
   comparisonDisplayExpiresAt,
+  comparisonErrorMessage,
   comparisonDetailLayout,
   detectProductCategory,
   parseConsumerComparison,
@@ -1826,6 +1827,59 @@ await test("consumer client validates partial evidence cohorts, common-axis tota
       catalog,
     ),
   );
+});
+
+await test("unknown conditions require the catalog's opt-in while used and forged policies still fail", () => {
+  const { catalog, category, source, comparison } = genericFixture();
+  const allowedCategory = { ...category, allowUnknownCondition: true };
+  const allowedCatalog = parseProductCatalog({
+    tag: "ok",
+    value: { ...catalog, categories: [allowedCategory] },
+  });
+  const value = {
+    ...comparison,
+    categoryDefinition: allowedCategory,
+    source: { ...source, condition: "unknown" },
+    products: comparison.products.map((product) => ({ ...product, condition: "unknown" })),
+  };
+  const result = parseConsumerComparison({ tag: "ok", value }, allowedCatalog);
+  assert.equal(result.source.condition, "unknown");
+  assert.ok(result.products.every((product) => product.condition === "unknown"));
+  assert.throws(() => parseConsumerComparison({ tag: "ok", value }, catalog));
+  for (const condition of ["used", "refurbished"]) {
+    assert.throws(() =>
+      parseConsumerComparison(
+        {
+          tag: "ok",
+          value: {
+            ...value,
+            source: { ...value.source, condition },
+            products: value.products.map((product) => ({ ...product, condition })),
+          },
+        },
+        allowedCatalog,
+      ),
+    );
+  }
+  assert.throws(() =>
+    parseProductCatalog({
+      tag: "ok",
+      value: { ...catalog, categories: [{ ...category, allowUnknownCondition: "true" }] },
+    }),
+  );
+});
+
+await test("provider failures keep actionable messages for immediate and job errors", () => {
+  const { catalog } = genericFixture();
+  for (const [code, message] of [
+    ["provider_rate_limited", /混み合|1分/],
+    ["lookup_incomplete", /特定できません/],
+    ["listing_not_found", /掲載が見つかりません/],
+    ["provider_unavailable", /時間をおいて/],
+  ] satisfies ReadonlyArray<readonly [string, RegExp]>) {
+    assert.throws(() => parseDetectResult({ tag: "err", error: { code } }, catalog), message);
+    assert.match(comparisonErrorMessage(code), message);
+  }
 });
 
 await test("new categories and genuinely different providers validate evidence, condition and weighted score direction", () => {

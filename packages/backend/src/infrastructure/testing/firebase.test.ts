@@ -751,6 +751,77 @@ const liveItem = {
   availability: 1,
 };
 
+await test("consumer source cache avoids duplicate lookups but respects expiry and rights", async (context) => {
+  let current = Date.now();
+  let requests = 0;
+  const clock = (): Instant => {
+    const parsed = instant(new Date(current).toISOString());
+    if (parsed.tag !== "ok") {
+      throw new Error("Invalid fixture clock");
+    }
+    return parsed.value;
+  };
+  context.mock.method(globalThis, "fetch", () => {
+    requests += 1;
+    return Promise.resolve(new Response(JSON.stringify({ count: 1, Items: [liveItem] })));
+  });
+  const handler = createApiHandler(
+    false,
+    { ...liveSettings, authorizedUntil: new Date(current + 3_600_000).toISOString() },
+    null,
+    null,
+    { clock },
+  );
+  const input = {
+    ...liveEvent,
+    path: "/api/detect",
+    body: JSON.stringify({ url: "https://item.rakuten.co.jp/example-shop/url-slug/" }),
+  };
+  const first = await handler(input);
+  const repeated = await handler(input);
+  assert.equal(first.statusCode, 200);
+  assert.deepEqual(repeated, first);
+  assert.equal(requests, 1);
+  current += 900_001;
+  assert.equal((await handler(input)).statusCode, 200);
+  assert.equal(requests, 2);
+  current += 3_600_000;
+  assert.equal((await handler(input)).statusCode, 503);
+  assert.equal(requests, 2);
+});
+
+await test("empty keyword results fall back to bounded shop search and require the exact input URL", async (context) => {
+  for (const emptyStatus of [200, 404]) {
+    let requests = 0;
+    const upstream = context.mock.method(globalThis, "fetch", (input: unknown) => {
+      assert.ok(input instanceof URL);
+      requests += 1;
+      if (requests === 1) {
+        return Promise.resolve(new Response(JSON.stringify({ count: 0 }), { status: emptyStatus }));
+      }
+      assert.equal(input.searchParams.get("keyword"), null);
+      assert.equal(input.searchParams.get("shopCode"), "example-shop");
+      assert.equal(input.searchParams.get("itemCode"), null);
+      return Promise.resolve(new Response(JSON.stringify({ count: 1, Items: [liveItem] })));
+    });
+    const handler = createApiHandler(false, liveSettings);
+    const response = await handler({
+      ...liveEvent,
+      path: "/api/detect",
+      body: JSON.stringify({ url: "https://item.rakuten.co.jp/example-shop/url-slug/" }),
+    });
+    assert.equal(response.statusCode, 200, response.body);
+    const result: unknown = JSON.parse(response.body);
+    assert.ok(record(result) && record(result["value"]) && record(result["value"]["source"]));
+    assert.equal(
+      result["value"]["source"]["canonicalUrl"],
+      "https://item.rakuten.co.jp/example-shop/url-slug/",
+    );
+    assert.equal(requests, 2);
+    upstream.mock.restore();
+  }
+});
+
 const openaiSettings = { apiKey: "sk-example-openai-key-1234567890", model: "gpt-6-luna" } as const;
 await test("Rakuten legacy shop aliases and mobile item IDs rebuild to our own verified affiliate destination", async (context) => {
   let mismatchedMobile = false;
@@ -1768,7 +1839,6 @@ await test("Rakuten numeric genre IDs preserve source images and auto-detection 
       }),
     );
   });
-  const handler = createApiHandler(false, monitorSettings);
   const event = {
     ...consumerEvent("laptop"),
     path: "/api/detect",
@@ -1776,7 +1846,7 @@ await test("Rakuten numeric genre IDs preserve source images and auto-detection 
   };
   for (const accepted of [999901, "999901"]) {
     genreId = accepted;
-    const response = await handler(event);
+    const response = await createApiHandler(false, monitorSettings)(event);
     assert.equal(response.statusCode, 200, response.body);
     const body: unknown = JSON.parse(response.body);
     assert.ok(record(body) && record(body["value"]) && record(body["value"]["source"]));
@@ -1786,7 +1856,7 @@ await test("Rakuten numeric genre IDs preserve source images and auto-detection 
   }
   for (const rejected of [-1, 1.5, 1000000, true, [999901], { value: 999901 }]) {
     genreId = rejected;
-    const response = await handler(event);
+    const response = await createApiHandler(false, monitorSettings)(event);
     assert.equal(response.statusCode, 503, response.body);
     assert.match(response.body, /provider_unavailable/);
     assert.equal(response.body.includes(imageUrl), false);
@@ -2436,7 +2506,9 @@ await test("consumer Rakuten adapter preserves evidence through enrichment, uses
   assert.ok(record(stored) && record(stored["value"]));
   assert.equal(stored["value"]["storageExpiresAt"], "2026-10-06T12:05:00.000Z");
   badSource = true;
-  const invalid = await handler(consumerEvent("laptop"));
+  const invalid = await createApiHandler(false, monitorSettings, null, null, { clock })(
+    consumerEvent("laptop"),
+  );
   assert.equal(invalid.statusCode, 422);
   assert.equal(invalid.body.includes("invalid_affiliate_url"), true);
 });

@@ -3,6 +3,7 @@ import type { Result } from "./algebra.js";
 import {
   consumerCategoryDefinition,
   consumerCatalogCategories,
+  consumerListingConditionEligible,
   readFieldFlagLabels,
   readFieldNumberPattern,
   readFieldTextLabels,
@@ -119,7 +120,7 @@ export function readConsumerInformation(
   const factSource = (quote: string): ConsumerFact["source"] =>
     productText.includes(quote) ? sources.product : sources.listing;
   const clauses = text
-    .split(/[\n。;；|]/)
+    .split(/[\n。;；|●]/)
     .map((line) => line.trim())
     .filter((line) => line.length > 0);
   const specs: Record<string, ConsumerValue> = {};
@@ -195,7 +196,7 @@ export function readConsumerInformation(
       }
     } else if (definition.extraction?.kind === "resolution") {
       for (const match of text.matchAll(
-        /(?:最大解像度|解像度|resolution)\s*[:：]?\s*(?:FHD|WQHD|UHD|HD)?\s*(\d{3,5})\s*[×x*]\s*(\d{3,4})(?!\d)/gi,
+        /(?:最大解像度|解像度|画素数|resolution)\s*[:：]?\s*(?:FHD|WQHD|UHD|HD)?\s*(\d{3,5})\s*[×x*]\s*(\d{3,4})(?!\d)/gi,
       )) {
         if (
           pc &&
@@ -527,7 +528,7 @@ export function assessConsumerListing(
 ): Readonly<{ status: "eligible" | "excluded" | "pending"; reasons: readonly string[] }> {
   const missing: string[] = [];
   const excluded: string[] = listing.availability === "unavailable" ? ["unavailable"] : [];
-  if (listing.condition !== "new") {
+  if (!consumerListingConditionEligible(listing.condition ?? "unknown", category)) {
     excluded.push("condition_not_new");
   }
   for (const [id, required] of Object.entries(conditions)) {

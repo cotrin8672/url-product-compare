@@ -513,6 +513,38 @@ await test("unknown and used conditions remain recovered unsupported sources and
   }
 });
 
+await test("opted-in categories compare unlabelled conditions without turning them into new or admitting used goods", async () => {
+  const catalog = buildConsumerCatalog([{ ...testCategory, allowUnknownCondition: true }]);
+  for (const condition of ["unknown", "used", "refurbished"] satisfies ReadonlyArray<
+    ConsumerListing["condition"]
+  >) {
+    const source: ConsumerListing = { ...syntheticListing("source", 40_000), condition };
+    const service = createConsumerComparisonService(
+      [syntheticProvider({ lookup: () => Promise.resolve(ok(source)) })],
+      undefined,
+      clock,
+      catalog,
+    );
+    const detected = await service.detect({ url: comparisonInput.url, keyword: null });
+    if (detected.tag !== "ok") {
+      throw new Error(detected.error.code);
+    }
+    assert.equal(detected.value.status, condition === "unknown" ? "detected" : "unsupported");
+    assert.equal(detected.value.source?.condition, condition);
+    const compared = await service.compare(comparisonInput);
+    if (condition === "unknown") {
+      if (compared.tag !== "ok") {
+        throw new Error(compared.error.code);
+      }
+      assert.equal(compared.value.source.condition, "unknown");
+      assert.equal(compared.value.status, "ranked");
+      assert.equal(compared.value.categoryDefinition.allowUnknownCondition, true);
+    } else {
+      assert.deepEqual(compared, { tag: "err", error: { code: "listing_not_eligible" } });
+    }
+  }
+});
+
 await test("catalog rejects duplicate IDs, bad field references, bounds, presets and scoring axes", () => {
   const hyphenated: ConsumerCategoryDefinition = { ...testCategory, id: "test-appliance" };
   const catalog = buildConsumerCatalog([hyphenated]);
@@ -561,6 +593,7 @@ await test("listing conditions require positive new evidence and reject negation
     ["新品ではありません", "unknown"],
     ["未使用中古", "used"],
     ["新品 未使用中古", "used"],
+    ["中古 Dell Optiplex 新品NVMe512GB", "used"],
     ["未使用", "unknown"],
     ["新古品", "unknown"],
     ["brand new old stock", "unknown"],
