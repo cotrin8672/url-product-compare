@@ -2,6 +2,7 @@ import { andThen, err, ok, sequence } from "../../comparison/algebra.js";
 import type { Result } from "../../comparison/algebra.js";
 import { readConsumerListingCondition } from "../../comparison/consumer-catalog.js";
 import type { ConsumerListingCondition } from "../../comparison/consumer-catalog.js";
+import type { ConsumerCategoryAttribute } from "../../comparison/consumer-provider.js";
 import { readConsumerInformation } from "../../comparison/consumer.js";
 import type { ConsumerCategory, ConsumerInformation } from "../../comparison/consumer.js";
 import { readMonitorSpecifications } from "../../comparison/monitor.js";
@@ -231,6 +232,11 @@ function image(input: unknown): string | null {
 
 function itemDescription(input: string): string {
   return input
+    .replace(
+      /<t[hd]\b[^>]*>([\s\S]*?)<\/t[hd]>\s*<td\b[^>]*>([\s\S]*?)<\/td>/gi,
+      (_match: string, label: string, value: string) =>
+        `${label.replace(/<[^>]*>/g, " ")}: ${value.replace(/<[^>]*>/g, " ")}\n`,
+    )
     .replace(/<(?:br|\/p|\/div|\/tr|\/li)\b[^>]*>/gi, "\n")
     .replace(/<[^>]*>/g, " ")
     .replace(/&nbsp;/gi, " ")
@@ -491,7 +497,7 @@ export function createRakutenSearch(
         !Number.isSafeInteger(options.hits ?? 10) ||
         (options.hits ?? 10) < 1 ||
         (options.hits ?? 10) > 30 ||
-        search.length === 0 ||
+        (search.length === 0 && genreId === undefined) ||
         new TextEncoder().encode(search).length > 128 ||
         (options.excludeKeyword !== undefined &&
           (options.excludeKeyword.length === 0 ||
@@ -518,7 +524,7 @@ export function createRakutenSearch(
         formatVersion: "2",
         ...(shopCode === null ? {} : { shopCode }),
         ...(genreId === undefined ? {} : { genreId }),
-        keyword: search,
+        ...(search.length === 0 ? {} : { keyword: search }),
         availability: "0",
         ...(options.excludeKeyword === undefined ? {} : { NGKeyword: options.excludeKeyword }),
         hits: String(options.hits ?? (shopCode === null ? 10 : 30)),
@@ -699,7 +705,45 @@ export function createRakutenLookup(
   };
 }
 
-/** Fetch ancestor genre IDs once per genre and reuse for category routing. */
+type RakutenGenre = Readonly<{
+  id: string;
+  label: string | null;
+  lineage: readonly string[];
+  attributes: readonly ConsumerCategoryAttribute[] | null;
+}>;
+
+function genreAttributes(input: unknown): readonly ConsumerCategoryAttribute[] | null {
+  if (!Array.isArray(input) || input.length > 128) {
+    return null;
+  }
+  const entries: readonly unknown[] = input;
+  const attributes: ConsumerCategoryAttribute[] = [];
+  const ids = new Set<number>();
+  for (const entry of entries) {
+    if (!record(entry)) {
+      return null;
+    }
+    const id = entry["attributeId"] ?? entry["id"];
+    const label = entry["nameJa"];
+    if (
+      typeof id !== "number" ||
+      !Number.isSafeInteger(id) ||
+      id <= 0 ||
+      ids.has(id) ||
+      typeof label !== "string" ||
+      label.trim().length === 0 ||
+      label.length > 80 ||
+      /[\p{Cc}]/u.test(label)
+    ) {
+      return null;
+    }
+    ids.add(id);
+    attributes.push(Object.freeze({ id, label: label.trim() }));
+  }
+  return Object.freeze(attributes);
+}
+
+/** Share the genre's lineage and attribute dictionary with a bounded, expiring cache. */
 export function createRakutenGenreResolver(
   configuration: RakutenConfiguration,
   clock: () => Instant,
@@ -707,9 +751,9 @@ export function createRakutenGenreResolver(
 ): (
   genreId: string | null | undefined,
   options?: Readonly<{ signal?: AbortSignal }>,
-) => Promise<readonly string[]> {
+) => Promise<RakutenGenre | null> {
   const request = pacedFetcher(configuration, fetcher);
-  const cache = new Map<string, readonly string[]>();
+  const cache = new Map<string, Readonly<{ genre: RakutenGenre; expires: number }>>();
   return async (genreId, options) => {
     if (
       genreId === null ||
@@ -718,14 +762,14 @@ export function createRakutenGenreResolver(
       !permitted(configuration.rights.fetch, clock()) ||
       !permitted(configuration.rights.display, clock())
     ) {
-      return Object.freeze([]);
+      return null;
     }
     const cached = cache.get(genreId);
-    if (cached !== undefined) {
-      return cached;
+    if (cached !== undefined && cached.expires > Date.parse(valueOf(clock()))) {
+      return cached.genre;
     }
     if (options?.signal?.aborted === true) {
-      return Object.freeze([]);
+      return null;
     }
     try {
       const endpoint = new URL(
@@ -743,11 +787,11 @@ export function createRakutenGenreResolver(
         signal: requestSignal(options?.signal, 5000),
       });
       if (!response.ok) {
-        return Object.freeze([]);
+        return null;
       }
       const raw = await response.text();
       if (new TextEncoder().encode(raw).length > 262144) {
-        return Object.freeze([]);
+        return null;
       }
       const body: unknown = JSON.parse(raw);
       if (
@@ -757,7 +801,7 @@ export function createRakutenGenreResolver(
         !Array.isArray(body["ancestors"]) ||
         body["ancestors"].length > 10
       ) {
-        return Object.freeze([]);
+        return null;
       }
       const ancestors: readonly unknown[] = body["ancestors"];
       const lineage = Object.freeze(
@@ -770,12 +814,33 @@ export function createRakutenGenreResolver(
       );
       options?.signal?.throwIfAborted();
       if (!permitted(configuration.rights.display, clock())) {
-        return Object.freeze([]);
+        return null;
       }
-      cache.set(genreId, lineage);
-      return lineage;
+      const name = body["genre"]["nameJa"];
+      const genre: RakutenGenre = Object.freeze({
+        id: genreId,
+        label:
+          typeof name === "string" &&
+          name.trim().length > 0 &&
+          name.length <= 80 &&
+          !/[\p{Cc}]/u.test(name)
+            ? name.trim()
+            : null,
+        lineage,
+        attributes: genreAttributes(body["attributes"] ?? []),
+      });
+      cache.delete(genreId);
+      cache.set(genreId, { genre, expires: Date.parse(valueOf(clock())) + 86_400_000 });
+      if (cache.size > 128) {
+        const oldest = cache.keys().next().value;
+        if (oldest !== undefined) {
+          cache.delete(oldest);
+        }
+      }
+      return genre;
     } catch {
-      return Object.freeze([]);
+      options?.signal?.throwIfAborted();
+      return null;
     }
   };
 }

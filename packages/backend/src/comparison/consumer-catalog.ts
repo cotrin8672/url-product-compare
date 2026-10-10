@@ -22,6 +22,7 @@ type ConsumerFieldExtraction =
   | Readonly<{ kind: "numberPattern"; pattern: string }>
   | Readonly<{ kind: "resolution" }>
   | Readonly<{ kind: "booleanFlag"; labels: string }>
+  | Readonly<{ kind: "attribute" }>
   | Readonly<{ kind: "labeledText"; labels: string }>;
 
 export type ConsumerFieldDefinition = ConsumerField &
@@ -37,6 +38,7 @@ export type ConsumerCategoryDefinition = Readonly<{
   mainFields: readonly string[];
   fields: readonly ConsumerFieldDefinition[];
   axes: readonly ConsumerCategoryAxis[];
+  allowUnknownCondition?: boolean;
 }>;
 
 export type ConsumerCatalogCategory = Readonly<{
@@ -46,6 +48,7 @@ export type ConsumerCatalogCategory = Readonly<{
   fields: readonly ConsumerField[];
   mainFields: readonly string[];
   axes: readonly ConsumerCategoryAxis[];
+  allowUnknownCondition?: boolean;
 }>;
 
 export type ConsumerCatalog = Readonly<{
@@ -813,13 +816,16 @@ const defaultCategoryEntries: readonly ConsumerCategoryDefinition[] = Object.fre
   ),
 );
 
-function toPublicCategory(category: ConsumerCategoryDefinition): ConsumerCatalogCategory {
+export function toPublicCategory(category: ConsumerCategoryDefinition): ConsumerCatalogCategory {
   return Object.freeze({
     id: category.id,
     label: category.label,
     description: category.description,
     mainFields: category.mainFields,
     axes: category.axes,
+    ...(category.allowUnknownCondition === undefined
+      ? {}
+      : { allowUnknownCondition: category.allowUnknownCondition }),
     fields: Object.freeze(
       category.fields.map((fieldDefinition) =>
         Object.freeze({
@@ -847,7 +853,12 @@ export function buildConsumerCatalog(
     }
     ids.add(category.id);
     const fields = new Map(category.fields.map((definition) => [definition.id, definition]));
-    if (fields.size !== category.fields.length || category.label.trim().length === 0) {
+    if (
+      fields.size !== category.fields.length ||
+      category.label.trim().length === 0 ||
+      (category.allowUnknownCondition !== undefined &&
+        typeof category.allowUnknownCondition !== "boolean")
+    ) {
       throw new Error(`Invalid consumer fields: ${category.id}`);
     }
     for (const definition of category.fields) {
@@ -879,13 +890,13 @@ export function buildConsumerCatalog(
         const kind =
           extraction.kind === "booleanFlag"
             ? "boolean"
-            : extraction.kind === "labeledText"
+            : extraction.kind === "labeledText" || extraction.kind === "attribute"
               ? "text"
               : "number";
         if (kind !== definition.kind) {
           throw new Error(`Invalid consumer extraction: ${category.id}.${definition.id}`);
         }
-        if (extraction.kind !== "resolution") {
+        if (extraction.kind !== "resolution" && extraction.kind !== "attribute") {
           new RegExp(
             extraction.kind === "numberPattern" ? extraction.pattern : extraction.labels,
             "gi",
@@ -1007,8 +1018,13 @@ export function readConsumerListingCondition(
   return "unknown";
 }
 
-export function consumerListingConditionEligible(condition: ConsumerListingCondition): boolean {
-  return condition === "new";
+export function consumerListingConditionEligible(
+  condition: ConsumerListingCondition,
+  category?: Pick<ConsumerCategoryDefinition, "allowUnknownCondition">,
+): boolean {
+  return (
+    condition === "new" || (condition === "unknown" && category?.allowUnknownCondition === true)
+  );
 }
 
 export function readFieldNumberPattern(definition: ConsumerFieldDefinition): string | null {

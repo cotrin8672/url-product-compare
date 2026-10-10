@@ -20,6 +20,7 @@ export type CatalogCategory = Readonly<{
   fields: readonly CatalogField[];
   mainFields: readonly string[];
   axes: readonly CatalogAxis[];
+  allowUnknownCondition?: boolean;
 }>;
 
 type CatalogProvider = Readonly<{
@@ -27,6 +28,7 @@ type CatalogProvider = Readonly<{
   label: string;
   urlHosts: readonly string[];
   affiliateHosts: readonly string[];
+  automaticCategories?: boolean;
 }>;
 
 export type ProductCatalog = Readonly<{
@@ -96,6 +98,7 @@ export type ConsumerComparison = Readonly<{
   storageExpiresAt: string | null;
   aiCalls: Readonly<{ openai: 0; jev: number }>;
   extractionStatus: "not_needed" | "not_configured" | "applied" | "unavailable";
+  categorySelectionStatus?: CategorySelectionStatus;
   search: Readonly<{
     pages: number;
     examined: number;
@@ -112,12 +115,16 @@ export type ConsumerComparison = Readonly<{
 }>;
 
 type DetectStatus = "detected" | "needs_confirmation" | "unsupported";
+type CategorySelectionStatus = "applied" | "not_configured" | "unavailable" | "no_attributes";
 
 export type DetectResult = Readonly<{
   status: DetectStatus;
   source: ConsumerListing | null;
   categories: readonly string[];
   category: string | null;
+  categoryDefinition?: CatalogCategory;
+  aiCalls?: Readonly<{ openai: 0; jev: number }>;
+  categorySelectionStatus?: CategorySelectionStatus;
 }>;
 
 export type ComparisonJobState = "queued" | "running" | "succeeded" | "failed" | "cancelled";
@@ -271,8 +278,9 @@ function parseCategory(input: unknown): CatalogCategory | null {
     input["label"].length === 0 ||
     typeof input["description"] !== "string" ||
     !Array.isArray(input["fields"]) ||
-    input["fields"].length === 0 ||
-    input["fields"].length > 64
+    input["fields"].length > 64 ||
+    (input["allowUnknownCondition"] !== undefined &&
+      typeof input["allowUnknownCondition"] !== "boolean")
   ) {
     return null;
   }
@@ -314,6 +322,9 @@ function parseCategory(input: unknown): CatalogCategory | null {
     description: input["description"],
     fields: Object.freeze(fields.flatMap((field) => (field === null ? [] : [field]))),
     mainFields,
+    ...(typeof input["allowUnknownCondition"] === "boolean"
+      ? { allowUnknownCondition: input["allowUnknownCondition"] }
+      : {}),
     axes: Object.freeze(axes.flatMap((axis) => (axis === null ? [] : [axis]))),
   });
 }
@@ -324,7 +335,9 @@ function parseProvider(input: unknown): CatalogProvider | null {
     typeof input["id"] !== "string" ||
     !/^[a-z][a-z0-9_-]{0,63}$/.test(input["id"]) ||
     typeof input["label"] !== "string" ||
-    input["label"].length === 0
+    input["label"].length === 0 ||
+    (input["automaticCategories"] !== undefined &&
+      typeof input["automaticCategories"] !== "boolean")
   ) {
     return null;
   }
@@ -339,7 +352,15 @@ function parseProvider(input: unknown): CatalogProvider | null {
   ) {
     return null;
   }
-  return Object.freeze({ id: input["id"], label: input["label"], urlHosts, affiliateHosts });
+  return Object.freeze({
+    id: input["id"],
+    label: input["label"],
+    urlHosts,
+    affiliateHosts,
+    ...(typeof input["automaticCategories"] === "boolean"
+      ? { automaticCategories: input["automaticCategories"] }
+      : {}),
+  });
 }
 
 export function parseProductCatalog(input: unknown): ProductCatalog {
@@ -379,6 +400,30 @@ export function categoryDefinition(
   categoryId: string,
 ): CatalogCategory | undefined {
   return catalog.categories.find((entry) => entry.id === categoryId);
+}
+
+export function isAutomaticCategory(catalog: ProductCatalog, id: string): boolean {
+  return catalog.providers.some(
+    (provider) =>
+      provider.automaticCategories === true &&
+      id.startsWith(`${provider.id}_`) &&
+      /^\d{1,6}$/.test(id.slice(provider.id.length + 1)),
+  );
+}
+
+function categorySelectionStatus(input: unknown): CategorySelectionStatus | undefined {
+  if (input === undefined) {
+    return undefined;
+  }
+  if (
+    input !== "applied" &&
+    input !== "not_configured" &&
+    input !== "unavailable" &&
+    input !== "no_attributes"
+  ) {
+    throw new Error("比較項目の選定結果を検証できませんでした");
+  }
+  return input;
 }
 
 function matchProviderForUrl(
@@ -809,8 +854,9 @@ export function parseConsumerComparison(
       : undefined;
   if (
     parsedCategory === null ||
-    knownCategory === undefined ||
-    JSON.stringify(parsedCategory) !== JSON.stringify(knownCategory)
+    (!isAutomaticCategory(catalog, parsedCategory.id) &&
+      (knownCategory === undefined ||
+        JSON.stringify(parsedCategory) !== JSON.stringify(knownCategory)))
   ) {
     throw new Error("カテゴリ定義を検証できませんでした");
   }
@@ -826,7 +872,10 @@ export function parseConsumerComparison(
     value["products"].length > 6 ||
     !record(value["aiCalls"]) ||
     value["aiCalls"]["openai"] !== 0 ||
-    (value["aiCalls"]["jev"] !== 0 && value["aiCalls"]["jev"] !== 1) ||
+    typeof value["aiCalls"]["jev"] !== "number" ||
+    !Number.isSafeInteger(value["aiCalls"]["jev"]) ||
+    value["aiCalls"]["jev"] < 0 ||
+    value["aiCalls"]["jev"] > (isAutomaticCategory(catalog, parsedCategory.id) ? 2 : 1) ||
     !["not_needed", "not_configured", "applied", "unavailable"].includes(
       String(value["extractionStatus"]),
     )
@@ -851,7 +900,10 @@ export function parseConsumerComparison(
       throw new Error("比較対象を検証できませんでした");
     }
     const listing = parseConsumerListing(entry, providerDefinitions, definition);
-    if (listing.condition !== "new") {
+    if (
+      listing.condition !== "new" &&
+      !(listing.condition === "unknown" && definition.allowUnknownCondition === true)
+    ) {
       throw new Error("比較対象は新品掲載のみです");
     }
     const info = listing.consumerInformation;
@@ -924,7 +976,16 @@ export function parseConsumerComparison(
     });
   });
   const source = parseConsumerListing(value["source"], providerDefinitions, definition);
-  if (source.condition !== "new") {
+  if (
+    isAutomaticCategory(catalog, definition.id) &&
+    !definition.id.startsWith(`${source.provider}_`)
+  ) {
+    throw new Error("カテゴリ定義を検証できませんでした");
+  }
+  if (
+    source.condition !== "new" &&
+    !(source.condition === "unknown" && definition.allowUnknownCondition === true)
+  ) {
     throw new Error("比較対象は新品掲載のみです");
   }
   const sourceProduct = products.find(
@@ -1050,6 +1111,7 @@ export function parseConsumerComparison(
   }
   const status = value["status"];
   const extractionStatus = value["extractionStatus"];
+  const selectionStatus = categorySelectionStatus(value["categorySelectionStatus"]);
   const storageExpiresAt = value["storageExpiresAt"] ?? null;
   if (
     (status !== "compared" &&
@@ -1087,6 +1149,7 @@ export function parseConsumerComparison(
     storageExpiresAt,
     aiCalls: Object.freeze({ openai: 0, jev: value["aiCalls"]["jev"] }),
     extractionStatus,
+    ...(selectionStatus === undefined ? {} : { categorySelectionStatus: selectionStatus }),
     search: Object.freeze({
       pages,
       examined,
@@ -1112,11 +1175,25 @@ export function parseDetectResult(input: unknown, catalog: ProductCatalog): Dete
   }
   const categories = stringArray(value["categories"], 16, 64);
   const category = value["category"];
+  const definition =
+    value["categoryDefinition"] === undefined
+      ? undefined
+      : parseCategory(value["categoryDefinition"]);
+  const definitionValid =
+    definition !== null &&
+    definition !== undefined &&
+    definition.id === category &&
+    isAutomaticCategory(catalog, definition.id);
   if (
     categories === null ||
-    categories.some((id) => categoryDefinition(catalog, id) === undefined) ||
+    (definition !== undefined && !definitionValid) ||
+    categories.some(
+      (id) =>
+        categoryDefinition(catalog, id) === undefined && !(definitionValid && id === definition.id),
+    ) ||
     (category !== null &&
-      (typeof category !== "string" || categoryDefinition(catalog, category) === undefined))
+      (typeof category !== "string" ||
+        (categoryDefinition(catalog, category) === undefined && !definitionValid)))
   ) {
     throw new Error("カテゴリ判定を検証できませんでした");
   }
@@ -1127,11 +1204,35 @@ export function parseDetectResult(input: unknown, catalog: ProductCatalog): Dete
   if (status === "detected" && (typeof category !== "string" || source === null)) {
     throw new Error("カテゴリ判定を検証できませんでした");
   }
+  if (
+    definitionValid &&
+    source?.provider !==
+      catalog.providers.find((provider) => definition.id.startsWith(`${provider.id}_`))?.id
+  ) {
+    throw new Error("カテゴリ判定を検証できませんでした");
+  }
+  const selectionStatus = categorySelectionStatus(value["categorySelectionStatus"]);
+  const calls = value["aiCalls"];
+  if (
+    calls !== undefined &&
+    (!record(calls) || calls["openai"] !== 0 || (calls["jev"] !== 0 && calls["jev"] !== 1))
+  ) {
+    throw new Error("AI呼び出し回数を検証できませんでした");
+  }
   return Object.freeze({
     status,
     source,
     categories,
     category: typeof category === "string" ? category : null,
+    ...(definitionValid ? { categoryDefinition: definition } : {}),
+    ...(record(calls) && (calls["jev"] === 0 || calls["jev"] === 1)
+      ? {
+          aiCalls: Object.freeze({ openai: 0, jev: calls["jev"] } satisfies NonNullable<
+            DetectResult["aiCalls"]
+          >),
+        }
+      : {}),
+    ...(selectionStatus === undefined ? {} : { categorySelectionStatus: selectionStatus }),
   });
 }
 

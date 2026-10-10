@@ -1,6 +1,7 @@
 import {
   authHeaders,
   categoryDefinition,
+  isAutomaticCategory,
   parseComparisonJob,
   parseConsumerComparison,
   parseConsumerConditions,
@@ -40,6 +41,7 @@ export {
   parseDetectResult,
   parseProductCatalog,
   parsePublicCompareRoute,
+  isAutomaticCategory,
   parseComparisonJob,
   readActiveComparisonCategory,
   readComparisonSession,
@@ -86,6 +88,21 @@ async function requireCatalog(options: ApiRequestOptions): Promise<ProductCatalo
   return await fetchProductCatalog(options);
 }
 
+function checkCategoryConditions(
+  catalog: ProductCatalog,
+  categoryId: string,
+  conditions: ConsumerConditions,
+): ConsumerConditions {
+  const definition = categoryDefinition(catalog, categoryId);
+  if (definition !== undefined) {
+    return parseConsumerConditions(conditions, definition);
+  }
+  if (isAutomaticCategory(catalog, categoryId) && Object.keys(conditions).length === 0) {
+    return Object.freeze({});
+  }
+  throw new Error("カテゴリと比較条件を確認してください");
+}
+
 export async function detectProductCategory(
   url: string,
   options: ApiRequestOptions & Readonly<{ keyword?: string }> = {},
@@ -96,7 +113,7 @@ export async function detectProductCategory(
     options.keyword === undefined || options.keyword.trim().length === 0
       ? null
       : options.keyword.trim();
-  return parseDetectResult(
+  const detected = parseDetectResult(
     await fetchApi(
       "/api/detect",
       { method: "POST", headers: authHeaders(options), body: JSON.stringify({ url, keyword }) },
@@ -104,6 +121,21 @@ export async function detectProductCategory(
     ),
     catalog,
   );
+  if (detected.categoryDefinition !== undefined) {
+    cachedCatalog = {
+      base: resolveApiBase(options.apiBase),
+      catalog: {
+        ...catalog,
+        categories: [
+          ...catalog.categories.filter(
+            (category) => category.id !== detected.categoryDefinition?.id,
+          ),
+          detected.categoryDefinition,
+        ],
+      },
+    };
+  }
+  return detected;
 }
 
 export async function startConsumerComparisonJob(
@@ -126,13 +158,8 @@ export async function startConsumerComparisonJob(
   ) {
     throw new Error("比較操作のキーを確認してください");
   }
-  if (input.category !== null && categoryDefinition(catalog, input.category) === undefined) {
-    throw new Error("カテゴリを選択してください");
-  }
-  const definition =
-    input.category === null ? undefined : categoryDefinition(catalog, input.category);
-  if (definition !== undefined) {
-    parseConsumerConditions(input.conditions, definition);
+  if (input.category !== null) {
+    checkCategoryConditions(catalog, input.category, input.conditions);
   }
   const keyword =
     input.keyword === undefined || input.keyword.trim().length === 0 ? null : input.keyword.trim();
@@ -215,11 +242,7 @@ export async function compareConsumerProducts(
   options: ApiRequestOptions & Readonly<{ keyword?: string }> = {},
 ): Promise<ConsumerComparison> {
   const catalog = await requireCatalog(options);
-  const definition = categoryDefinition(catalog, categoryId);
-  if (definition === undefined) {
-    throw new Error("カテゴリを選択してください");
-  }
-  const checked = parseConsumerConditions(input, definition);
+  const checked = checkCategoryConditions(catalog, categoryId, input);
   const requested = validateProductUrl(url, catalog.providers);
   const provider = catalog.providers.find((entry) => entry.urlHosts.includes(requested.hostname));
   const expectedUrl =

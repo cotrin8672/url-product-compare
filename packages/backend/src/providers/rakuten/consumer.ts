@@ -1,5 +1,7 @@
 import { err, ok } from "../../comparison/algebra.js";
+import { createConsumerCategoryDiscovery } from "../../comparison/consumer-discovery.js";
 import type {
+  ConsumerCategorySelection,
   ConsumerAttachedListing,
   ConsumerListing,
   ConsumerProvider,
@@ -35,11 +37,12 @@ export function createRakutenConsumerProvider(
   configuration: RakutenConfiguration,
   clock: () => Instant,
   fetcher: typeof fetch = fetch,
+  selectCategory?: ConsumerCategorySelection,
 ): ConsumerProvider {
   const lookup = createRakutenLookup(configuration, clock, fetcher, 3);
   const search = createRakutenSearch(configuration, clock, fetcher);
   const enrichListings = createRakutenEnricher(configuration, clock, undefined, fetcher);
-  const resolveGenreLineage = createRakutenGenreResolver(configuration, clock, fetcher);
+  const resolveGenre = createRakutenGenreResolver(configuration, clock, fetcher);
   const rawListings = new WeakMap<ConsumerListing, RakutenListing>();
   const normalize = (raw: RakutenListing): ConsumerListing => {
     const listing: ConsumerListing = Object.freeze({
@@ -66,12 +69,27 @@ export function createRakutenConsumerProvider(
     rawListings.set(listing, raw);
     return listing;
   };
+  const readPermissions: ConsumerProvider["permissions"] = (now: Instant) => {
+    const store = permitted(configuration.rights.store, now);
+    return Object.freeze({
+      display: permitted(configuration.rights.display, now),
+      fetch: permitted(configuration.rights.fetch, now),
+      affiliate: permitted(configuration.rights.affiliate, now),
+      ai: permitted(configuration.rights.ai, now),
+      store,
+      storeExpiresAt:
+        store && configuration.rights.store.status === "granted"
+          ? valueOf(configuration.rights.store.expiresAt)
+          : null,
+    });
+  };
   const provider: ConsumerProvider = {
     metadata: Object.freeze({
       id: "rakuten",
       label: "楽天市場",
       urlHosts: Object.freeze(["item.rakuten.co.jp"]),
       affiliateHosts: Object.freeze(["hb.afl.rakuten.co.jp"]),
+      automaticCategories: true,
     }),
     acceptsUrl(url: string): boolean {
       const parsed = httpsUrl(url);
@@ -85,7 +103,16 @@ export function createRakutenConsumerProvider(
       const result = await lookup(url, keyword, options?.fallbackKeyword, options);
       return result.tag === "err" ? err(mapLookupError(result.error)) : ok(normalize(result.value));
     },
-    resolveGenreLineage,
+    async resolveGenreLineage(genreId, options) {
+      return (await resolveGenre(genreId, options))?.lineage ?? Object.freeze([]);
+    },
+    discoverCategory: createConsumerCategoryDiscovery(
+      "rakuten",
+      resolveGenre,
+      selectCategory,
+      clock,
+      readPermissions,
+    ),
     categoryMatchesLineage(category, genreId, lineage) {
       const binding = category.providerBindings?.["rakuten"];
       return (
@@ -97,13 +124,20 @@ export function createRakutenConsumerProvider(
       if (binding === undefined) {
         return err({ code: "unsupported_category" });
       }
-      const result = await search(binding.keyword, null, binding.genreId, {
+      const automatic = category.id === `rakuten_${binding.genreId}`;
+      const donation = input.source?.title.includes("ふるさと納税") ?? false;
+      const keyword = donation ? "ふるさと納税" : automatic ? "" : binding.keyword;
+      const excludeKeyword = [
+        binding.searchExcludeKeyword ?? "",
+        automatic && !donation ? "ふるさと納税" : "",
+      ]
+        .filter((value) => value.length > 0)
+        .join(" ");
+      const result = await search(keyword, null, binding.genreId, {
         page: input.page,
         hits: input.hits,
         invalidAffiliate: "skip",
-        ...(binding.searchExcludeKeyword === undefined
-          ? {}
-          : { excludeKeyword: binding.searchExcludeKeyword }),
+        ...(excludeKeyword.length === 0 ? {} : { excludeKeyword }),
         ...(options?.signal === undefined ? {} : { signal: options.signal }),
       });
       if (result.tag === "err") {
@@ -112,7 +146,14 @@ export function createRakutenConsumerProvider(
       return ok(
         Object.freeze({
           count: result.value.count,
-          listings: Object.freeze(result.value.listings.map(normalize)),
+          listings: Object.freeze(
+            result.value.listings
+              .filter(
+                (listing) =>
+                  input.source === undefined || listing.title.includes("ふるさと納税") === donation,
+              )
+              .map(normalize),
+          ),
         }),
       );
     },
@@ -138,20 +179,7 @@ export function createRakutenConsumerProvider(
       rawListings.set(attached, raw);
       return attached;
     },
-    permissions(now: Instant) {
-      const store = permitted(configuration.rights.store, now);
-      return Object.freeze({
-        display: permitted(configuration.rights.display, now),
-        fetch: permitted(configuration.rights.fetch, now),
-        affiliate: permitted(configuration.rights.affiliate, now),
-        ai: permitted(configuration.rights.ai, now),
-        store,
-        storeExpiresAt:
-          store && configuration.rights.store.status === "granted"
-            ? valueOf(configuration.rights.store.expiresAt)
-            : null,
-      });
-    },
+    permissions: readPermissions,
   };
   return Object.freeze(provider);
 }

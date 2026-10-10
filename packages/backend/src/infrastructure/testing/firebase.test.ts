@@ -2763,3 +2763,278 @@ await test("consumer job cancellation aborts the optional Jev evidence request w
   await aborted.wait;
   assert.equal(signals[0]?.aborted, true);
 });
+
+const discoveryNow = Date.now();
+const discoverySettings = {
+  applicationId: "example-app-1234",
+  accessKey: "example-access-key-1234567890",
+  affiliateId: "11111111.22222222.33333333.44444444",
+  allowedOrigin: "https://example-compare.web.app/",
+  authorizedUntil: new Date(discoveryNow + 3 * 86_400_000).toISOString(),
+  accessToken: "example-test-token-12345678901234567890",
+};
+const discoveryJevSettings = { apiKey: "test-only-key", model: "jev-1.13.0" };
+function discoveryClock(time = discoveryNow): Instant {
+  const value = instant(new Date(time).toISOString());
+  if (value.tag === "err") {
+    throw new Error("Invalid fixture clock");
+  }
+  return value.value;
+}
+
+const discoveryAttributes = [
+  { id: 11, label: "総重量" },
+  { id: 12, label: "産地（都道府県）" },
+  { id: 13, label: "シリーズ名（カナ）" },
+];
+
+function discoveryGenreResponse(
+  rawAttributes: unknown = discoveryAttributes.map((attribute) => ({
+    attributeId: attribute.id,
+    nameJa: attribute.label,
+  })),
+): Response {
+  return Response.json({
+    genre: { genreId: 201184, nameJa: "白米" },
+    ancestors: [{ genreId: 100227 }],
+    attributes: rawAttributes,
+  });
+}
+
+function discoveryRiceItem(id: string, donation = true) {
+  const url = `https://item.rakuten.co.jp/shop/${id}/`;
+  return {
+    itemCode: `shop:${id}`,
+    itemName: `${donation ? "【ふるさと納税】" : ""}白米 5kg`,
+    itemUrl: url,
+    affiliateUrl: `https://hb.afl.rakuten.co.jp/hgc/${discoverySettings.affiliateId}/?${new URLSearchParams({ pc: url }).toString()}`,
+    itemCaption:
+      "<table><tr><th>総重量</th><td>5kg</td></tr><tr><th>産地</th><td>北海道</td></tr></table>",
+    shopCode: "shop",
+    shopName: "米の店",
+    itemPriceBaseField: "item_price_min1",
+    itemPriceMin1: 15000,
+    itemPriceMax1: 15000,
+    taxFlag: 0,
+    postageFlag: 0,
+    availability: 1,
+    genreId: 201184,
+  };
+}
+
+await test("automatic category selection rejects malformed Jev responses and malformed attribute dictionaries", async (context) => {
+  let answer: unknown = {
+    type: "choice",
+    choice: "major",
+    confidence: 0.7,
+    probabilities: { major: 0.7, supporting: 0.3, exclude: 0, unknown: 0 },
+  };
+  let rawAttributes: unknown = discoveryAttributes
+    .slice(0, 2)
+    .map((attribute) => ({ attributeId: attribute.id, nameJa: attribute.label }));
+  let calls = 0;
+  context.mock.method(globalThis, "fetch", (input: unknown, init?: RequestInit) => {
+    if (input === "https://api.typesafe.ai/v1/systemone") {
+      calls += 1;
+      assert.ok(typeof init?.body === "string");
+      const body: unknown = JSON.parse(init.body);
+      assert.ok(record(body) && record(body["questions"]));
+      assert.equal(body["model"], "jev-1.13.0");
+      return Promise.resolve(
+        Response.json({
+          model: "jev-1.13.0",
+          answers: Object.fromEntries(Object.keys(body["questions"]).map((id) => [id, answer])),
+        }),
+      );
+    }
+    assert.ok(input instanceof URL);
+    return Promise.resolve(
+      input.pathname.includes("IchibaGenre/Search")
+        ? discoveryGenreResponse(rawAttributes)
+        : Response.json({ count: 1, Items: [discoveryRiceItem("source")] }),
+    );
+  });
+  const event = {
+    method: "POST",
+    path: "/api/detect",
+    query: "",
+    headers: { authorization: `Bearer ${discoverySettings.accessToken}` },
+    body: JSON.stringify({ url: "https://item.rakuten.co.jp/shop/source/" }),
+  };
+  for (const invalid of [
+    {
+      type: "choice",
+      choice: "invented",
+      confidence: 1,
+      probabilities: { major: 1, supporting: 0, exclude: 0, unknown: 0 },
+    },
+    {
+      type: "choice",
+      choice: "major",
+      confidence: 1,
+      probabilities: { major: 0.98, supporting: 0.01, exclude: 0, unknown: 0 },
+    },
+    {
+      type: "choice",
+      choice: "major",
+      confidence: 2,
+      probabilities: { major: 1, supporting: 0, exclude: 0, unknown: 0 },
+    },
+    {
+      type: "choice",
+      choice: "major",
+      confidence: 1,
+      probabilities: { major: 0.2, supporting: 0.8, exclude: 0, unknown: 0 },
+    },
+  ]) {
+    answer = invalid;
+    const response = await createApiHandler(false, discoverySettings, null, discoveryJevSettings, {
+      clock: discoveryClock,
+    })(event);
+    assert.equal(response.statusCode, 200, response.body);
+    const body: unknown = JSON.parse(response.body);
+    assert.ok(record(body) && record(body["value"]) && record(body["value"]["categoryDefinition"]));
+    assert.equal(body["value"]["categorySelectionStatus"], "unavailable");
+    assert.deepEqual(body["value"]["categoryDefinition"]["mainFields"], []);
+  }
+  const beforeInvalidDictionary = calls;
+  for (const invalid of [
+    [{ attributeId: -1, nameJa: "不正" }],
+    [
+      { attributeId: 11, nameJa: "値" },
+      { attributeId: 11, nameJa: "重複" },
+    ],
+  ]) {
+    rawAttributes = invalid;
+    const response = await createApiHandler(false, discoverySettings, null, discoveryJevSettings, {
+      clock: discoveryClock,
+    })(event);
+    const body: unknown = JSON.parse(response.body);
+    assert.ok(record(body) && record(body["value"]));
+    assert.equal(body["value"]["categorySelectionStatus"], "unavailable");
+  }
+  assert.equal(calls, beforeInvalidDictionary);
+});
+
+await test("HTTP comparison unlocks rice, reuses Jev selection, preserves HTML evidence and separates donations from retail", async (context) => {
+  let jevCalls = 0;
+  context.mock.method(globalThis, "fetch", (input: unknown, init?: RequestInit) => {
+    if (input === "https://api.typesafe.ai/v1/systemone") {
+      jevCalls += 1;
+      assert.ok(typeof init?.body === "string");
+      const body: unknown = JSON.parse(init.body);
+      assert.ok(record(body) && record(body["questions"]));
+      assert.deepEqual(Object.keys(body["questions"]), ["a11", "a12"]);
+      return Promise.resolve(
+        Response.json({
+          model: "jev-1.13.0",
+          answers: Object.fromEntries(
+            Object.keys(body["questions"]).map((id) => [
+              id,
+              {
+                type: "choice",
+                choice: "major",
+                confidence: 0.7,
+                probabilities: { major: 0.7, supporting: 0.3, exclude: 0, unknown: 0 },
+              },
+            ]),
+          ),
+        }),
+      );
+    }
+    assert.ok(
+      input instanceof URL && input.hostname === "openapi.rakuten.co.jp",
+      "Only Rakuten and Jev may be called",
+    );
+    if (input.pathname.includes("IchibaGenre/Search")) {
+      return Promise.resolve(discoveryGenreResponse());
+    }
+    if (input.pathname.includes("Product/Search")) {
+      return Promise.resolve(Response.json({ Products: [] }));
+    }
+    if (input.searchParams.has("shopCode")) {
+      return Promise.resolve(Response.json({ count: 1, Items: [discoveryRiceItem("source")] }));
+    }
+    assert.equal(input.searchParams.get("genreId"), "201184");
+    assert.equal(input.searchParams.get("keyword"), "ふるさと納税");
+    return Promise.resolve(
+      Response.json({
+        count: 6,
+        Items: [
+          discoveryRiceItem("retail", false),
+          ...Array.from({ length: 5 }, (_, index) => discoveryRiceItem(`candidate${index}`)),
+        ],
+      }),
+    );
+  });
+  const handler = createApiHandler(false, discoverySettings, null, discoveryJevSettings, {
+    clock: discoveryClock,
+  });
+  const event = {
+    method: "POST",
+    path: "/api/compare",
+    query: "",
+    headers: { authorization: `Bearer ${discoverySettings.accessToken}` },
+    body: JSON.stringify({
+      url: "https://item.rakuten.co.jp/shop/source/",
+      category: null,
+      conditions: {},
+      sort: "recommendation",
+    }),
+  };
+  const first = await handler(event);
+  assert.equal(first.statusCode, 200, first.body);
+  const body: unknown = JSON.parse(first.body);
+  assert.ok(record(body) && record(body["value"]));
+  const value = body["value"];
+  assert.equal(value["category"], "rakuten_201184");
+  assert.deepEqual(value["aiCalls"], { openai: 0, jev: 1 });
+  assert.equal(value["categorySelectionStatus"], "applied");
+  assert.ok(Array.isArray(value["products"]));
+  assert.equal(value["products"].length, 6);
+  for (const product of value["products"]) {
+    assert.ok(record(product) && record(product["consumerInformation"]));
+    assert.equal(product["condition"], "unknown");
+    assert.equal(product["recommendationPercent"], null);
+    assert.notEqual(product["listingId"], "shop:retail");
+    assert.deepEqual(product["consumerInformation"]["specs"], {
+      attribute11: "5kg",
+      attribute12: "北海道",
+    });
+  }
+  const second = await handler({
+    ...event,
+    body: JSON.stringify({
+      url: "https://item.rakuten.co.jp/shop/source/",
+      category: "rakuten_201184",
+      conditions: {},
+      sort: "recommendation",
+    }),
+  });
+  assert.equal(second.statusCode, 200, second.body);
+  const repeated: unknown = JSON.parse(second.body);
+  assert.ok(record(repeated) && record(repeated["value"]));
+  assert.deepEqual(repeated["value"]["aiCalls"], { openai: 0, jev: 0 });
+  assert.equal(jevCalls, 1);
+
+  const fresh = createApiHandler(false, discoverySettings, null, discoveryJevSettings, {
+    clock: discoveryClock,
+    dispatchComparisonJob: () => Promise.resolve(),
+  });
+  const job = await fresh({
+    ...event,
+    path: "/api/comparisons",
+    headers: {
+      ...event.headers,
+      "x-comparison-key": "example-comparison-key-12345678901234567890",
+    },
+    body: JSON.stringify({
+      url: "https://item.rakuten.co.jp/shop/source/",
+      category: "rakuten_201184",
+      conditions: {},
+      sort: "recommendation",
+      idempotencyKey: "new-category-after-restart",
+    }),
+  });
+  assert.equal(job.statusCode, 202, job.body);
+});

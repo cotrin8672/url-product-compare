@@ -78,6 +78,7 @@ export function comparisonDetailLayout(
   products: ReadonlyArray<
     Pick<ConsumerComparison["products"][number], "axes" | "consumerInformation">
   >,
+  selectionStatus?: ConsumerComparison["categorySelectionStatus"],
 ): Readonly<{
   primaryAxes: CatalogCategory["axes"];
   detailAxes: CatalogCategory["axes"];
@@ -99,7 +100,10 @@ export function comparisonDetailLayout(
     primaryAxes: axes.slice(0, 6),
     detailAxes: axes.slice(6),
     specificationFields: category.fields.filter(
-      (field) => field.kind !== "number" && hasInformation(field.id),
+      (field) =>
+        field.kind !== "number" &&
+        (hasInformation(field.id) ||
+          (selectionStatus === "applied" && category.mainFields.includes(field.id))),
     ),
   };
 }

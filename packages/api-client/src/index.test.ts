@@ -1607,6 +1607,200 @@ await test("public compare routes restore category and sort", () => {
   });
 });
 
+await test("automatically discovered categories validate without the startup catalog and survive job restoration", async (context) => {
+  resetConsumerCatalogCache();
+  const fixture = genericFixture();
+  const catalog = {
+    ...fixture.catalog,
+    providers: fixture.catalog.providers.map((provider) => ({
+      ...provider,
+      automaticCategories: true,
+    })),
+  };
+  const category = {
+    id: "different_201184",
+    label: "白米",
+    description: "白米の商品を比較",
+    allowUnknownCondition: true,
+    fields: [
+      {
+        id: "attribute11",
+        label: "総重量",
+        unit: "",
+        kind: "text",
+        filter: null,
+        minimum: 0,
+        maximum: 0,
+        presets: [],
+      },
+    ],
+    mainFields: ["attribute11"],
+    axes: [{ id: "price", label: "価格", lowerIsBetter: true, weight: 1 }],
+  } satisfies ProductCatalog["categories"][number];
+  const products = fixture.comparison.products.map((product) => ({
+    ...product,
+    condition: "unknown",
+    rank: null,
+    recommendationPercent: null,
+    consumerInformation: {
+      specs: { attribute11: "5kg" },
+      facts: [
+        {
+          field: "attribute11",
+          value: "5kg",
+          quote: "総重量: 5kg",
+          sourceUrl: product.canonicalUrl,
+          source: "different_item_api",
+          method: "pattern",
+        },
+      ],
+      conflicts: [],
+    },
+    axes: [{ id: "price", label: "価格", score: product.price.minimum === 1000 ? 100 : 50 }],
+  }));
+  const source = products[0];
+  assert.ok(source !== undefined);
+  const result = {
+    ...fixture.comparison,
+    category: category.id,
+    categoryDefinition: category,
+    providerDefinitions: catalog.providers,
+    source,
+    products,
+    conditions: {},
+    status: "needs_information",
+    aiCalls: { openai: 0, jev: 2 },
+    categorySelectionStatus: "applied",
+  };
+  const parsed = parseConsumerComparison({ tag: "ok", value: result }, catalog);
+  assert.equal(parsed.categoryDefinition.label, "白米");
+  assert.equal(parsed.products[0]?.consumerInformation.specs["attribute11"], "5kg");
+  assert.equal(parsed.aiCalls.jev, 2);
+  const originalProvider = catalog.providers[0];
+  assert.ok(originalProvider !== undefined);
+  const otherProvider = { ...originalProvider, id: "other", automaticCategories: true };
+  const otherCatalog = { ...catalog, providers: [...catalog.providers, otherProvider] };
+  assert.throws(
+    () =>
+      parseConsumerComparison(
+        {
+          tag: "ok",
+          value: {
+            ...result,
+            category: "other_201184",
+            categoryDefinition: { ...category, id: "other_201184" },
+            providerDefinitions: otherCatalog.providers,
+          },
+        },
+        otherCatalog,
+      ),
+    /カテゴリ定義/,
+  );
+  assert.deepEqual(
+    comparisonDetailLayout(
+      category,
+      products.map((product) => ({
+        ...product,
+        consumerInformation: {
+          ...product.consumerInformation,
+          specs: { attribute11: null },
+          facts: [],
+        },
+      })),
+      "applied",
+    ).specificationFields.map((field) => field.id),
+    ["attribute11"],
+  );
+  assert.throws(
+    () => parseConsumerComparison({ tag: "ok", value: result }, fixture.catalog),
+    /カテゴリ定義/,
+  );
+  for (const patch of [
+    { aiCalls: { openai: 0, jev: 3 } },
+    { categoryDefinition: { ...category, mainFields: ["invented"] } },
+    { products: products.map((product) => ({ ...product, condition: "used" })) },
+    {
+      products: products.map((product) => ({
+        ...product,
+        consumerInformation: { ...product.consumerInformation, facts: [] },
+      })),
+    },
+    { categorySelectionStatus: "invented" },
+  ]) {
+    assert.throws(() =>
+      parseConsumerComparison({ tag: "ok", value: { ...result, ...patch } }, catalog),
+    );
+  }
+  const detectedValue = {
+    status: "detected",
+    source: { ...source, consumerInformation: undefined },
+    category: category.id,
+    categories: [category.id],
+    categoryDefinition: category,
+    aiCalls: { openai: 0, jev: 1 },
+    categorySelectionStatus: "applied",
+  };
+  assert.equal(
+    parseDetectResult({ tag: "ok", value: detectedValue }, catalog).category,
+    category.id,
+  );
+  assert.throws(() =>
+    parseDetectResult(
+      {
+        tag: "ok",
+        value: { ...detectedValue, categoryDefinition: { ...category, id: "different_123" } },
+      },
+      catalog,
+    ),
+  );
+
+  const operation = createComparisonOperation();
+  const job = {
+    id: "discovered-job",
+    state: "succeeded",
+    revision: 2,
+    stage: null,
+    progress: null,
+    expiresAt: new Date(Date.now() + 600_000).toISOString(),
+    result,
+    error: null,
+  };
+  context.mock.method(globalThis, "fetch", (input: unknown, init?: RequestInit) => {
+    const path = String(input);
+    if (path === "/api/catalog") {
+      return Promise.resolve(Response.json({ tag: "ok", value: catalog }));
+    }
+    if (path === "/api/detect") {
+      return Promise.resolve(Response.json({ tag: "ok", value: detectedValue }));
+    }
+    if (path === "/api/comparisons") {
+      assert.ok(typeof init?.body === "string");
+      const payload: unknown = JSON.parse(init.body);
+      assert.ok(typeof payload === "object" && payload !== null && "category" in payload);
+      assert.equal(payload.category, category.id);
+    }
+    return Promise.resolve(Response.json({ tag: "ok", value: job }));
+  });
+  await detectProductCategory(source.canonicalUrl);
+  const started = await startConsumerComparisonJob(
+    {
+      url: source.canonicalUrl,
+      category: category.id,
+      conditions: {},
+      sort: "recommendation",
+      idempotencyKey: operation.idempotencyKey,
+    },
+    { comparisonKey: operation.accessKey },
+  );
+  assert.equal(started.result?.category, category.id);
+  resetConsumerCatalogCache();
+  assert.equal(
+    (await readConsumerComparisonJob(job.id, { comparisonKey: operation.accessKey })).result
+      ?.category,
+    category.id,
+  );
+});
+
 await test("consumer client validates partial evidence cohorts, common-axis totals and pending rank fences", () => {
   const { catalog, category, comparison } = genericFixture();
   const measurements = [

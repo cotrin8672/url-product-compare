@@ -11,6 +11,7 @@ import {
   createComparisonRequestScope,
   detectProductCategory,
   fetchProductCatalog,
+  isAutomaticCategory,
   parsePublicCompareRoute,
   pollConsumerComparisonJob,
   readActiveComparisonCategory,
@@ -161,8 +162,12 @@ function ConsumerResults(
     });
   });
   const data = props.result.data;
-  const layout = comparisonDetailLayout(data.categoryDefinition, data.products);
-  const [detailsOpen, setDetailsOpen] = createSignal(false);
+  const layout = comparisonDetailLayout(
+    data.categoryDefinition,
+    data.products,
+    data.categorySelectionStatus,
+  );
+  const [detailsOpen, setDetailsOpen] = createSignal(data.categorySelectionStatus === "applied");
   const hasDetails = layout.detailAxes.length > 0 || layout.specificationFields.length > 0;
   const highestScore = Math.max(
     ...data.products.map((product) => product.recommendationPercent ?? -1),
@@ -585,7 +590,11 @@ export function ConsumerApp(): JSX.Element {
     }
     restoreAttempted = true;
     const category = categoryId();
-    if (category === null || !definitions.categories.some((entry) => entry.id === category)) {
+    if (
+      category === null ||
+      (!definitions.categories.some((entry) => entry.id === category) &&
+        !isAutomaticCategory(definitions, category))
+    ) {
       return;
     }
     const saved = readComparisonSession(category);
@@ -638,7 +647,7 @@ export function ConsumerApp(): JSX.Element {
         <Show when={result() === undefined}>
           <section class="consumer-home-intro" aria-labelledby="consumer-home-title">
             <div>
-              <p class="consumer-home-eyebrow">家電・PC選びを、もっとシンプルに。</p>
+              <p class="consumer-home-eyebrow">商品選びを、もっとシンプルに。</p>
               <h1 id="consumer-home-title">
                 その商品、
                 <br />
@@ -766,7 +775,7 @@ export function ConsumerApp(): JSX.Element {
           <section class="consumer-home-categories" aria-labelledby="consumer-categories-title">
             <div class="consumer-home-section-heading">
               <h2 id="consumer-categories-title">こんな商品を比較できます</h2>
-              <span>対応カテゴリ</span>
+              <span>比較例</span>
             </div>
             <ul class="consumer-home-category-list">
               <For each={catalog()?.categories}>

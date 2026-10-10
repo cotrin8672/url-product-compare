@@ -4,6 +4,7 @@ import {
 } from "../../../packages/backend/src/bootstrap.js";
 
 const allowedOrigin = process.env["API_ALLOWED_ORIGIN"] ?? process.env["RENDER_EXTERNAL_URL"];
+const jevApiKey = process.env["JEV_API_KEY"] ?? process.env["TYPESAFE_API_KEY"];
 
 const internal = createApiHandler(
   false,
@@ -31,9 +32,9 @@ const internal = createApiHandler(
   process.env["OPENAI_API_KEY"] === undefined || process.env["OPENAI_API_KEY"].trim() === ""
     ? null
     : { apiKey: process.env["OPENAI_API_KEY"], model: process.env["OPENAI_MODEL"] ?? "gpt-6-luna" },
-  process.env["JEV_API_KEY"] === undefined || process.env["JEV_API_KEY"].trim() === ""
+  jevApiKey === undefined || jevApiKey.trim() === ""
     ? null
-    : { apiKey: process.env["JEV_API_KEY"], model: process.env["JEV_MODEL"] ?? "jev-1.13.0" },
+    : { apiKey: jevApiKey, model: process.env["JEV_MODEL"] ?? "jev-1.13.0" },
   {
     ...(process.env["API_ACCESS_TOKEN"] === undefined
       ? {}

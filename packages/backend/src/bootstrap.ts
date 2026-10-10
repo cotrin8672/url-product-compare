@@ -63,6 +63,7 @@ import {
 } from "./providers/elecom/index.js";
 import {
   createJevExtraction,
+  createJevCategorySelection,
   jevExtractionConfigurationSchema,
 } from "./providers/jev/extraction.js";
 import { createJevJudge } from "./providers/jev/index.js";
@@ -103,9 +104,12 @@ function createConfiguredConsumerService(
   rakuten: ReturnType<typeof rakutenConfigurationSchema.parse> | null,
   extraction: ReturnType<typeof createJevExtraction> | null,
   clock: () => Instant,
+  selectCategory: ReturnType<typeof createJevCategorySelection> | undefined,
 ): ReturnType<typeof createConsumerComparisonService> | null {
   const providers =
-    rakuten?.tag === "ok" ? [createRakutenConsumerProvider(rakuten.value, clock)] : [];
+    rakuten?.tag === "ok"
+      ? [createRakutenConsumerProvider(rakuten.value, clock, fetch, selectCategory)]
+      : [];
   return providers.length === 0
     ? null
     : createConsumerComparisonService(providers, extraction ?? undefined, clock);
@@ -226,7 +230,12 @@ export function createApiHandler(
         : null;
   const consumerService =
     dependencies.consumerService ??
-    createConfiguredConsumerService(rakuten, consumerExtract, clock);
+    createConfiguredConsumerService(
+      rakuten,
+      consumerExtract,
+      clock,
+      jev?.tag === "ok" ? createJevCategorySelection(jev.value) : undefined,
+    );
   const jobStore =
     dependencies.jobStore ??
     (persistRuns
@@ -336,16 +345,7 @@ export function createApiHandler(
           categoryDefinition === undefined
             ? null
             : consumerConditionsSchema(categoryDefinition).parse(conditions);
-        if (
-          (category !== null && checkedConditions?.tag !== "ok") ||
-          (category === null &&
-            (!record(conditions) ||
-              Object.values(conditions).some(
-                (value) =>
-                  typeof value !== "boolean" &&
-                  (typeof value !== "number" || !Number.isFinite(value)),
-              )))
-        ) {
+        if (!consumerService.acceptsConditions(category, conditions)) {
           return respond(400, err({ code: "invalid_request" }), allowedOrigin);
         }
         if (comparisonAccessKey === null || comparisonAccessKey === undefined) {
@@ -449,12 +449,7 @@ export function createApiHandler(
         if (sort === undefined || url === null || consumerService === null) {
           return respond(400, err({ code: "invalid_request" }), allowedOrigin);
         }
-        const categoryDefinition = consumerService.catalog().find((entry) => entry.id === category);
-        const checked =
-          categoryDefinition === undefined
-            ? null
-            : consumerConditionsSchema(categoryDefinition).parse(conditions);
-        if (category !== null && checked?.tag !== "ok") {
+        if (!consumerService.acceptsConditions(category ?? null, conditions)) {
           return respond(400, err({ code: "invalid_request" }), allowedOrigin);
         }
         const compared = await consumerService.compare(
@@ -1007,7 +1002,12 @@ function createPersistedComparisonJobRunner(
   const jev =
     jevConfiguration === null ? null : jevExtractionConfigurationSchema.parse(jevConfiguration);
   const consumerExtract = jev?.tag === "ok" ? createJevExtraction(jev.value) : null;
-  const consumerService = createConfiguredConsumerService(rakuten, consumerExtract, clock);
+  const consumerService = createConfiguredConsumerService(
+    rakuten,
+    consumerExtract,
+    clock,
+    jev?.tag === "ok" ? createJevCategorySelection(jev.value) : undefined,
+  );
   const jobStore = createFirestoreComparisonJobStore(clock);
   const runner: ConsumerComparisonRunner = Object.freeze({
     compare: async (input, options) => {

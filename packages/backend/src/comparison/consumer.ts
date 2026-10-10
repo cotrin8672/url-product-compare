@@ -3,6 +3,7 @@ import type { Result } from "./algebra.js";
 import {
   consumerCategoryDefinition,
   consumerCatalogCategories,
+  consumerListingConditionEligible,
   readFieldFlagLabels,
   readFieldNumberPattern,
   readFieldTextLabels,
@@ -127,6 +128,24 @@ export function readConsumerInformation(
   const conflicts: string[] = [];
   const choices: ExtractionChoice[] = [];
   const pc = category.id === "laptop" || category.id === "desktop";
+  const labeled = clauses.flatMap((clause) => {
+    const match = /^([^:：]{1,80})[:：]\s*([^:：]{1,100})$/.exec(clause);
+    const label = match?.[1]?.trim();
+    const value = match?.[2]?.trim();
+    return label === undefined ||
+      value === undefined ||
+      label.length === 0 ||
+      value.length === 0 ||
+      /推奨|おすすめ|選択|選べ|オプション|recommended/i.test(label)
+      ? []
+      : [{ label, value, quote: clause }];
+  });
+  const attributeLabel = (label: string): string =>
+    label
+      .normalize("NFKC")
+      .replace(/\([^)]*\)/g, "")
+      .replace(/[\s・_-]/g, "")
+      .toLowerCase();
   for (const definition of category.fields) {
     const found: ConsumerFact[] = [];
     if (
@@ -158,7 +177,38 @@ export function readConsumerInformation(
       );
     };
     const pattern = readFieldNumberPattern(definition);
-    if (pattern !== null) {
+    if (definition.extraction?.kind === "attribute") {
+      const matching = labeled.filter(
+        (entry) => attributeLabel(entry.label) === attributeLabel(definition.label),
+      );
+      for (const entry of matching) {
+        add(entry.value, entry.quote);
+      }
+      if (matching.length === 0 && labeled.length > 0) {
+        const options = labeled
+          .slice(0, 12)
+          .map((entry, index) => ({
+            id: `option_${index}`,
+            fact: Object.freeze({
+              field: definition.id,
+              value: entry.value,
+              quote: entry.quote,
+              sourceUrl,
+              method: "jev_choice",
+              source: factSource(entry.quote),
+            } satisfies ConsumerFact),
+          }));
+        choices.push(
+          Object.freeze({
+            id: `${listingId}_${definition.id}`,
+            listingId,
+            field: definition.id,
+            label: definition.label,
+            options: Object.freeze(options),
+          }),
+        );
+      }
+    } else if (pattern !== null) {
       for (const clause of clauses) {
         for (const match of clause.matchAll(new RegExp(pattern, "gi"))) {
           // A label boundary can consume the final character of a preceding upgrade or limit.
@@ -527,7 +577,7 @@ export function assessConsumerListing(
 ): Readonly<{ status: "eligible" | "excluded" | "pending"; reasons: readonly string[] }> {
   const missing: string[] = [];
   const excluded: string[] = listing.availability === "unavailable" ? ["unavailable"] : [];
-  if (listing.condition !== "new") {
+  if (!consumerListingConditionEligible(listing.condition ?? "unknown", category)) {
     excluded.push("condition_not_new");
   }
   for (const [id, required] of Object.entries(conditions)) {

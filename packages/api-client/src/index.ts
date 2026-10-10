@@ -6,6 +6,7 @@ export {
   createComparisonOperation,
   detectProductCategory,
   fetchProductCatalog,
+  isAutomaticCategory,
   pollConsumerComparisonJob,
   readConsumerComparisonJob,
   resetConsumerCatalogCache,

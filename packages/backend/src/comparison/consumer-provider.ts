@@ -8,6 +8,7 @@ export type ConsumerProviderMetadata = Readonly<{
   label: string;
   urlHosts: readonly string[];
   affiliateHosts: readonly string[];
+  automaticCategories?: boolean;
 }>;
 
 type ConsumerListingPrice = Readonly<{ minimum: number; maximum: number; currency: "JPY" }>;
@@ -75,6 +76,10 @@ export type ConsumerProvider = Readonly<{
     genreId: string | null | undefined,
     options?: ConsumerProviderOptions,
   ) => Promise<readonly string[]>;
+  discoverCategory?: (
+    genreId: string | null | undefined,
+    options?: ConsumerProviderOptions,
+  ) => Promise<ConsumerDiscoveredCategory | null>;
   categoryMatchesLineage: (
     category: ConsumerCategoryDefinition,
     genreId: string | null | undefined,
@@ -82,7 +87,7 @@ export type ConsumerProvider = Readonly<{
   ) => boolean;
   search: (
     category: ConsumerCategoryDefinition,
-    input: Readonly<{ page: number; hits: number }>,
+    input: Readonly<{ page: number; hits: number; source?: ConsumerListing }>,
     options?: ConsumerProviderOptions,
   ) => Promise<
     Result<
@@ -109,3 +114,23 @@ export type ConsumerProvider = Readonly<{
     storeExpiresAt: string | null;
   }>;
 }>;
+
+export type ConsumerCategorySelectionStatus =
+  | "applied"
+  | "not_configured"
+  | "unavailable"
+  | "no_attributes";
+
+export type ConsumerDiscoveredCategory = Readonly<{
+  definition: ConsumerCategoryDefinition;
+  aiCalls: number;
+  status: ConsumerCategorySelectionStatus;
+}>;
+
+export type ConsumerCategoryAttribute = Readonly<{ id: number; label: string }>;
+
+export type ConsumerCategorySelection = (
+  label: string,
+  attributes: readonly ConsumerCategoryAttribute[],
+  options?: Readonly<{ signal?: AbortSignal }>,
+) => Promise<Result<readonly number[], "unavailable" | "invalid_response">>;
