@@ -1,0 +1,110 @@
+{
+  "verifiedAt": "2026-10-10T06:57:09.408Z",
+  "verifiedCategories": [
+    {
+      "category": "ノートPC",
+      "actualGenre": "ノートPC",
+      "genreId": "100040",
+      "attributes": 55,
+      "majorResponses": 13,
+      "highConfidenceMajorResponses": 5,
+      "invalidResponses": 0
+    },
+    {
+      "category": "デスクトップPC",
+      "actualGenre": "デスクトップPC",
+      "genreId": "211368",
+      "attributes": 60,
+      "majorResponses": 9,
+      "highConfidenceMajorResponses": 3,
+      "invalidResponses": 0
+    },
+    {
+      "category": "タブレット",
+      "actualGenre": "タブレット",
+      "genreId": "560029",
+      "attributes": 28,
+      "majorResponses": 11,
+      "highConfidenceMajorResponses": 3,
+      "invalidResponses": 0
+    },
+    {
+      "category": "スマートフォン",
+      "actualGenre": "スマートフォン",
+      "genreId": "560202",
+      "attributes": 33,
+      "majorResponses": 7,
+      "highConfidenceMajorResponses": 4,
+      "invalidResponses": 0
+    },
+    {
+      "category": "テレビ",
+      "actualGenre": "テレビ",
+      "genreId": "563843",
+      "attributes": 25,
+      "majorResponses": 3,
+      "highConfidenceMajorResponses": 2,
+      "invalidResponses": 2
+    },
+    {
+      "category": "モニター",
+      "actualGenre": "モニター",
+      "genreId": "110105",
+      "attributes": 49,
+      "majorResponses": 7,
+      "highConfidenceMajorResponses": 2,
+      "invalidResponses": 1
+    },
+    {
+      "category": "ふるさと納税・米",
+      "actualGenre": "白米",
+      "genreId": "201184",
+      "attributes": 38,
+      "majorResponses": 7,
+      "highConfidenceMajorResponses": 0,
+      "invalidResponses": 0
+    },
+    {
+      "category": "ふるさと納税・牛肉",
+      "actualGenre": "肩ロース",
+      "genreId": "207802",
+      "attributes": 33,
+      "majorResponses": 5,
+      "highConfidenceMajorResponses": 0,
+      "invalidResponses": 0
+    }
+  ],
+  "majorResponses": 62,
+  "highConfidenceMajorResponses": 19,
+  "invalidJevResponses": 3,
+  "model": "jev-1.13.0",
+  "completeRecordedJevResponses": 8,
+  "totalJevHttpCallsIncludingInitialUnrecordedAttempt": 9,
+  "recordedInputTokens": 95936,
+  "recordedInputCostUsdAtPublicPrice": 0.004029312,
+  "checks": { "laptopCoreRetained": true, "laptopNoiseExcluded": false },
+  "genreApiSuppliesSameDictionary": true,
+  "productDetailsPresent": 0,
+  "productDetailsSampleSize": 10,
+  "scope": "Read-only live Rakuten and Jev experiment. Amazon and Yahoo checked against official documentation; no authenticated calls to those providers. Application and environment files unchanged.",
+  "limitations": [
+    "Major counts are observed classifications, not a labelled accuracy metric. Low-confidence responses are not automatically accepted.",
+    "Three malformed Jev probability distributions were retained as evidence and excluded from counts.",
+    "Pre-declared duplicate/noise exclusion smoke check failed for laptop kana duplicates.",
+    "Raw taxonomy fields are not per-listing specification values.",
+    "Furusato food samples are white rice and shoulder-loin categories selected from ten keyword search results, not comprehensive donation-specific schemas.",
+    "Recorded token usage excludes one initial laptop inference response lost before transport capture. Total invoice was not checked."
+  ],
+  "sources": [
+    "https://webservice.rakuten.co.jp/documentation/ichiba-attribute-search",
+    "https://webservice.rakuten.co.jp/documentation/ichiba-genre-search",
+    "https://webservice.rakuten.co.jp/documentation/ichiba-item-search",
+    "https://webservice.rakuten.co.jp/documentation/ichiba-product-search",
+    "https://affiliate.amazon.co.jp/creatorsapi/docs/en-us/api-reference/resources/item-info",
+    "https://affiliate.amazon.co.jp/creatorsapi/docs/en-us/api-reference/resources/search-refinements",
+    "https://developer-docs.amazon.com/sp-api/lang-en_EN/docs/retrieve-a-product-type-definition",
+    "https://developer.yahoo.co.jp/webapi/shopping/downloadShopCategories.html",
+    "https://developer.yahoo.co.jp/webapi/shopping/v3/itemsearch.html",
+    "https://typesafe.ai/blog/introducing-system-one-models-and-jev"
+  ]
+}
