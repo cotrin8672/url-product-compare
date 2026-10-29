@@ -260,6 +260,9 @@ try {
     ["apps/api/src/probe.ts", "firebase-functions/v2/https"],
     ["packages/backend/src/comparison/probe.ts", "firebase-admin/firestore"],
     ["packages/backend/src/infrastructure/http/probe.ts", "firebase-admin/firestore"],
+    ["apps/web/src/probe.ts", "@aws-sdk/client-dynamodb"],
+    ["packages/backend/src/comparison/probe.ts", "@aws-sdk/client-dynamodb"],
+    ["packages/backend/src/bootstrap.ts", "@aws-sdk/client-dynamodb"],
   ]) {
     await check(`import '${dependency}'; export {};`, ["boundaries/dependencies"], file);
   }

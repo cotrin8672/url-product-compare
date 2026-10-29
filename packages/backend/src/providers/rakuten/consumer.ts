@@ -1,4 +1,5 @@
 import { err, ok } from "../../comparison/algebra.js";
+import type { ConsumerCategoryCacheOptions } from "../../comparison/consumer-category-cache.js";
 import { createConsumerCategoryDiscovery } from "../../comparison/consumer-discovery.js";
 import type {
   ConsumerCategorySelection,
@@ -38,6 +39,7 @@ export function createRakutenConsumerProvider(
   clock: () => Instant,
   fetcher: typeof fetch = fetch,
   selectCategory?: ConsumerCategorySelection,
+  categoryCache?: ConsumerCategoryCacheOptions,
 ): ConsumerProvider {
   const lookup = createRakutenLookup(configuration, clock, fetcher, 3);
   const search = createRakutenSearch(configuration, clock, fetcher);
@@ -112,6 +114,7 @@ export function createRakutenConsumerProvider(
       selectCategory,
       clock,
       readPermissions,
+      categoryCache,
     ),
     categoryMatchesLineage(category, genreId, lineage) {
       const binding = category.providerBindings?.["rakuten"];
@@ -126,7 +129,9 @@ export function createRakutenConsumerProvider(
       }
       const automatic = category.id === `rakuten_${binding.genreId}`;
       const donation = input.source?.title.includes("ふるさと納税") ?? false;
-      const keyword = donation ? "ふるさと納税" : automatic ? "" : binding.keyword;
+      const keyword = [donation ? "ふるさと納税" : automatic ? "" : binding.keyword, "新品"]
+        .filter((value) => value.length > 0)
+        .join(" ");
       const excludeKeyword = [
         binding.searchExcludeKeyword ?? "",
         automatic && !donation ? "ふるさと納税" : "",
@@ -135,7 +140,7 @@ export function createRakutenConsumerProvider(
         .join(" ");
       const result = await search(keyword, null, binding.genreId, {
         page: input.page,
-        hits: input.hits,
+        hits: 30,
         invalidAffiliate: "skip",
         ...(excludeKeyword.length === 0 ? {} : { excludeKeyword }),
         ...(options?.signal === undefined ? {} : { signal: options.signal }),
@@ -146,13 +151,16 @@ export function createRakutenConsumerProvider(
       return ok(
         Object.freeze({
           count: result.value.count,
+          pageSize: 30,
           listings: Object.freeze(
             result.value.listings
               .filter(
                 (listing) =>
                   input.source === undefined || listing.title.includes("ふるさと納税") === donation,
               )
-              .map(normalize),
+              .map(normalize)
+              .filter((listing) => listing.condition === "new")
+              .slice(0, input.hits),
           ),
         }),
       );

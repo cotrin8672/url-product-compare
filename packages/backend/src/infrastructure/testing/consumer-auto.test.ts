@@ -15,7 +15,6 @@ const category: ConsumerCategoryDefinition = {
   id: "rakuten_303017",
   label: "コーヒー",
   description: "コーヒーを比較",
-  allowUnknownCondition: true,
   mainFields: ["weight", "count"],
   fields: [
     {
@@ -56,7 +55,7 @@ function listing(
   listingId: string;
   tax: "included";
   availability: "available";
-  condition: "unknown";
+  condition: "new";
   price: Readonly<{ minimum: number; maximum: number }>;
   consumerInformation: ReturnType<typeof readConsumerInformation>;
 }> {
@@ -64,11 +63,29 @@ function listing(
     listingId: id,
     tax: "included",
     availability: "available",
-    condition: "unknown",
+    condition: "new",
     price: { minimum: price, maximum: price },
     consumerInformation: readConsumerInformation(category, id, url, text),
   };
 }
+
+await test("automatic categories exclude unknown, used and refurbished listings even with legacy opt-in", () => {
+  for (const condition of ["unknown", "used", "refurbished"] satisfies ReadonlyArray<
+    "unknown" | "used" | "refurbished"
+  >) {
+    const compared = compareConsumerListings(
+      [{ ...listing("source", "単品重量: 200g"), condition }],
+      { ...category, allowUnknownCondition: true },
+      {},
+      "recommendation",
+    );
+    assert.equal(compared.status, "no_match");
+    const product = compared.products[0];
+    assert.ok(product !== undefined);
+    assert.equal(product.status, "excluded");
+    assert.equal(product.rank, null);
+  }
+});
 
 await test("automatic values include title quantities and their parts, with literal evidence only", () => {
   assert.doesNotThrow(() => buildConsumerCatalog([category]));

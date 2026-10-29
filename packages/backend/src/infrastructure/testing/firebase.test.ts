@@ -48,6 +48,16 @@ await test("public assets serve built pages and reject private files, traversal 
     assert.equal(page.body.toString(), "<html>App</html>");
     assert.equal(page.headers["content-type"], "text/html; charset=utf-8");
     assert.equal(page.headers["x-content-type-options"], "nosniff");
+    const policy = page.headers["content-security-policy"];
+    assert.ok(typeof policy === "string");
+    assert.equal(policy.includes("script-src 'self'"), true);
+    assert.equal(policy.includes("object-src 'none'"), true);
+    assert.equal(policy.includes("base-uri 'none'"), true);
+    assert.equal(policy.includes("frame-ancestors 'none'"), true);
+    assert.equal(policy.includes("script-src 'self' 'unsafe-inline'"), false);
+    assert.equal(policy.includes("unsafe-eval"), false);
+    assert.equal(page.headers["x-frame-options"], "DENY");
+    assert.equal(page.headers["referrer-policy"], "strict-origin-when-cross-origin");
     assert.equal(
       (await readPublicAsset(root, "/category/laptop/", "GET")).body.toString(),
       "<html>Laptops</html>",
@@ -69,6 +79,10 @@ await test("public assets serve built pages and reject private files, traversal 
       "/escape/secret.txt",
       "/assets/missing.js",
       "/source.ts",
+      "/assets/app.js%00",
+      "/assets/app.js%0a",
+      "/assets/app.js%7f",
+      `/${"a".repeat(8192)}`,
     ]) {
       assert.equal((await readPublicAsset(root, pathname, "GET")).statusCode, 404, pathname);
     }
@@ -124,6 +138,14 @@ const jobInput: ComparisonJobInput = {
   sort: "price",
 };
 const jobKey = "capability-123456789012345678901234567890";
+const restorationConfiguration = {
+  applicationId: "example-app-1234",
+  accessKey: "example-access-key-1234567890",
+  affiliateId: "11111111.22222222.33333333.44444444",
+  allowedOrigin: "https://review.example/",
+  authorizedUntil: "2026-10-06T13:00:00.000Z",
+  resultStorageAuthorizedUntil: "2026-10-06T12:30:00.000Z",
+} satisfies Readonly<Record<string, string>>;
 async function acceptedJob(
   store: ComparisonJobStore,
   clock: () => Instant,
@@ -133,6 +155,97 @@ async function acceptedJob(
   assert.equal(accepted.tag, "ok");
   return accepted.value.record.id;
 }
+await test("stored job results are withheld after provider removal, revocation or shortened storage grants", async () => {
+  const { clock } = jobClock();
+  const memory = createMemoryComparisonJobStore(clock);
+  const store: ComparisonJobStore = { ...memory, persistentResults: true };
+  const input: ComparisonJobInput = {
+    ...jobInput,
+    url: "https://item.rakuten.co.jp/demo-shop/demo-product/",
+  };
+  const started = await startComparisonJob(store, input, "restore-grant", jobKey, clock());
+  assert.equal(started.tag, "ok");
+  const id = started.value.record.id;
+  const claimed = await store.claim(id, "worker", "2026-10-06T12:00:45.000Z");
+  assert.equal(claimed.tag, "ok");
+  const finished = await store.finish(id, "worker", claimed.value.revision, {
+    kind: "succeeded",
+    result: {
+      source: { expiresAt: "2026-10-06T12:15:00.000Z" },
+      products: ["stored-product-marker"],
+      storageExpiresAt: restorationConfiguration.resultStorageAuthorizedUntil,
+    },
+    resultExpiresAt: "2026-10-06T12:15:00.000Z",
+    storageExpiresAt: restorationConfiguration.resultStorageAuthorizedUntil,
+  });
+  assert.equal(finished.tag, "ok");
+  assert.equal(finished.value.state, "succeeded");
+  const token = "t".repeat(36);
+  const headers = { authorization: `Bearer ${token}`, "x-comparison-key": jobKey };
+  const request = { path: `/api/comparisons/${id}`, method: "GET", headers };
+  const handler = (configuration: unknown, jobStore = store): ReturnType<typeof createApiHandler> =>
+    createApiHandler(true, configuration, null, null, { jobStore, clock, apiAccessToken: token });
+  const allowed = await handler(restorationConfiguration)(request);
+  assert.equal(allowed.statusCode, 200, allowed.body);
+  assert.equal(allowed.body.includes("stored-product-marker"), true);
+  const revoked: ReadonlyArray<Readonly<{ label: string; configuration: unknown }>> = [
+    { label: "provider removed", configuration: null },
+    {
+      label: "storage revoked",
+      configuration: { ...restorationConfiguration, resultStorageAuthorizedUntil: undefined },
+    },
+    {
+      label: "storage expired",
+      configuration: {
+        ...restorationConfiguration,
+        resultStorageAuthorizedUntil: "2026-10-06T11:59:00.000Z",
+      },
+    },
+    {
+      label: "storage shortened",
+      configuration: {
+        ...restorationConfiguration,
+        resultStorageAuthorizedUntil: "2026-10-06T12:05:00.000Z",
+      },
+    },
+    {
+      label: "provider expired",
+      configuration: {
+        ...restorationConfiguration,
+        authorizedUntil: "2026-10-06T11:59:00.000Z",
+        resultStorageAuthorizedUntil: undefined,
+      },
+    },
+  ];
+  for (const entry of revoked) {
+    const api = handler(entry.configuration);
+    for (const event of [request, { ...request, path: `${request.path}/cancel`, method: "POST" }]) {
+      const rejected = await api(event);
+      assert.equal(rejected.statusCode, 422, `${entry.label}: ${rejected.body}`);
+      assert.equal(rejected.body.includes("source_not_authorized"), true);
+      assert.equal(rejected.body.includes("stored-product-marker"), false);
+    }
+    const replay = await api({
+      path: "/api/comparisons",
+      method: "POST",
+      headers,
+      body: JSON.stringify({ ...input, idempotencyKey: "restore-grant" }),
+    });
+    assert.ok(replay.statusCode >= 400, `${entry.label}: ${replay.body}`);
+    assert.equal(replay.body.includes("stored-product-marker"), false);
+  }
+  const local = handler(
+    { ...restorationConfiguration, resultStorageAuthorizedUntil: undefined },
+    memory,
+  );
+  assert.equal((await local(request)).statusCode, 200);
+  const wrong = await handler(null)({
+    ...request,
+    headers: { ...headers, "x-comparison-key": "different-key-123456789012345678901234567890" },
+  });
+  assert.equal(wrong.statusCode, 403);
+});
+
 await test("public consumer entry accepts token-free jobs while preserving capability ownership and protected routes", async () => {
   const { clock } = jobClock();
   const store = createMemoryComparisonJobStore(clock);
@@ -307,6 +420,62 @@ await test("public consumer entry only injects server authorization for exact pe
     }),
   );
   assert.throws(() => createPublicConsumerApi(internal, { accessToken: "short" }));
+});
+
+await test("public consumer entry rejects browser request metadata and conflicting JSON headers before forwarding", async () => {
+  let calls = 0;
+  const gateway = createPublicConsumerApi(
+    () => {
+      calls += 1;
+      return Promise.resolve(apiResponse(200, ok({ accepted: true })));
+    },
+    {
+      accessToken: "server-only-token-123456789012345678901234567890",
+      allowedOrigin: "https://consumer.example",
+    },
+  );
+  const event = {
+    path: "/api/detect",
+    method: "POST",
+    body: JSON.stringify({ url: jobInput.url }),
+  };
+  for (const headers of [
+    { "content-type": "text/plain" },
+    { "content-type": "application/x-www-form-urlencoded" },
+    { "content-type": "application/json, application/json" },
+    { "content-type": ["application/json"] },
+    { "content-type": "application/json", "Content-Type": "application/json" },
+    { "sec-fetch-site": ["same-origin"] },
+    { "sec-fetch-site": "arbitrary" },
+    { "sec-fetch-site": "same-origin", "Sec-Fetch-Site": "same-origin" },
+  ]) {
+    const rejected = await gateway({ ...event, headers }, "native-address");
+    assert.equal(rejected.statusCode, 400, JSON.stringify(headers));
+    assert.equal(rejected.headers["x-content-type-options"], "nosniff");
+  }
+  assert.equal(
+    (await gateway({ ...event, headers: { "sec-fetch-site": "cross-site" } }, "native-address"))
+      .statusCode,
+    403,
+  );
+  assert.equal(calls, 0);
+  for (const headers of [
+    { "content-type": "application/json", "sec-fetch-site": "same-origin" },
+    {
+      "content-type": "application/json; charset=UTF-8",
+      "sec-fetch-site": "cross-site",
+      origin: "https://consumer.example",
+    },
+  ]) {
+    const accepted = await gateway({ ...event, headers }, "native-address");
+    assert.equal(accepted.statusCode, 200);
+    assert.equal(accepted.headers["vary"], "Origin");
+    assert.equal(
+      accepted.headers["content-security-policy"],
+      "default-src 'none'; frame-ancestors 'none'",
+    );
+  }
+  assert.equal(calls, 2);
 });
 
 await test("public consumer entry limits costly requests by trusted address and bounds memory without charging polls", async () => {
@@ -504,9 +673,7 @@ await test("comparison API returns before blocked runner, recovers lost response
     },
   };
   const token = "test-token-123456789012345678901234567890";
-  const service = createConsumerComparisonService([], undefined, clock);
-  const handler = createApiHandler(false, null, null, null, {
-    consumerService: service,
+  const handler = createApiHandler(false, restorationConfiguration, null, null, {
     jobStore: store,
     clock,
     comparisonRunner: runner,
@@ -514,7 +681,11 @@ await test("comparison API returns before blocked runner, recovers lost response
     allowedOrigin: "https://review.example",
   });
   const headers = { authorization: `Bearer ${token}`, "x-comparison-key": jobKey };
-  const body = JSON.stringify({ ...jobInput, idempotencyKey: "lost-response" });
+  const body = JSON.stringify({
+    ...jobInput,
+    url: "https://item.rakuten.co.jp/demo-shop/demo-product/",
+    idempotencyKey: "lost-response",
+  });
   const starting = handler({ path: "/api/comparisons", method: "POST", body, headers });
   const created = await fastResponse(starting, hold.release);
   assert.equal(created.statusCode, 202);
@@ -1744,6 +1915,175 @@ function consumerEvent(category: string, conditions: unknown = {}, index = 0) {
   };
 }
 
+await test("strict-new candidate search scans a full API page before selecting a bounded comparison batch", async (context) => {
+  let searchCalls = 0;
+  context.mock.method(globalThis, "fetch", (input: unknown) => {
+    assert.ok(input instanceof URL);
+    if (input.pathname.includes("Product/Search")) {
+      return Promise.resolve(consumerProductResponse(input));
+    }
+    if (input.pathname.includes("IchibaGenre/Search")) {
+      return Promise.resolve(Response.json({ genre: { genreId: 100040 }, ancestors: [] }));
+    }
+    if (input.searchParams.has("shopCode")) {
+      return Promise.resolve(
+        Response.json({ count: 1, Items: [consumerItem(0, "100040", "メモリ:16GB\nSSD:512GB")] }),
+      );
+    }
+    searchCalls += 1;
+    assert.equal(input.searchParams.get("hits"), "30");
+    const unknown = {
+      ...consumerItem(1, "100040", ""),
+      itemName: "状態未確認のパソコン",
+      itemCaption: "メモリ:16GB\nSSD:512GB",
+    };
+    return Promise.resolve(
+      Response.json({
+        count: 30,
+        Items: [
+          ...Array.from({ length: 29 }, () => unknown),
+          consumerItem(2, "100040", "メモリ:16GB\nSSD:512GB", 50000),
+        ],
+      }),
+    );
+  });
+  const response = await createApiHandler(false, monitorSettings)(consumerEvent("laptop"));
+  assert.equal(response.statusCode, 200, response.body);
+  assert.equal(searchCalls, 1);
+  const body: unknown = JSON.parse(response.body);
+  assert.ok(record(body) && record(body["value"]) && Array.isArray(body["value"]["products"]));
+  assert.equal(body["value"]["products"].length, 2);
+  assert.equal(response.body.includes('"listingId":"shop:consumer-2"'), true);
+  assert.equal(response.body.includes('"listingId":"shop:consumer-1"'), false);
+});
+
+await test("numeric URL recovery uses a code hint but verifies the returned canonical URL", async (context) => {
+  const queries: string[] = [];
+  let mismatched = false;
+  let rejectedStatus: number | null = null;
+  context.mock.method(globalThis, "fetch", (input: unknown) => {
+    assert.ok(input instanceof URL);
+    if (input.pathname.includes("IchibaGenre/Search")) {
+      return Promise.resolve(Response.json({ genre: { genreId: 100040 }, ancestors: [] }));
+    }
+    queries.push(input.searchParams.get("itemCode") ?? input.searchParams.get("keyword") ?? "");
+    const source = consumerItem(0, "100040", "メモリ: 16GB", 1000, "10024294");
+    if (input.searchParams.has("itemCode")) {
+      if (rejectedStatus !== null) {
+        return Promise.resolve(new Response("itemCode is not valid", { status: rejectedStatus }));
+      }
+      return Promise.resolve(
+        Response.json({
+          count: 1,
+          Items: [mismatched ? consumerItem(0, "100040", "", 1000, "other") : source],
+        }),
+      );
+    }
+    return Promise.resolve(
+      Response.json({ count: 1, Items: [{ ...source, itemCode: "shop:987654" }] }),
+    );
+  });
+  const handler = createApiHandler(false, monitorSettings);
+  const event = {
+    method: "POST",
+    path: "/api/detect",
+    headers: { authorization: `Bearer ${monitorSettings.accessToken}` },
+    body: JSON.stringify({ url: "https://item.rakuten.co.jp/shop/10024294/" }),
+  };
+  const found = await handler(event);
+  assert.equal(found.statusCode, 200, found.body);
+  assert.deepEqual(queries, ["shop:10024294"]);
+  queries.length = 0;
+  mismatched = true;
+  const recovered = await handler(event);
+  assert.equal(recovered.statusCode, 200, recovered.body);
+  const body: unknown = JSON.parse(recovered.body);
+  assert.ok(record(body) && record(body["value"]) && record(body["value"]["source"]));
+  assert.equal(body["value"]["source"]["listingId"], "shop:987654");
+  assert.equal(
+    body["value"]["source"]["canonicalUrl"],
+    "https://item.rakuten.co.jp/shop/10024294/",
+  );
+  assert.deepEqual(queries, ["shop:10024294", "10024294"]);
+  queries.length = 0;
+  rejectedStatus = 400;
+  const rejectedHint = await handler(event);
+  assert.equal(rejectedHint.statusCode, 200, rejectedHint.body);
+  assert.deepEqual(queries, ["shop:10024294", "10024294"]);
+  assert.ok(rejectedHint.body.includes('"listingId":"shop:987654"'));
+  for (const status of [401, 403, 429]) {
+    queries.length = 0;
+    rejectedStatus = status;
+    assert.notEqual((await handler(event)).statusCode, 200);
+    assert.deepEqual(queries, ["shop:10024294"]);
+  }
+});
+
+await test("transient read failures retry once; rate limits and denial do not retry", async (context) => {
+  let calls = 0;
+  let status = 503;
+  let recover = true;
+  context.mock.method(globalThis, "fetch", (input: unknown) => {
+    assert.ok(input instanceof URL);
+    if (input.pathname.includes("IchibaGenre/Search")) {
+      return Promise.resolve(Response.json({ genre: { genreId: 100040 }, ancestors: [] }));
+    }
+    calls += 1;
+    return Promise.resolve(
+      calls === 1 || !recover
+        ? new Response("Unavailable", { status })
+        : Response.json({ count: 1, Items: [consumerItem(0, "100040", "メモリ: 16GB")] }),
+    );
+  });
+  const handler = createApiHandler(false, monitorSettings);
+  const event = {
+    method: "POST",
+    path: "/api/detect",
+    headers: { authorization: `Bearer ${monitorSettings.accessToken}` },
+    body: JSON.stringify({ url: "https://item.rakuten.co.jp/shop/consumer-0/" }),
+  };
+  assert.equal((await handler(event)).statusCode, 200);
+  assert.equal(calls, 2);
+  for (const code of [401, 403, 429, 404]) {
+    calls = 0;
+    status = code;
+    const failed = await handler(event);
+    assert.notEqual(failed.statusCode, 200);
+    assert.equal(calls, 1);
+  }
+  calls = 0;
+  status = 503;
+  recover = false;
+  assert.equal((await handler(event)).statusCode, 503);
+  assert.equal(calls, 2);
+});
+
+await test("invalid source URLs make no upstream requests through the API boundary", async (context) => {
+  let calls = 0;
+  context.mock.method(globalThis, "fetch", () => {
+    calls += 1;
+    return Promise.resolve(Response.json({ count: 0, Items: [] }));
+  });
+  const handler = createApiHandler(false, monitorSettings);
+  for (const url of [
+    "not a url",
+    "https://user:secret@item.rakuten.co.jp/shop/item/",
+    "https://item.rakuten.co.jp.evil.test/shop/item/",
+    "https://item.rakuten.co.jp/shop/item/?variantId=42",
+    "https://127.0.0.1/shop/item/",
+  ]) {
+    const response = await handler({
+      method: "POST",
+      path: "/api/detect",
+      headers: { authorization: `Bearer ${monitorSettings.accessToken}` },
+      body: JSON.stringify({ url }),
+    });
+    assert.equal(response.statusCode, 422, response.body);
+    assert.equal(response.body.includes("secret"), false);
+  }
+  assert.equal(calls, 0);
+});
+
 await test("Rakuten numeric genre IDs preserve source images and auto-detection while rejecting malformed IDs", async (context) => {
   let genreId: unknown = 999901;
   const imageUrl =
@@ -1815,6 +2155,7 @@ await test("all six category APIs extract facts and compare prices without OpenA
     );
     if (!input.searchParams.has("shopCode")) {
       assert.equal(input.searchParams.get("genreId"), currentGenre);
+      assert.equal(input.searchParams.get("keyword")?.split(" ").includes("新品"), true);
       assert.equal(input.searchParams.has("minPrice"), false);
     }
     return Promise.resolve(Response.json({ count: 1, Items: [item] }));
@@ -1961,7 +2302,12 @@ await test("candidate exploration refills after condition failures and duplicate
         : [4, 5, 6, 7, 8].map((index) =>
             consumerItem(index, "100040", "メモリ: 16GB\nSSD: 512GB", 30000 + index * 1000),
           );
-    return Promise.resolve(Response.json({ count: 12, Items: items }));
+    const unknown = Array.from({ length: 30 - items.length }, (_entry, index) => ({
+      ...consumerItem(50 + index, "100040", ""),
+      itemName: "状態未確認のパソコン",
+      itemCaption: "メモリ:16GB\nSSD:512GB",
+    }));
+    return Promise.resolve(Response.json({ count: 60, Items: [...items, ...unknown] }));
   });
   const handler = createApiHandler(
     false,
@@ -2805,7 +3151,7 @@ function discoveryRiceItem(id: string, donation = true) {
   const url = `https://item.rakuten.co.jp/shop/${id}/`;
   return {
     itemCode: `shop:${id}`,
-    itemName: `${donation ? "【ふるさと納税】" : ""}白米 5kg`,
+    itemName: `【新品】${donation ? "【ふるさと納税】" : ""}白米 5kg`,
     itemUrl: url,
     affiliateUrl: `https://hb.afl.rakuten.co.jp/hgc/${discoverySettings.affiliateId}/?${new URLSearchParams({ pc: url }).toString()}`,
     itemCaption:
@@ -3019,7 +3365,7 @@ await test("HTTP comparison unlocks rice, reuses Jev selection, preserves HTML e
       return Promise.resolve(Response.json({ count: 1, Items: [discoveryRiceItem("source")] }));
     }
     assert.equal(input.searchParams.get("genreId"), "201184");
-    assert.equal(input.searchParams.get("keyword"), "ふるさと納税");
+    assert.equal(input.searchParams.get("keyword"), "ふるさと納税 新品");
     return Promise.resolve(
       Response.json({
         count: 6,
@@ -3059,7 +3405,7 @@ await test("HTTP comparison unlocks rice, reuses Jev selection, preserves HTML e
   assert.equal(value["products"].length, 6);
   for (const product of value["products"]) {
     assert.ok(record(product) && record(product["consumerInformation"]));
-    assert.equal(product["condition"], "unknown");
+    assert.equal(product["condition"], "new");
     assert.equal(product["recommendationPercent"], 67);
     assert.notEqual(product["listingId"], "shop:retail");
     assert.deepEqual(product["consumerInformation"]["specs"], {
@@ -3213,8 +3559,8 @@ await test("automatic extraction reaches all six products beyond 24 questions an
     }
     const item = (id: string): ReturnType<typeof discoveryRiceItem> => ({
       ...discoveryRiceItem(id),
-      itemName: "白米",
-      itemCaption: "商品内容: 200g×5袋、玄米、北海道、無洗米",
+      itemName: "無洗米",
+      itemCaption: "商品内容: 200g×5袋、玄米、北海道、無洗米\n商品状態: 新品",
     });
     return Promise.resolve(
       Response.json(
@@ -3272,4 +3618,869 @@ await test("automatic extraction reaches all six products beyond 24 questions an
   );
   assert.equal(partialSource["consumerInformation"]["specs"]["attribute100"], null);
   assert.equal(partialSource["consumerInformation"]["specs"]["attribute101"], "200g");
+});
+
+await test("Jev streamed response limits cancel excessive bodies and retain category fallback", async (context) => {
+  let declared = false;
+  let cancellations = 0;
+  let chunks = 0;
+  context.mock.method(globalThis, "fetch", (input: unknown) => {
+    if (input === "https://api.typesafe.ai/v1/systemone") {
+      return Promise.resolve(
+        new Response(
+          new ReadableStream<Uint8Array>({
+            pull(controller): void {
+              chunks += 1;
+              controller.enqueue(new Uint8Array(131073));
+            },
+            cancel(): void {
+              cancellations += 1;
+            },
+          }),
+          declared ? { headers: { "content-length": "1000000" } } : {},
+        ),
+      );
+    }
+    assert.ok(input instanceof URL && input.hostname === "openapi.rakuten.co.jp");
+    return Promise.resolve(
+      input.pathname.includes("IchibaGenre/Search")
+        ? discoveryGenreResponse()
+        : Response.json({ count: 1, Items: [discoveryRiceItem("source")] }),
+    );
+  });
+  for (const scenario of [false, true]) {
+    declared = scenario;
+    const previousCancellations = cancellations;
+    chunks = 0;
+    const response = await createApiHandler(false, discoverySettings, null, discoveryJevSettings, {
+      clock: discoveryClock,
+    })({
+      method: "POST",
+      path: "/api/detect",
+      headers: { authorization: `Bearer ${discoverySettings.accessToken}` },
+      body: JSON.stringify({ url: "https://item.rakuten.co.jp/shop/source/" }),
+    });
+    assert.equal(response.statusCode, 200, response.body);
+    assert.match(response.body, /"categorySelectionStatus":"unavailable"/);
+    assert.equal(cancellations, previousCancellations + 1);
+    assert.ok(chunks <= 3);
+  }
+});
+
+await test("Jev body deadlines cancel stalled reads; exact byte limits preserve split UTF-8", async (context) => {
+  let stalled = true;
+  let cancelled = false;
+  context.mock.method(globalThis, "fetch", (input: unknown, init?: RequestInit) => {
+    if (input === "https://api.typesafe.ai/v1/systemone") {
+      if (stalled) {
+        let serverTimeout: ReturnType<typeof setTimeout> | undefined;
+        return Promise.resolve(
+          new Response(
+            new ReadableStream<Uint8Array>({
+              start(controller): void {
+                // Model a server socket that remains open beyond the client's eight-second limit.
+                serverTimeout = setTimeout(() => {
+                  controller.close();
+                }, 9000);
+              },
+              cancel(): void {
+                if (serverTimeout !== undefined) {
+                  clearTimeout(serverTimeout);
+                }
+                cancelled = true;
+              },
+            }),
+          ),
+        );
+      }
+      assert.ok(typeof init?.body === "string");
+      const request: unknown = JSON.parse(init.body);
+      assert.ok(record(request) && record(request["questions"]));
+      const json = JSON.stringify({
+        model: "jev-1.13.0",
+        note: "あ",
+        answers: Object.fromEntries(
+          Object.keys(request["questions"]).map((id) => [id, { type: "noul", noul: 0.8 }]),
+        ),
+      });
+      const prefix = new TextEncoder().encode(json);
+      const bytes = new TextEncoder().encode(json + " ".repeat(262144 - prefix.byteLength));
+      const split = bytes.indexOf(0xe3) + 1;
+      return Promise.resolve(
+        new Response(
+          new ReadableStream<Uint8Array>({
+            start(controller): void {
+              controller.enqueue(bytes.slice(0, split));
+              controller.enqueue(bytes.slice(split));
+              controller.close();
+            },
+          }),
+        ),
+      );
+    }
+    assert.ok(input instanceof URL && input.hostname === "openapi.rakuten.co.jp");
+    return Promise.resolve(
+      input.pathname.includes("IchibaGenre/Search")
+        ? discoveryGenreResponse()
+        : Response.json({ count: 1, Items: [discoveryRiceItem("source")] }),
+    );
+  });
+  for (const scenario of [true, false]) {
+    stalled = scenario;
+    const response = await createApiHandler(false, discoverySettings, null, discoveryJevSettings, {
+      clock: discoveryClock,
+    })({
+      method: "POST",
+      path: "/api/detect",
+      headers: { authorization: `Bearer ${discoverySettings.accessToken}` },
+      body: JSON.stringify({ url: "https://item.rakuten.co.jp/shop/source/" }),
+    });
+    assert.equal(response.statusCode, 200, response.body);
+    assert.equal(cancelled, true);
+    assert.match(
+      response.body,
+      scenario ? /"categorySelectionStatus":"unavailable"/ : /"categorySelectionStatus":"applied"/,
+    );
+  }
+});
+
+const commerceTestToken = "commerce-test-token-12345678901234567890";
+const commerceTestNow = "2026-10-15T00:00:00.000Z";
+const commerceTestExpiry = "2026-11-01T00:00:00.000Z";
+const commerceTestVc = {
+  token: "vc-test-only-token",
+  siteId: "1234567",
+  spaceId: "123456789",
+  authorizedUntil: commerceTestExpiry,
+};
+
+function commerceTestClock(): Instant {
+  const parsed = instant(commerceTestNow);
+  if (parsed.tag === "err") {
+    throw new Error("Invalid test clock");
+  }
+  return parsed.value;
+}
+
+function commerceTestRequest(
+  source: string,
+  operation = "search",
+  query = "米 10kg",
+): Readonly<{
+  path: string;
+  method: string;
+  headers: Readonly<{ authorization: string }>;
+  body: string;
+}> {
+  return {
+    path: "/api/commerce",
+    method: "POST",
+    headers: { authorization: `Bearer ${commerceTestToken}` },
+    body: JSON.stringify({ source, operation, query }),
+  };
+}
+
+function commerceTestItem(source: "yahoo" | "satofull"): Readonly<Record<string, unknown>> {
+  const url =
+    source === "satofull"
+      ? "https://www.satofull.jp/products/detail.php?product_id=1234567"
+      : "https://store.shopping.yahoo.co.jp/shop/product.html";
+  const link = new URL("https://ck.jp.ap.valuecommerce.com/servlet/referral");
+  link.search = new URLSearchParams({
+    sid: commerceTestVc.siteId,
+    pid: commerceTestVc.spaceId,
+    vc_url: url,
+  }).toString();
+  return {
+    ecCode: source === "satofull" ? "jbfh4" : "0hzmc",
+    productCode: "1234567",
+    title: "精米10kg",
+    description: "<p>品種: コシヒカリ</p><p>内容量: 5kg×2袋</p>",
+    imageLarge: { url: "https://www.satofull.jp/upload/rice.jpg" },
+    price: 20000,
+    guid: url,
+    link: link.href,
+  };
+}
+
+await test("commerce metadata is credential-free; requests validate before using upstream", async () => {
+  let calls = 0;
+  const handler = createApiHandler(false, null, null, null, {
+    apiAccessToken: commerceTestToken,
+    clock: commerceTestClock,
+    commerceFetcher: () => {
+      calls += 1;
+      throw new Error("No request expected");
+    },
+  });
+  const sources = await handler({ path: "/api/commerce/sources", method: "GET" });
+  assert.equal(sources.statusCode, 200);
+  assert.equal((sources.body.match(/"configured":false/g) ?? []).length, 5);
+  assert.equal(sources.body.includes(commerceTestToken), false);
+  assert.equal((await handler(commerceTestRequest("satofull"))).statusCode, 503);
+  for (const request of [
+    { source: "other", operation: "search", query: "米" },
+    { source: "satofull", operation: "search", query: "米", page: 11 },
+    { source: "satofull", operation: "search", query: "米", limit: 100 },
+    { source: "satofull", operation: "search", query: "" },
+    { source: "satofull", operation: "search", query: "米".repeat(50) },
+    { source: "amazon", operation: "lookup", query: "B000000001", limit: 2 },
+  ]) {
+    assert.equal(
+      (await handler({ ...commerceTestRequest("satofull"), body: JSON.stringify(request) }))
+        .statusCode,
+      400,
+    );
+  }
+  assert.equal(
+    (await handler({ ...commerceTestRequest("satofull"), headers: {} })).statusCode,
+    401,
+  );
+  assert.equal(calls, 0);
+});
+
+await test("VC adapters isolate merchants, preserve donation meaning and unknowns, and look up exact API ids", async () => {
+  for (const source of ["yahoo", "satofull"] satisfies ReadonlyArray<"yahoo" | "satofull">) {
+    const seen: URL[] = [];
+    const fetcher: typeof fetch = (input, init) => {
+      const url = new URL(input instanceof Request ? input.url : input);
+      seen.push(url);
+      assert.equal(init?.redirect, "error");
+      assert.equal(url.origin, "https://webservice.valuecommerce.ne.jp");
+      assert.equal(url.searchParams.get("ec_code"), source === "satofull" ? "jbfh4" : "0hzmc");
+      return Promise.resolve(
+        Response.json({ status: "OK", resultCount: 1, items: [commerceTestItem(source)] }),
+      );
+    };
+    const handler = createApiHandler(false, null, null, null, {
+      apiAccessToken: commerceTestToken,
+      clock: commerceTestClock,
+      commerceConfiguration: { [source]: commerceTestVc },
+      commerceFetcher: fetcher,
+    });
+    const search = await handler(commerceTestRequest(source));
+    assert.equal(search.statusCode, 200, search.body);
+    assert.match(search.body, source === "satofull" ? /"kind":"donation"/ : /"kind":"purchase"/);
+    assert.match(
+      search.body,
+      source === "satofull" ? /"condition":"not_applicable"/ : /"condition":"unknown"/,
+    );
+    assert.match(search.body, /"shipping":"unknown"/);
+    assert.match(search.body, /"ai":false/);
+    assert.equal(search.body.includes(commerceTestVc.token), false);
+    assert.equal(search.body.includes("<p>"), false);
+    assert.match(search.body, /5kg×2袋/);
+    assert.match(search.body, /"imageUrl":"https:\/\/www\.satofull\.jp\/upload\/rice\.jpg"/);
+    assert.equal((await handler(commerceTestRequest(source, "lookup", "1234567"))).statusCode, 200);
+    assert.equal(seen[1]?.searchParams.get("product_id"), "1234567");
+    assert.equal(seen[1].searchParams.has("keyword"), false);
+    assert.equal((await handler(commerceTestRequest(source, "lookup", "7654321"))).statusCode, 422);
+    assert.equal(
+      (await handler(commerceTestRequest(source, "lookup", "https://127.0.0.1/private")))
+        .statusCode,
+      400,
+    );
+    assert.equal(seen.length, 3);
+  }
+});
+
+await test("furusato Jev scoring is wired through the public comparison handler and never runs for search", async () => {
+  let calls = 0;
+  let fail = false;
+  const handler = createApiHandler(
+    false,
+    null,
+    null,
+    { apiKey: "test-only-key", model: "jev-1.13.0" },
+    {
+      apiAccessToken: commerceTestToken,
+      clock: commerceTestClock,
+      commerceConfiguration: { satofull: { ...commerceTestVc, aiAuthorized: true } },
+      commerceFetcher: (input, init) => {
+        const url = new URL(input instanceof Request ? input.url : input);
+        if (url.hostname === "api.typesafe.ai") {
+          calls += 1;
+          if (fail) {
+            return Promise.resolve(new Response("unavailable", { status: 503 }));
+          }
+          assert.ok(typeof init?.body === "string");
+          const body: unknown = JSON.parse(init.body);
+          assert.ok(record(body) && record(body["questions"]));
+          assert.deepEqual(Object.keys(body["questions"]), ["g0", "g1"]);
+          assert.ok(record(body["state"]) && Array.isArray(body["state"]["items"]));
+          assert.equal(body["state"]["items"].length, 2);
+          assert.ok(
+            body["state"]["items"].every(
+              (item: unknown) =>
+                record(item) &&
+                Array.isArray(item["fields"]) &&
+                item["fields"].some(
+                  (field: unknown) =>
+                    record(field) && field["id"] === "cultivar" && field["value"] === "コシヒカリ",
+                ),
+            ),
+          );
+          return Promise.resolve(
+            Response.json({
+              model: "jev-1.13.0",
+              answers: Object.fromEntries(
+                Object.entries(body["questions"]).map(([id, question]) => {
+                  assert.ok(
+                    record(question) &&
+                      question["type"] === "score" &&
+                      record(question["instructions"]),
+                  );
+                  const levels = question["criteria"];
+                  assert.ok(Array.isArray(levels));
+                  assert.equal(question["instructions"]["scope"], "overall");
+                  assert.equal(
+                    question["instructions"]["listingId"],
+                    id === "g0" ? "satofull:1" : "satofull:2",
+                  );
+                  assert.equal(question["instructions"]["fieldId"], undefined);
+                  assert.equal(question["instructions"]["value"], undefined);
+                  const index = id === "g0" ? 3 : 2;
+                  return [
+                    id,
+                    {
+                      type: "score",
+                      score: index,
+                      confidence: 1,
+                      legend: Object.fromEntries(
+                        levels.map((level: unknown, i: number) => [String(i), level]),
+                      ),
+                      probabilities: Object.fromEntries(
+                        levels.map((_level: unknown, i: number) => [
+                          String(i),
+                          i === index ? 1 : 0,
+                        ]),
+                      ),
+                    },
+                  ];
+                }),
+              ),
+            }),
+          );
+        }
+        const id = url.searchParams.get("product_id") ?? "1";
+        return Promise.resolve(
+          Response.json({
+            status: "OK",
+            resultCount: 1,
+            items: [
+              {
+                ...commerceTestItem("satofull"),
+                productCode: id,
+                price: id === "1" ? 18000 : 20000,
+                title: "白米 コシヒカリ 10kg 一括配送",
+                description: `内容量: 5kg×2袋\n配送: 常温\n包装: ${id === "1" ? "チャック付き袋" : "通常袋"}`,
+              },
+            ],
+          }),
+        );
+      },
+    },
+  );
+  assert.equal((await handler(commerceTestRequest("satofull"))).statusCode, 200);
+  assert.equal(calls, 0);
+  const request = {
+    path: "/api/furusato/compare",
+    method: "POST",
+    headers: { authorization: `Bearer ${commerceTestToken}` },
+    body: JSON.stringify({
+      items: [
+        { source: "satofull", query: "1" },
+        { source: "satofull", query: "2" },
+      ],
+    }),
+  };
+  const response = await handler(request);
+  assert.equal(response.statusCode, 200, response.body);
+  assert.equal(calls, 1);
+  const body: unknown = JSON.parse(response.body);
+  assert.ok(
+    record(body) &&
+      record(body["value"]) &&
+      record(body["value"]["furusato"]) &&
+      record(body["value"]["furusato"]["scoring"]),
+  );
+  const scoring = body["value"]["furusato"]["scoring"];
+  assert.equal(scoring["status"], "applied");
+  assert.equal(scoring["scope"], "overall");
+  assert.equal(scoring["basis"], undefined);
+  assert.ok(Array.isArray(scoring["items"]) && record(scoring["items"][0]));
+  assert.equal(scoring["items"][0]["rank"], 1);
+  assert.equal(scoring["items"][0]["score"], 75);
+  assert.equal(scoring["items"][0]["axes"], undefined);
+  fail = true;
+  const failed = await handler(request);
+  assert.equal(failed.statusCode, 200, failed.body);
+  assert.match(failed.body, /"status":"unavailable"/);
+  assert.match(failed.body, /"score":null/);
+});
+
+await test("VC refuses wrong advertiser, tracking account, destination, malformed data and expired authorization", async () => {
+  for (const patch of [
+    { ecCode: "jhwy8" },
+    { price: -1 },
+    { price: "NaN" },
+    { description: "x".repeat(4097) },
+    { guid: "https://evil.example/products/detail.php?product_id=1234567" },
+    {
+      link: "https://ck.jp.ap.valuecommerce.com/servlet/referral?sid=999&pid=123456789&vc_url=https%3A%2F%2Fwww.satofull.jp%2Fproducts%2Fdetail.php%3Fproduct_id%3D1234567",
+    },
+    { link: "https://ck.jp.ap.valuecommerce.com.evil.example/servlet/referral" },
+  ]) {
+    const handler = createApiHandler(false, null, null, null, {
+      apiAccessToken: commerceTestToken,
+      clock: commerceTestClock,
+      commerceConfiguration: { satofull: commerceTestVc },
+      commerceFetcher: () =>
+        Promise.resolve(
+          Response.json({
+            status: "OK",
+            resultCount: 1,
+            items: [{ ...commerceTestItem("satofull"), ...patch }],
+          }),
+        ),
+    });
+    const result = await handler(commerceTestRequest("satofull"));
+    assert.equal(result.statusCode, 422, result.body);
+    assert.match(result.body, /invalid_response/);
+  }
+  let called = false;
+  const expired = createApiHandler(false, null, null, null, {
+    apiAccessToken: commerceTestToken,
+    clock: commerceTestClock,
+    commerceConfiguration: {
+      satofull: { ...commerceTestVc, authorizedUntil: "2026-10-01T00:00:00.000Z" },
+    },
+    commerceFetcher: () => {
+      called = true;
+      throw new Error("No request expected");
+    },
+  });
+  assert.match((await expired(commerceTestRequest("satofull"))).body, /source_not_authorized/);
+  assert.equal(called, false);
+});
+
+await test("commerce gateway applies the existing origin and cost limits to new routes", async () => {
+  const internal = createApiHandler(false, null, null, null, { apiAccessToken: commerceTestToken });
+  const gateway = createPublicConsumerApi(internal, {
+    accessToken: commerceTestToken,
+    allowedOrigin: "https://compare.example",
+  });
+  const request = {
+    ...commerceTestRequest("satofull"),
+    headers: { origin: "https://compare.example", "content-type": "application/json" },
+  };
+  assert.equal(
+    (await gateway({ ...request, headers: { origin: "https://evil.example" } }, "client"))
+      .statusCode,
+    403,
+  );
+  for (let index = 0; index < 6; index += 1) {
+    assert.equal((await gateway(request, "client")).statusCode, 503);
+  }
+  assert.equal((await gateway(request, "client")).statusCode, 429);
+  assert.equal(
+    (await gateway({ path: "/api/commerce/sources", method: "GET" }, "client")).statusCode,
+    200,
+  );
+});
+
+await test("Amazon uses JP OAuth, suppresses descriptions/MAP prices and never labels featured offers as comparable minima", async () => {
+  let tokenCalls = 0;
+  let map = false;
+  const seenBodies: unknown[] = [];
+  const settings = {
+    clientId: "test-client-id",
+    clientSecret: "test-client-secret",
+    partnerTag: "test-partner-22",
+    authorizedUntil: commerceTestExpiry,
+  };
+  const fetcher: typeof fetch = (input, init) => {
+    const url = new URL(input instanceof Request ? input.url : input);
+    assert.equal(init?.redirect, "error");
+    assert.equal(typeof init.body, "string");
+    if (typeof init.body !== "string") {
+      throw new Error("Missing request body");
+    }
+    const body: unknown = JSON.parse(init.body);
+    if (url.origin === "https://api.amazon.co.jp") {
+      tokenCalls += 1;
+      assert.equal(url.pathname, "/auth/o2/token");
+      assert.ok(record(body));
+      assert.equal(body["scope"], "creatorsapi::default");
+      return Promise.resolve(
+        Response.json({
+          access_token: "test-access-token",
+          token_type: "bearer",
+          expires_in: 3600,
+        }),
+      );
+    }
+    assert.equal(url.origin, "https://creatorsapi.amazon");
+    seenBodies.push(body);
+    assert.ok(record(body));
+    assert.equal(body["marketplace"], "www.amazon.co.jp");
+    assert.equal(JSON.stringify(body).includes("features"), false);
+    const items = [
+      {
+        asin: "B000000001",
+        detailPageURL: "https://www.amazon.co.jp/dp/B000000001?tag=test-partner-22",
+        itemInfo: {
+          title: { displayValue: "Test product" },
+          features: { displayValues: ["Do not return or score this"] },
+        },
+        offersV2: {
+          listings: [
+            {
+              isBuyBoxWinner: true,
+              violatesMAP: map,
+              condition: { value: "New" },
+              price: { money: { amount: 12000, currency: "JPY" } },
+              availability: { type: "IN_STOCK" },
+            },
+          ],
+        },
+      },
+    ];
+    return Promise.resolve(
+      Response.json(
+        url.pathname.endsWith("getItems")
+          ? { itemsResult: { items } }
+          : { searchResult: { items, totalResultCount: 1 } },
+      ),
+    );
+  };
+  const handler = createApiHandler(false, null, null, null, {
+    apiAccessToken: commerceTestToken,
+    clock: commerceTestClock,
+    commerceConfiguration: { amazon: settings },
+    commerceFetcher: fetcher,
+  });
+  const search = await handler(commerceTestRequest("amazon", "search", "test product"));
+  assert.equal(search.statusCode, 200, search.body);
+  assert.match(search.body, /"priceBasis":"featured_offer"/);
+  assert.match(search.body, /"priceComparison":false/);
+  assert.match(search.body, /"ai":false/);
+  assert.match(search.body, /"description":null/);
+  assert.equal(search.body.includes("Do not return or score this"), false);
+  assert.equal(search.body.includes(settings.clientSecret), false);
+  assert.match(search.body, /"minimum":12000/);
+  map = true;
+  const lookup = await handler(commerceTestRequest("amazon", "lookup", "B000000001"));
+  assert.equal(lookup.statusCode, 200, lookup.body);
+  assert.match(lookup.body, /"amount":null/);
+  assert.equal(tokenCalls, 1);
+  assert.equal(seenBodies.length, 2);
+  assert.equal(
+    (await handler(commerceTestRequest("amazon", "lookup", "https://evil.example/dp/B000000001")))
+      .statusCode,
+    400,
+  );
+  assert.equal(seenBodies.length, 2);
+});
+
+await test("native Yahoo API shares the commerce contract, preserves search-only condition and verifies attribution and authorization", async () => {
+  const parsedExpiry = instant(new Date(Date.parse(commerceTestExpiry) + 1000).toISOString());
+  assert.equal(parsedExpiry.tag, "ok");
+  let wrongAccount = false,
+    expireDuringFetch = false,
+    expired = false,
+    calls = 0;
+  const url = "https://store.shopping.yahoo.co.jp/testshop/item-1.html";
+  const link = (): string =>
+    "https://ck.jp.ap.valuecommerce.com/servlet/referral?sid=" +
+    (wrongAccount ? "9999999" : commerceTestVc.siteId) +
+    "&pid=" +
+    commerceTestVc.spaceId +
+    "&vc_url=" +
+    encodeURIComponent(url);
+  const handler = createApiHandler(false, null, null, null, {
+    apiAccessToken: commerceTestToken,
+    clock: () => (expired ? parsedExpiry.value : commerceTestClock()),
+    commerceConfiguration: {
+      yahoo: {
+        applicationId: "test-yahoo-app",
+        siteId: commerceTestVc.siteId,
+        spaceId: commerceTestVc.spaceId,
+        authorizedUntil: commerceTestExpiry,
+      },
+    },
+    commerceFetcher: (input) => {
+      calls++;
+      const endpoint = new URL(input instanceof Request ? input.url : input);
+      assert.equal(endpoint.hostname, "shopping.yahooapis.jp");
+      assert.equal(endpoint.searchParams.get("appid"), "test-yahoo-app");
+      assert.equal(
+        endpoint.searchParams.get("affiliate_id"),
+        "https://ck.jp.ap.valuecommerce.com/servlet/referral?sid=" +
+          commerceTestVc.siteId +
+          "&pid=" +
+          commerceTestVc.spaceId +
+          "&vc_url=",
+      );
+      if (expireDuringFetch) {
+        expired = true;
+      }
+      if (endpoint.pathname.endsWith("itemSearch")) {
+        return Promise.resolve(
+          Response.json({
+            totalResultsAvailable: 1,
+            totalResultsReturned: 1,
+            firstResultsPosition: 1,
+            hits: [
+              {
+                code: "testshop_item-1",
+                name: "比較用のボトル",
+                description: "<p>容量: 1L</p>",
+                url: link(),
+                price: 12000,
+                condition: "new",
+                inStock: true,
+                shipping: { code: 2 },
+                priceLabel: { taxable: true },
+                image: { medium: "https://item-shopping.c.yimg.jp/i/n/testshop_item-1" },
+              },
+            ],
+          }),
+        );
+      }
+      assert.equal(endpoint.pathname, "/ShoppingWebService/V1/itemLookup");
+      assert.equal(endpoint.searchParams.get("itemcode"), "testshop_item-1");
+      return Promise.resolve(
+        new Response(
+          '<ResultSet totalResultsReturned="1"><Result><Hit><Code>testshop_item-1</Code>' +
+            "<Name>比較用のボトル</Name><Url>" +
+            link().replaceAll("&", "&amp;") +
+            '</Url><Price currency="JPY">12000</Price>' +
+            '<PriceLabel taxIncluded="true"/><Shipping><Code>2</Code></Shipping><Availability>instock</Availability><Caption>容量: 1L</Caption></Hit></Result></ResultSet>',
+        ),
+      );
+    },
+  });
+  const search = await handler(commerceTestRequest("yahoo", "search", "ボトル"));
+  assert.equal(search.statusCode, 200, search.body);
+  assert.match(search.body, /"source":"yahoo"/);
+  assert.match(search.body, /"kind":"purchase"/);
+  assert.match(search.body, /"condition":"new"/);
+  assert.match(search.body, /"tax":"included"/);
+  assert.match(search.body, /"shipping":"included"/);
+  assert.equal(search.body.includes("<p>"), false);
+  assert.equal(search.body.includes("test-yahoo-app"), false);
+  const lookup = await handler(commerceTestRequest("yahoo", "lookup", url));
+  assert.equal(lookup.statusCode, 200, lookup.body);
+  assert.match(lookup.body, /"condition":"unknown"/);
+  assert.match(lookup.body, /"affiliateUrl":/);
+  assert.equal(
+    (await handler(commerceTestRequest("yahoo", "lookup", url + "?variant=other"))).statusCode,
+    400,
+  );
+  assert.equal(calls, 2);
+  wrongAccount = true;
+  const invalid = await handler(commerceTestRequest("yahoo", "search", "ボトル"));
+  assert.equal(invalid.statusCode, 422, invalid.body);
+  assert.match(invalid.body, /invalid_response/);
+  wrongAccount = false;
+  expireDuringFetch = true;
+  const stale = await handler(commerceTestRequest("yahoo", "search", "ボトル"));
+  assert.equal(stale.statusCode, 422, stale.body);
+  assert.match(stale.body, /source_not_authorized/);
+});
+
+await test("Rakuten commerce keeps donations separate without a new-product keyword or condition", async () => {
+  const queries: URL[] = [];
+  const handler = createApiHandler(
+    false,
+    { ...liveSettings, authorizedUntil: commerceTestExpiry, accessToken: commerceTestToken },
+    null,
+    null,
+    {
+      clock: commerceTestClock,
+      commerceFetcher: (input) => {
+        const url = new URL(input instanceof Request ? input.url : input);
+        queries.push(url);
+        const donation = (url.searchParams.get("keyword") ?? "").includes("ふるさと納税");
+        return Promise.resolve(
+          Response.json({
+            count: 1,
+            Items: [
+              {
+                ...liveItem,
+                itemName: donation ? "【ふるさと納税】コシヒカリ 10kg" : "コシヒカリ 10kg",
+                itemCaption: "内容量: 5kg×2袋。配送: 常温。",
+                mediumImageUrls: [
+                  { imageUrl: "https://thumbnail.image.rakuten.co.jp/shop/rice.jpg" },
+                ],
+              },
+            ],
+          }),
+        );
+      },
+    },
+  );
+  const donation = await handler(commerceTestRequest("rakuten_furusato", "search", "米"));
+  assert.equal(donation.statusCode, 200, donation.body);
+  assert.match(donation.body, /"kind":"donation"/);
+  assert.match(donation.body, /"condition":"not_applicable"/);
+  assert.match(donation.body, /5kg×2袋/);
+  assert.match(
+    donation.body,
+    /"imageUrl":"https:\/\/thumbnail\.image\.rakuten\.co\.jp\/shop\/rice\.jpg"/,
+  );
+  assert.equal(queries[0]?.searchParams.get("keyword"), "ふるさと納税 米");
+  const normal = await handler(commerceTestRequest("rakuten", "search", "米"));
+  assert.equal(normal.statusCode, 200, normal.body);
+  assert.match(normal.body, /"kind":"purchase"/);
+  assert.match(normal.body, /"condition":"unknown"/);
+  assert.equal(queries[1]?.searchParams.get("NGKeyword"), "ふるさと納税");
+});
+
+await test("commerce transport contains upstream errors and bounds streamed responses", async () => {
+  for (const scenario of [
+    "token",
+    "rate",
+    "oversized",
+    "redirect",
+    "malformed",
+  ] satisfies string[]) {
+    let cancelled = false;
+    const fetcher: typeof fetch = () => {
+      if (scenario === "redirect") {
+        return Promise.reject(new Error("token=private-upstream-token"));
+      }
+      if (scenario === "token") {
+        return Promise.resolve(Response.json({ status: "INVALID_TOKEN" }));
+      }
+      if (scenario === "rate") {
+        return Promise.resolve(new Response("private-upstream-token", { status: 429 }));
+      }
+      if (scenario === "malformed") {
+        return Promise.resolve(new Response("{bad json"));
+      }
+      return Promise.resolve(
+        new Response(
+          new ReadableStream<Uint8Array>({
+            start(controller) {
+              controller.enqueue(new Uint8Array(1_048_577));
+            },
+            cancel() {
+              cancelled = true;
+            },
+          }),
+        ),
+      );
+    };
+    const handler = createApiHandler(false, null, null, null, {
+      apiAccessToken: commerceTestToken,
+      clock: commerceTestClock,
+      commerceConfiguration: { satofull: commerceTestVc },
+      commerceFetcher: fetcher,
+    });
+    const result = await handler(commerceTestRequest("satofull"));
+    assert.equal(
+      result.statusCode,
+      scenario === "rate" ? 429 : scenario === "oversized" || scenario === "malformed" ? 422 : 503,
+      result.body,
+    );
+    assert.equal(result.body.includes("private-upstream-token"), false);
+    if (scenario === "oversized") {
+      assert.equal(cancelled, true);
+    }
+  }
+});
+
+await test("furusato comparison endpoint fetches references server-side and inherits authorization and origin controls", async () => {
+  let calls = 0;
+  const handler = createApiHandler(false, null, null, null, {
+    apiAccessToken: commerceTestToken,
+    clock: commerceTestClock,
+    commerceConfiguration: { satofull: commerceTestVc },
+    commerceFetcher: (input) => {
+      calls += 1;
+      const upstream = new URL(input instanceof Request ? input.url : input);
+      const id = upstream.searchParams.get("product_id");
+      const guid = `https://www.satofull.jp/products/detail.php?product_id=${id ?? ""}`;
+      const link = new URL("https://ck.jp.ap.valuecommerce.com/servlet/referral");
+      link.search = new URLSearchParams({
+        sid: commerceTestVc.siteId,
+        pid: commerceTestVc.spaceId,
+        vc_url: guid,
+      }).toString();
+      return Promise.resolve(
+        Response.json({
+          status: "OK",
+          resultCount: 1,
+          items: [
+            {
+              ...commerceTestItem("satofull"),
+              productCode: id,
+              guid,
+              link: link.href,
+              title: "白米 コシヒカリ 10kg 一括配送",
+              description: "内容量: 5kg×2袋。配送: 常温",
+            },
+          ],
+        }),
+      );
+    },
+  });
+  const request = {
+    ...commerceTestRequest("satofull"),
+    path: "/api/furusato/compare",
+    body: JSON.stringify({
+      items: [
+        { source: "satofull", query: "1" },
+        { source: "satofull", query: "2" },
+      ],
+    }),
+  };
+  assert.equal((await handler({ ...request, headers: {} })).statusCode, 401);
+  assert.equal(calls, 0);
+  const gateway = createPublicConsumerApi(handler, {
+    accessToken: commerceTestToken,
+    allowedOrigin: "https://compare.example",
+  });
+  assert.equal(
+    (
+      await gateway(
+        {
+          ...request,
+          headers: { origin: "https://evil.example", "content-type": "application/json" },
+        },
+        "furusato",
+      )
+    ).statusCode,
+    403,
+  );
+  assert.equal(calls, 0);
+  const result = await gateway(
+    {
+      ...request,
+      headers: { origin: "https://compare.example", "content-type": "application/json" },
+    },
+    "furusato",
+  );
+  assert.equal(result.statusCode, 200, result.body);
+  assert.match(result.body, /"furusato":/);
+  assert.match(result.body, /"unitDonationComparable":true/);
+  assert.match(result.body, /"donationPerKg":2000/);
+  assert.equal(calls, 2);
+  assert.equal(
+    (
+      await handler({
+        ...request,
+        body: JSON.stringify({
+          items: [
+            { source: "satofull", query: "1" },
+            { source: "amazon", query: "2" },
+          ],
+        }),
+      })
+    ).statusCode,
+    400,
+  );
+  assert.equal(calls, 2);
 });

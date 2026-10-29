@@ -3,16 +3,19 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "typecheck": "tsc --noEmit",
-    "dev": "vite --config src/vite.config.ts",
-    "build": "vite build --config src/vite.config.ts"
+    "prepare:site": "node ../../tooling/prepare-site.mjs",
+    "typecheck": "pnpm prepare:site && tsc --noEmit && astro check",
+    "dev": "pnpm prepare:site && astro dev",
+    "build": "pnpm prepare:site && astro build"
   },
   "dependencies": {
     "@app/api-client": "workspace:*",
     "solid-js": "1.9.15"
   },
   "devDependencies": {
-    "vite": "8.3.1",
-    "vite-plugin-solid": "2.11.14"
+    "@astrojs/check": "0.9.12",
+    "@astrojs/solid-js": "7.1.1",
+    "astro": "7.4.2",
+    "vite": "8.3.4"
   }
 }

@@ -4,6 +4,6 @@
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "dev": "tsc --noEmit false && node dist/apps/api/src/local.js"
+    "dev": "pnpm --filter @app/rakuten-api --filter @app/valuecommerce-api --filter @app/jev-api --filter @app/amazon-api --filter @app/yahoo-shopping-api build && tsc --noEmit false && node ../../tooling/run-local-api.mjs"
   }
 }

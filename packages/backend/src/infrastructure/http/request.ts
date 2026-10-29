@@ -20,6 +20,7 @@ type ApiRequest = Readonly<{
   comparisonJobId?: string;
   comparisonAccessKey?: string | null;
   idempotencyKey?: string;
+  commerceInput?: unknown;
 }>;
 type RequestError = Readonly<{ code: "invalid_request" | "invalid_url" }>;
 
@@ -93,6 +94,9 @@ function parseComparisonJobPath(path: string): Readonly<{ id: string; cancel: bo
 }
 
 function routeNeedsDetailedBody(path: string, method: string): boolean {
+  if (path === "/api/commerce" || path === "/api/furusato/compare" || path === "/api/securities") {
+    return method === "POST";
+  }
   if (path === "/api/investigate") {
     return true;
   }
@@ -218,6 +222,26 @@ export function parseApiRequest(input: unknown): Result<ApiRequest, RequestError
       const decoded: unknown = JSON.parse(body);
       if (!record(decoded)) {
         return err({ code: "invalid_request" });
+      }
+      if (
+        path === "/api/commerce" ||
+        path === "/api/furusato/compare" ||
+        path === "/api/securities"
+      ) {
+        return ok(
+          Object.freeze({
+            method,
+            path,
+            url: null,
+            keyword: null,
+            requirements: null,
+            authorization: authorization.value,
+            operation: "lookup",
+            conditions: null,
+            confirmed: false,
+            commerceInput: decoded,
+          }),
+        );
       }
       if (path === "/api/detect") {
         const sourceUrl = decoded["url"];
@@ -440,6 +464,9 @@ export function apiResponse(
       "content-type": "application/json; charset=utf-8",
       "cache-control": "no-store",
       "x-content-type-options": "nosniff",
+      "content-security-policy": "default-src 'none'; frame-ancestors 'none'",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
       ...extraHeaders,
     }),
     body: JSON.stringify(body),
@@ -452,6 +479,7 @@ export function corsPreflightResponse(allowedOrigin: string): ApiResponse {
     "access-control-allow-methods": "GET,POST,OPTIONS",
     "access-control-allow-headers": "Authorization,Content-Type,x-comparison-key",
     "access-control-max-age": "600",
+    vary: "Origin",
   });
 }
 
@@ -461,14 +489,31 @@ export function withCors(response: ApiResponse, allowedOrigin: string | null): A
   }
   return Object.freeze({
     ...response,
-    headers: Object.freeze({ ...response.headers, "access-control-allow-origin": allowedOrigin }),
+    headers: Object.freeze({
+      ...response.headers,
+      "access-control-allow-origin": allowedOrigin,
+      vary:
+        response.headers["vary"] === undefined ? "Origin" : `${response.headers["vary"]}, Origin`,
+    }),
   });
 }
 
-function publicConsumerRoute(path: string, method: string): boolean {
+function publicConsumerRoute(
+  path: string,
+  method: string,
+  allowCapabilityCancellation: boolean,
+): boolean {
   return (
+    (path === "/api/securities" &&
+      (method === "GET" || method === "POST" || method === "OPTIONS")) ||
+    (path === "/api/commerce/sources" && (method === "GET" || method === "OPTIONS")) ||
+    (path === "/api/commerce" && (method === "POST" || method === "OPTIONS")) ||
+    (path === "/api/furusato/compare" && (method === "POST" || method === "OPTIONS")) ||
     (path === "/api/catalog" && (method === "GET" || method === "OPTIONS")) ||
     ((path === "/api/detect" || path === "/api/comparisons") &&
+      (method === "POST" || method === "OPTIONS")) ||
+    (allowCapabilityCancellation &&
+      /^\/api\/comparisons\/[a-f0-9]{64}\/cancel$/.test(path) &&
       (method === "POST" || method === "OPTIONS")) ||
     (/^\/api\/comparisons\/[a-f0-9]{64}$/.test(path) && (method === "GET" || method === "OPTIONS"))
   );
@@ -490,7 +535,13 @@ function consumerOrigin(input: string): string {
 }
 export function createPublicConsumerGateway(
   internal: (event: unknown) => Promise<ApiResponse>,
-  settings: Readonly<{ accessToken: string | null; allowedOrigin?: string; clock?: () => number }>,
+  settings: Readonly<{
+    accessToken: string | null;
+    allowedOrigin?: string;
+    clock?: () => number;
+    consumeRateLimit?: (address: string) => Promise<boolean>;
+    allowCapabilityCancellation?: boolean;
+  }>,
 ): (event: unknown, clientAddress: string, serverOrigin?: string) => Promise<ApiResponse> {
   if (settings.accessToken !== null && !/^[a-zA-Z0-9_-]{32,256}$/.test(settings.accessToken)) {
     throw new Error("A valid server API token is required");
@@ -504,7 +555,11 @@ export function createPublicConsumerGateway(
       !record(event) ||
       typeof event["path"] !== "string" ||
       typeof event["method"] !== "string" ||
-      !publicConsumerRoute(event["path"], event["method"])
+      !publicConsumerRoute(
+        event["path"],
+        event["method"],
+        settings.allowCapabilityCancellation === true,
+      )
     ) {
       return await internal(event);
     }
@@ -525,17 +580,63 @@ export function createPublicConsumerGateway(
     if (origin !== null && origin !== expectedOrigin) {
       return apiResponse(403, err({ code: "origin_forbidden" }));
     }
+    const fetchSites = Object.entries(headers).filter(
+      ([name]) => name.toLowerCase() === "sec-fetch-site",
+    );
+    const fetchSite = fetchSites[0]?.[1] ?? null;
+    if (
+      fetchSites.length > 1 ||
+      (fetchSite !== null &&
+        (typeof fetchSite !== "string" ||
+          !["same-origin", "same-site", "cross-site", "none"].includes(fetchSite)))
+    ) {
+      return apiResponse(400, err({ code: "invalid_request" }));
+    }
+    if (fetchSite === "cross-site" && (origin === null || origin !== expectedOrigin)) {
+      return apiResponse(403, err({ code: "origin_forbidden" }));
+    }
     if (event["method"] === "OPTIONS") {
       return expectedOrigin === null ? apiResponse(204, "") : corsPreflightResponse(expectedOrigin);
+    }
+    if (event["method"] === "POST") {
+      const contentTypes = Object.entries(headers).filter(
+        ([name]) => name.toLowerCase() === "content-type",
+      );
+      const contentType = contentTypes[0]?.[1] ?? null;
+      if (
+        contentTypes.length > 1 ||
+        (contentType !== null &&
+          (typeof contentType !== "string" ||
+            !/^application\/json(?:\s*;\s*charset=utf-8)?\s*$/i.test(contentType)))
+      ) {
+        return apiResponse(400, err({ code: "invalid_request" }));
+      }
     }
     const parsed = parseApiRequest(event);
     if (parsed.tag === "err") {
       return apiResponse(400, parsed);
     }
-    if (settings.accessToken === null && parsed.value.path !== "/api/catalog") {
+    if (
+      settings.accessToken === null &&
+      parsed.value.path !== "/api/securities" &&
+      parsed.value.path !== "/api/catalog" &&
+      parsed.value.path !== "/api/commerce/sources"
+    ) {
       return withCors(apiResponse(503, err({ code: "provider_unavailable" })), expectedOrigin);
     }
     if (parsed.value.method === "POST") {
+      if (settings.consumeRateLimit !== undefined) {
+        try {
+          if (!(await settings.consumeRateLimit(clientAddress))) {
+            return withCors(
+              apiResponse(429, err({ code: "consumer_rate_limited" }), { "retry-after": "60" }),
+              expectedOrigin,
+            );
+          }
+        } catch {
+          return withCors(apiResponse(503, err({ code: "storage_unavailable" })), expectedOrigin);
+        }
+      }
       // ponytail: six costly requests per minute/address on one instance; move to a shared limiter if horizontally scaled.
       const now = clock();
       const address =

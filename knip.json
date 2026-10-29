@@ -1,13 +1,19 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "ignoreBinaries": ["rtk"],
-  "ignoreIssues": { "apps/api/src/firebase.ts": ["exports"] },
+  "ignoreIssues": {
+    "apps/api/src/firebase.ts": ["exports"],
+    "apps/api/src/lambda.ts": ["exports"],
+    "apps/worker/src/lambda.ts": ["exports"],
+    "apps/worker/src/cleanup.ts": ["exports"]
+  },
   "workspaces": {
     ".": {
       "entry": ["tooling/*.mjs"],
       "project": ["tooling/**/*.mjs"],
       "ignoreDependencies": ["firebase-admin"]
     },
-    "apps/api": { "entry": ["src/index.ts", "src/local.ts", "src/firebase.ts"] }
+    "apps/api": { "entry": ["src/index.ts", "src/local.ts", "src/firebase.ts", "src/lambda.ts"] },
+    "apps/worker": { "entry": ["src/index.ts", "src/lambda.ts", "src/cleanup.ts"] }
   }
 }

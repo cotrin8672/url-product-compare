@@ -91,7 +91,7 @@ export type ConsumerProvider = Readonly<{
     options?: ConsumerProviderOptions,
   ) => Promise<
     Result<
-      Readonly<{ count: number; listings: readonly ConsumerListing[] }>,
+      Readonly<{ count: number; pageSize?: number; listings: readonly ConsumerListing[] }>,
       ConsumerProviderLookupError
     >
   >;

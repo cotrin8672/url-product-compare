@@ -1,0 +1,276 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Transform": "AWS::Serverless-2016-10-31",
+  "Description": "Product comparison: static Xserver frontend with DynamoDB, API and asynchronous worker Lambdas, without PHP or SQS",
+  "Parameters": {
+    "ConfigurationSecretArn": {
+      "Type": "String",
+      "AllowedPattern": "arn:aws:secretsmanager:[a-z0-9-]+:[0-9]{12}:secret:[a-zA-Z0-9/_+=.@-]+"
+    },
+    "ConfigurationVersion": {
+      "Type": "String",
+      "Description": "Change when rotating the secret to force environment refresh"
+    },
+    "ConcurrencyMode": {
+      "Type": "String",
+      "Default": "reserved",
+      "AllowedValues": ["reserved", "shared"],
+      "Description": "shared omits per-function reservations and uses the existing regional account pool; reserved requires sufficient account quota"
+    },
+    "ApiConcurrency": { "Type": "Number", "Default": 4, "MinValue": 1, "MaxValue": 20 },
+    "WorkerConcurrency": { "Type": "Number", "Default": 2, "MinValue": 1, "MaxValue": 10 }
+  },
+  "Conditions": {
+    "UseReservedConcurrency": { "Fn::Equals": [{ "Ref": "ConcurrencyMode" }, "reserved"] }
+  },
+  "Globals": {
+    "Function": {
+      "Runtime": "nodejs24.x",
+      "Architectures": ["x86_64"],
+      "MemorySize": 512,
+      "Environment": {
+        "Variables": {
+          "CONFIGURATION_VERSION": { "Ref": "ConfigurationVersion" },
+          "COMPARISON_JOBS_TABLE": { "Ref": "Jobs" },
+          "COMPARISON_CATEGORIES_TABLE": { "Ref": "Categories" },
+          "COMPARISON_LIMITS_TABLE": { "Ref": "Limits" }
+        }
+      }
+    }
+  },
+  "Resources": {
+    "Worker": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "CodeUri": "../../apps/api/dist/lambda/",
+        "Handler": "apps/worker/src/lambda.handler",
+        "Timeout": 60,
+        "ReservedConcurrentExecutions": {
+          "Fn::If": [
+            "UseReservedConcurrency",
+            { "Ref": "WorkerConcurrency" },
+            { "Ref": "AWS::NoValue" }
+          ]
+        },
+        "EventInvokeConfig": { "MaximumEventAgeInSeconds": 300, "MaximumRetryAttempts": 1 },
+        "Policies": [
+          "AWSLambdaBasicExecutionRole",
+          {
+            "Statement": [
+              {
+                "Effect": "Allow",
+                "Action": ["dynamodb:GetItem", "dynamodb:PutItem"],
+                "Resource": { "Fn::GetAtt": ["Jobs", "Arn"] }
+              },
+              {
+                "Effect": "Allow",
+                "Action": [
+                  "dynamodb:GetItem",
+                  "dynamodb:PutItem",
+                  "dynamodb:UpdateItem",
+                  "dynamodb:DeleteItem"
+                ],
+                "Resource": { "Fn::GetAtt": ["Categories", "Arn"] }
+              }
+            ]
+          }
+        ],
+        "Environment": {
+          "Variables": {
+            "API_CONFIGURATION": {
+              "Fn::Sub": "{{resolve:secretsmanager:${ConfigurationSecretArn}:SecretString}}"
+            }
+          }
+        }
+      }
+    },
+    "Api": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "CodeUri": "../../apps/api/dist/lambda/",
+        "Handler": "apps/api/src/lambda.handler",
+        "Timeout": 90,
+        "FunctionUrlConfig": { "AuthType": "NONE", "InvokeMode": "BUFFERED" },
+        "ReservedConcurrentExecutions": {
+          "Fn::If": [
+            "UseReservedConcurrency",
+            { "Ref": "ApiConcurrency" },
+            { "Ref": "AWS::NoValue" }
+          ]
+        },
+        "Environment": {
+          "Variables": {
+            "COMPARISON_WORKER_ARN": { "Fn::GetAtt": ["Worker", "Arn"] },
+            "API_CONFIGURATION": {
+              "Fn::Sub": "{{resolve:secretsmanager:${ConfigurationSecretArn}:SecretString}}"
+            }
+          }
+        },
+        "Policies": [
+          "AWSLambdaBasicExecutionRole",
+          {
+            "Statement": [
+              {
+                "Effect": "Allow",
+                "Action": "lambda:InvokeFunction",
+                "Resource": { "Fn::GetAtt": ["Worker", "Arn"] }
+              }
+            ]
+          },
+          {
+            "Statement": [
+              {
+                "Effect": "Allow",
+                "Action": ["dynamodb:GetItem", "dynamodb:PutItem"],
+                "Resource": { "Fn::GetAtt": ["Jobs", "Arn"] }
+              },
+              {
+                "Effect": "Allow",
+                "Action": [
+                  "dynamodb:GetItem",
+                  "dynamodb:PutItem",
+                  "dynamodb:UpdateItem",
+                  "dynamodb:DeleteItem"
+                ],
+                "Resource": { "Fn::GetAtt": ["Categories", "Arn"] }
+              },
+              {
+                "Effect": "Allow",
+                "Action": ["dynamodb:UpdateItem"],
+                "Resource": { "Fn::GetAtt": ["Limits", "Arn"] }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "ApiLogs": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": { "LogGroupName": { "Fn::Sub": "/aws/lambda/${Api}" }, "RetentionInDays": 14 }
+    },
+    "WorkerLogs": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": { "Fn::Sub": "/aws/lambda/${Worker}" },
+        "RetentionInDays": 14
+      }
+    },
+    "Jobs": {
+      "Type": "AWS::DynamoDB::Table",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "BillingMode": "PAY_PER_REQUEST",
+        "AttributeDefinitions": [
+          { "AttributeName": "key", "AttributeType": "S" },
+          { "AttributeName": "cleanupGroup", "AttributeType": "S" },
+          { "AttributeName": "dueAt", "AttributeType": "N" }
+        ],
+        "KeySchema": [{ "AttributeName": "key", "KeyType": "HASH" }],
+        "TimeToLiveSpecification": { "AttributeName": "ttl", "Enabled": true },
+        "SSESpecification": { "SSEEnabled": true },
+        "GlobalSecondaryIndexes": [
+          {
+            "IndexName": "cleanup",
+            "KeySchema": [
+              { "AttributeName": "cleanupGroup", "KeyType": "HASH" },
+              { "AttributeName": "dueAt", "KeyType": "RANGE" }
+            ],
+            "Projection": { "ProjectionType": "KEYS_ONLY" }
+          }
+        ]
+      }
+    },
+    "Categories": {
+      "Type": "AWS::DynamoDB::Table",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "BillingMode": "PAY_PER_REQUEST",
+        "AttributeDefinitions": [{ "AttributeName": "key", "AttributeType": "S" }],
+        "KeySchema": [{ "AttributeName": "key", "KeyType": "HASH" }],
+        "TimeToLiveSpecification": { "AttributeName": "ttl", "Enabled": true },
+        "SSESpecification": { "SSEEnabled": true }
+      }
+    },
+    "Limits": {
+      "Type": "AWS::DynamoDB::Table",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Properties": {
+        "BillingMode": "PAY_PER_REQUEST",
+        "AttributeDefinitions": [{ "AttributeName": "key", "AttributeType": "S" }],
+        "KeySchema": [{ "AttributeName": "key", "KeyType": "HASH" }],
+        "TimeToLiveSpecification": { "AttributeName": "ttl", "Enabled": true },
+        "SSESpecification": { "SSEEnabled": true }
+      }
+    },
+    "Cleanup": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "CodeUri": "../../apps/api/dist/lambda/",
+        "Handler": "apps/worker/src/cleanup.handler",
+        "Timeout": 45,
+        "ReservedConcurrentExecutions": {
+          "Fn::If": ["UseReservedConcurrency", 1, { "Ref": "AWS::NoValue" }]
+        },
+        "EventInvokeConfig": { "MaximumEventAgeInSeconds": 60, "MaximumRetryAttempts": 0 },
+        "Policies": [
+          "AWSLambdaBasicExecutionRole",
+          {
+            "Statement": [
+              {
+                "Effect": "Allow",
+                "Action": ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:DeleteItem"],
+                "Resource": { "Fn::GetAtt": ["Jobs", "Arn"] }
+              },
+              {
+                "Effect": "Allow",
+                "Action": ["dynamodb:Query"],
+                "Resource": { "Fn::Sub": "${Jobs.Arn}/index/cleanup" }
+              }
+            ]
+          }
+        ],
+        "Events": {
+          "Sweep": {
+            "Type": "Schedule",
+            "Properties": {
+              "Schedule": "rate(1 minute)",
+              "Enabled": true,
+              "Input": "{\"kind\":\"cleanup\"}"
+            }
+          }
+        }
+      }
+    },
+    "CleanupLogs": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": { "Fn::Sub": "/aws/lambda/${Cleanup}" },
+        "RetentionInDays": 14
+      }
+    },
+    "CleanupErrors": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Properties": {
+        "Namespace": "AWS/Lambda",
+        "MetricName": "Errors",
+        "Dimensions": [{ "Name": "FunctionName", "Value": { "Ref": "Cleanup" } }],
+        "Statistic": "Sum",
+        "Period": 60,
+        "EvaluationPeriods": 1,
+        "Threshold": 0,
+        "ComparisonOperator": "GreaterThanThreshold",
+        "TreatMissingData": "notBreaching"
+      }
+    }
+  },
+  "Outputs": {
+    "ApiOrigin": { "Value": { "Fn::GetAtt": ["ApiUrl", "FunctionUrl"] } },
+    "WorkerArn": { "Value": { "Fn::GetAtt": ["Worker", "Arn"] } },
+    "JobsTable": { "Value": { "Ref": "Jobs" } },
+    "CategoriesTable": { "Value": { "Ref": "Categories" } },
+    "LimitsTable": { "Value": { "Ref": "Limits" } }
+  }
+}

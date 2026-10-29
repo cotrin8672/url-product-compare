@@ -1,5 +1,7 @@
 # Firebaseへの移行・公開手順
 
+この文書は旧Firebase構成の互換検証用です。今後の移行先であるXserver＋Lambdaの手順は [こちら](lambda/README.md) を参照してください。既存リソースの停止・削除はローカルの実装やビルドでは行いません。
+
 画面をFirebase Hosting、APIをCloud Functions第2世代、操作記録をCloud Firestoreへ置き換えました。リージョンは東京 `asia-northeast1`。開発時はmiseのNode.js 24、FunctionsはFirebaseが対応するNode.js 22を使います。
 
 Hostingの `/api` と `/api/**` は `api` 関数へ転送し、それ以外はSolid.jsの画面へ転送します。画面は商品URLだけで比較でき、ブラウザー用トークン・Firebase SDK・APIキー・Firebase Authenticationの設定は不要です。`createPublicConsumerApi` がカタログGET、判定POST、比較作成POST、ジョブGETだけにサーバー内のBearer認証を渡します。旧診断・同期比較・取消の経路は従来のBearer認証を維持します。

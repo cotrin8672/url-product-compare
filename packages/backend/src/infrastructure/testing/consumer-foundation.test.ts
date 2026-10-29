@@ -145,6 +145,72 @@ function syntheticProvider(overrides: Partial<ConsumerProvider> = {}): ConsumerP
   return Object.freeze(provider);
 }
 
+await test("result restoration rechecks current provider grants and shortened storage deadlines", () => {
+  const original: ReturnType<ConsumerProvider["permissions"]> = {
+    fetch: true,
+    display: true,
+    affiliate: true,
+    ai: false,
+    store: true,
+    storeExpiresAt: "2026-10-06T00:08:00.000Z",
+  };
+  let rights = original;
+  const service = createConsumerComparisonService(
+    [syntheticProvider({ permissions: () => rights })],
+    undefined,
+    clock,
+    extendedCatalog,
+  );
+  const url = "https://shop.example.test/products/source";
+  const expiry = "2026-10-06T00:05:00.000Z";
+  assert.equal(service.canRestoreResult(url, expiry, true), true);
+  for (const permission of ["fetch", "display", "affiliate", "store"]) {
+    rights = { ...original, [permission]: false };
+    assert.equal(service.canRestoreResult(url, expiry, true), false, permission);
+  }
+  rights = { ...original, storeExpiresAt: "2026-10-06T00:04:00.000Z" };
+  assert.equal(service.canRestoreResult(url, expiry, true), false);
+  rights = { ...original, storeExpiresAt: expiry };
+  assert.equal(service.canRestoreResult(url, expiry, true), true);
+  rights = { ...original, store: false, storeExpiresAt: null };
+  assert.equal(service.canRestoreResult(url, expiry, true), false);
+  assert.equal(service.canRestoreResult(url, expiry, false), true);
+  rights = { ...original, display: false };
+  assert.equal(service.canRestoreResult(url, expiry, false), false);
+  rights = original;
+  assert.equal(service.canRestoreResult("https://missing.example/source", expiry, true), false);
+  assert.equal(service.canRestoreResult(url, now, true), false);
+  assert.equal(service.canRestoreResult(url, "not-an-instant", true), false);
+});
+
+await test("expired or denied product permissions stop before upstream work and do not masquerade as a retryable outage", async () => {
+  let lookups = 0;
+  const provider = syntheticProvider({
+    permissions: () => ({
+      display: false,
+      fetch: false,
+      affiliate: false,
+      ai: false,
+      store: false,
+      storeExpiresAt: null,
+    }),
+    lookup: () => {
+      lookups += 1;
+      return Promise.resolve(ok(syntheticListing("source", 40000)));
+    },
+  });
+  const service = createConsumerComparisonService([provider], undefined, clock, extendedCatalog);
+  assert.deepEqual(await service.detect({ url: comparisonInput.url, keyword: null }), {
+    tag: "err",
+    error: { code: "source_not_authorized" },
+  });
+  assert.deepEqual(await service.compare(comparisonInput), {
+    tag: "err",
+    error: { code: "source_not_authorized" },
+  });
+  assert.equal(lookups, 0);
+});
+
 await test("injected category routes a real second-provider shape through detection, filtering and weighted ranking", async () => {
   let lineageCalls = 0;
   const provider = syntheticProvider({

@@ -6,7 +6,8 @@
     "jsx": "preserve",
     "jsxImportSource": "solid-js",
     "noEmit": true,
+    "resolveJsonModule": true,
     "types": ["vite/client"]
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx"]
+  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.astro"]
 }

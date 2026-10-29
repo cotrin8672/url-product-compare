@@ -6,7 +6,8 @@
     "jsx": "preserve",
     "noEmit": true,
     "allowJs": true,
-    "checkJs": false
+    "checkJs": false,
+    "resolveJsonModule": true
   },
   "include": [
     "tooling/**/*.mjs",
@@ -19,5 +20,5 @@
     "packages/**/*.mts",
     "packages/**/*.cts"
   ],
-  "exclude": ["node_modules", "**/dist", "**/.next"]
+  "exclude": ["node_modules", "**/dist", "**/.next", "**/.astro"]
 }

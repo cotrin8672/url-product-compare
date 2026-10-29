@@ -124,7 +124,7 @@ export function readConsumerInformation(
   const factSource = (quote: string): ConsumerFact["source"] =>
     productText.includes(quote) ? sources.product : sources.listing;
   const clauses = text
-    .split(/[\n。;；|]/)
+    .split(/[\n。;；|●]/)
     .map((line) => line.trim())
     .filter((line) => line.length > 0);
   const specs: Record<string, ConsumerValue> = {};
@@ -188,6 +188,27 @@ export function readConsumerInformation(
       );
     };
     const pattern = readFieldNumberPattern(definition);
+    if (definition.id === "screenInches") {
+      for (const clause of clauses) {
+        if (
+          !/テレビ|\bTV\b|液晶|モニター|ディスプレイ|ノートパソコン|タブレット/i.test(clause) ||
+          /保護|ケース|対応機種|フィルム|最大|選べ|オプション/.test(clause)
+        ) {
+          continue;
+        }
+        for (const match of clause.matchAll(
+          /(?<![\d.])(\d+(?:\.\d+)?)\s*(?:V型|型|インチ)(?![\p{L}\d])/giu,
+        )) {
+          const preceding = clause.slice(Math.max(0, match.index - 18), match.index);
+          const following = clause.slice(match.index + match[0].length);
+          if (/\d\s*[/〜~、,・-]\s*$/.test(preceding) || /^\s*[/〜~、,・-]\s*\d/.test(following)) {
+            conflicts.push(definition.id);
+          } else {
+            add(Number(match[1]), match[0].trim());
+          }
+        }
+      }
+    }
     if (definition.extraction?.kind === "attribute") {
       const matching = labeled.filter(
         (entry) => attributeLabel(entry.label) === attributeLabel(definition.label),
@@ -607,7 +628,7 @@ export function assessConsumerListing(
 ): Readonly<{ status: "eligible" | "excluded" | "pending"; reasons: readonly string[] }> {
   const missing: string[] = [];
   const excluded: string[] = listing.availability === "unavailable" ? ["unavailable"] : [];
-  if (!consumerListingConditionEligible(listing.condition ?? "unknown", category)) {
+  if (!consumerListingConditionEligible(listing.condition ?? "unknown")) {
     excluded.push("condition_not_new");
   }
   for (const [id, required] of Object.entries(conditions)) {

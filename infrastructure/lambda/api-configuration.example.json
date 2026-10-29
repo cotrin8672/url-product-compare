@@ -1,0 +1,12 @@
+{
+  "http": {
+    "accessToken": "REPLACE_WITH_RANDOM_32_TO_256_CHARACTER_BASE64URL_TOKEN",
+    "allowedOrigin": "https://compare.example.com",
+    "globalPerMinute": 60,
+    "globalPerDay": 1000
+  },
+  "rakuten": null,
+  "openai": null,
+  "jev": null,
+  "commerce": null
+}

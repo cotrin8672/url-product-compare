@@ -7,6 +7,9 @@ import {
   comparisonDetailLayout,
   comparisonDisplayRemainingMs,
   comparisonJobCannotResume,
+  comparisonErrorMessage,
+  comparisonRecoveryAction,
+  normalizeProductUrl,
   createComparisonOperation,
   createComparisonRequestScope,
   detectProductCategory,
@@ -31,36 +34,29 @@ import type {
   StoredComparisonSession,
 } from "@app/api-client";
 
+import { ServiceHeader } from "./components/ServiceHeader.js";
+
 type DisplayResult = Readonly<{ data: ConsumerComparison; expiresAt: string }>;
 type PendingOperation = Readonly<{
   url: string;
   category: string;
   sort: ConsumerSort;
+  keyword: string;
   operation: ComparisonOperation;
 }>;
 
-const categoryIconPaths: Readonly<Record<string, string>> = {
-  laptop: "M5 5h14v11H5zM2 19l3-3h14l3 3H2Z",
-  desktop: "M3 5h12v10H3zM6 19h6m-3-4v4M18 4h4v16h-4zM20 7v1m0 3v1",
-  tablet: "M5 3h14v18H5zM11 18h2",
-  smartphone: "M7 2h10v20H7zM10 5h4m-3 14h2",
-  television: "M2 5h20v13H2zM7 21l2-3m8 3-2-3",
-  monitor: "M2 3h20v14H2zM12 17v4m-5 0h10",
+const fieldLabels: Readonly<Record<string, string>> = {
+  "機種・対応機種（スマートフォン）": "スマホ対応",
+  "機種・対応機種（タブレット）": "タブレット対応",
+  "機種・対応機種（携帯電話）": "携帯電話対応",
+  "素材（生地・毛糸）": "素材",
+  "素材（時計ベルト）": "ベルト素材",
+  時計の文字盤の代表カラー: "文字盤カラー",
+  腕時計のフェイスの横のサイズ: "フェイス幅",
+  腕時計のフェイスの縦のサイズ: "フェイス高さ",
+  腕時計のベルトの幅: "ベルト幅",
+  "メモリ（同時に作業する余裕）": "メモリ",
 };
-
-function CategoryIcon(props: Readonly<{ category: string }>): JSX.Element {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d={categoryIconPaths[props.category] ?? categoryIconPaths["monitor"]}
-        stroke="currentColor"
-        stroke-width="1.5"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      />
-    </svg>
-  );
-}
 
 function productDisplayTitle(title: string): string {
   const name = title
@@ -96,6 +92,7 @@ function CriteriaChart(
   props: Readonly<{
     product: ConsumerComparison["products"][number];
     axes: ConsumerComparison["categoryDefinition"]["axes"];
+    fields: ConsumerComparison["categoryDefinition"]["fields"];
   }>,
 ): JSX.Element {
   return (
@@ -103,9 +100,21 @@ function CriteriaChart(
       <For each={props.axes}>
         {(axis, index) => {
           const score = props.product.axes.find((entry) => entry.id === axis.id)?.score ?? null;
+          const value = props.product.consumerInformation.specs[axis.id];
+          const unit = props.fields.find((field) => field.id === axis.id)?.unit ?? "";
           return (
             <div classList={{ criterion: true, "consumer-criterion-teal": index() >= 2 }}>
-              <span>{axis.label}</span>
+              <span>
+                {fieldLabels[axis.label] ?? axis.label}
+                <Show when={typeof value === "number" ? { value } : undefined}>
+                  {(known) => (
+                    <small class="consumer-criterion-value">
+                      {known().value.toLocaleString("ja-JP")}
+                      {unit}
+                    </small>
+                  )}
+                </Show>
+              </span>
               <Show
                 when={score === null ? undefined : { value: score }}
                 fallback={
@@ -140,6 +149,9 @@ function CriteriaChart(
 
 function specificationText(product: ConsumerComparison["products"][number], id: string): string {
   const value = product.consumerInformation.specs[id];
+  if (typeof value === "number") {
+    return value.toLocaleString("ja-JP");
+  }
   return typeof value === "string"
     ? value
     : value === true
@@ -147,6 +159,43 @@ function specificationText(product: ConsumerComparison["products"][number], id: 
       : value === false
         ? "なし"
         : "—";
+}
+
+function SpecificationRows(
+  props: Readonly<{
+    fields: ConsumerComparison["categoryDefinition"]["fields"];
+    products: ConsumerComparison["products"];
+  }>,
+): JSX.Element {
+  return (
+    <For each={props.fields}>
+      {(field) => (
+        <tr class="consumer-detail-row">
+          <th class="row-label" scope="row">
+            {fieldLabels[field.label] ?? field.label}
+            <Show when={field.unit.length > 0}>
+              <small>{field.unit}</small>
+            </Show>
+          </th>
+          <For each={props.products}>
+            {(product) => (
+              <td classList={{ "best-product": product.rank === 1 }}>
+                <Show
+                  when={specificationText(product, field.id).length > 60}
+                  fallback={specificationText(product, field.id)}
+                >
+                  <details class="consumer-spec-value">
+                    <summary>{specificationText(product, field.id).slice(0, 60)}…</summary>
+                    <p>{specificationText(product, field.id)}</p>
+                  </details>
+                </Show>
+              </td>
+            )}
+          </For>
+        </tr>
+      )}
+    </For>
+  );
 }
 
 function ConsumerResults(
@@ -162,31 +211,42 @@ function ConsumerResults(
     });
   });
   const data = props.result.data;
-  const layout = comparisonDetailLayout(
-    data.categoryDefinition,
-    data.products,
-    data.categorySelectionStatus,
-  );
-  const [detailsOpen, setDetailsOpen] = createSignal(data.categorySelectionStatus === "applied");
-  const hasDetails = layout.detailAxes.length > 0 || layout.specificationFields.length > 0;
+  const layout = comparisonDetailLayout(data.categoryDefinition, data.products);
+  const primarySpecifications =
+    data.categorySelectionStatus === undefined ? [] : layout.specificationFields.slice(0, 6);
+  const detailSpecifications = layout.specificationFields.slice(primarySpecifications.length);
+  const [detailsOpen, setDetailsOpen] = createSignal(false);
+  const hasDetails = layout.detailAxes.length > 0 || detailSpecifications.length > 0;
   const emphasized = (product: ConsumerComparison["products"][number]): boolean =>
     product.rank === 1;
   return (
     <section class="consumer-results" aria-label="比較結果">
       <div class="bar consumer-result-heading">
-        <h1>{data.status === "ranked" ? "類似商品のおすすめランキング" : "類似商品の比較"}</h1>
-        <span class="consumer-category-label">{data.categoryDefinition.label}</span>
+        <h1>
+          {data.status === "ranked"
+            ? data.sort === "price"
+              ? "価格順"
+              : "おすすめ順"
+            : "商品比較"}
+        </h1>
+        <span class="consumer-category-label">
+          {data.categoryDefinition.label} · 新品 {data.products.length}件
+        </span>
       </div>
-      <Show when={data.scoreBasis !== undefined && data.scoreBasis.length > 0}>
-        <p class="muted">
-          総合評価の対象：
-          {data.categoryDefinition.axes
-            .filter((axis) => data.scoreBasis?.includes(axis.id) === true)
-            .map((axis) => axis.label)
-            .join("・")}
-          （{data.products.filter((product) => product.recommendationPercent !== null).length}
-          商品で共通）。未確認の値は採点に含みません。
+      <Show when={data.status === "no_match"}>
+        <p class="consumer-result-status" role="status">
+          新品の候補なし
         </p>
+      </Show>
+      <Show when={data.status === "needs_information" && data.sort === "recommendation"}>
+        <span class="consumer-result-status" title="共通の仕様情報が不足しています" role="status">
+          順位保留
+        </span>
+      </Show>
+      <Show when={data.status !== "no_match" && data.products.length === 1}>
+        <span class="consumer-result-status" role="status">
+          入力商品のみ
+        </span>
       </Show>
       <div class="table-wrap" tabindex="0" role="region" aria-label="商品比較表">
         <table
@@ -275,26 +335,39 @@ function ConsumerResults(
                         </svg>
                       </Show>
                     </div>
-                    <h3 title={product.title}>{productDisplayTitle(product.title)}</h3>
+                    <details class="consumer-product-title">
+                      <summary>
+                        <h3>{productDisplayTitle(product.title)}</h3>
+                      </summary>
+                      <p>{product.title}</p>
+                    </details>
                     <span class="consumer-shop-tag">{product.shopName}</span>
+                    <Show when={product.availability === "unavailable"}>
+                      <span class="consumer-stock-status">売り切れ</span>
+                    </Show>
                   </th>
                 )}
               </For>
             </tr>
           </thead>
           <tbody>
-            <tr class="recommendation-row">
-              <th class="row-label" scope="row">
-                おすすめ度<small>総合評価 / 100</small>
-              </th>
-              <For each={data.products}>
-                {(product) => (
-                  <td classList={{ "best-product": emphasized(product) }}>
-                    <Score value={product.recommendationPercent} label={product.title + "・総合"} />
-                  </td>
-                )}
-              </For>
-            </tr>
+            <Show when={data.products.some((product) => product.recommendationPercent !== null)}>
+              <tr class="recommendation-row">
+                <th class="row-label" scope="row">
+                  おすすめ度<small>総合評価 / 100</small>
+                </th>
+                <For each={data.products}>
+                  {(product) => (
+                    <td classList={{ "best-product": emphasized(product) }}>
+                      <Score
+                        value={product.recommendationPercent}
+                        label={product.title + "・総合"}
+                      />
+                    </td>
+                  )}
+                </For>
+              </tr>
+            </Show>
             <tr class="consumer-spec-row">
               <th class="row-label" scope="row">
                 税込価格
@@ -324,12 +397,17 @@ function ConsumerResults(
                 <For each={data.products}>
                   {(product) => (
                     <td classList={{ "best-product": emphasized(product) }}>
-                      <CriteriaChart product={product} axes={layout.primaryAxes} />
+                      <CriteriaChart
+                        product={product}
+                        axes={layout.primaryAxes}
+                        fields={data.categoryDefinition.fields}
+                      />
                     </td>
                   )}
                 </For>
               </tr>
             </Show>
+            <SpecificationRows fields={primarySpecifications} products={data.products} />
           </tbody>
           <Show when={hasDetails}>
             <tbody id="consumer-comparison-details" hidden={!detailsOpen()}>
@@ -341,28 +419,17 @@ function ConsumerResults(
                   <For each={data.products}>
                     {(product) => (
                       <td classList={{ "best-product": emphasized(product) }}>
-                        <CriteriaChart product={product} axes={layout.detailAxes} />
+                        <CriteriaChart
+                          product={product}
+                          axes={layout.detailAxes}
+                          fields={data.categoryDefinition.fields}
+                        />
                       </td>
                     )}
                   </For>
                 </tr>
               </Show>
-              <For each={layout.specificationFields}>
-                {(field) => (
-                  <tr class="consumer-detail-row">
-                    <th class="row-label" scope="row">
-                      {field.label}
-                    </th>
-                    <For each={data.products}>
-                      {(product) => (
-                        <td classList={{ "best-product": emphasized(product) }}>
-                          {specificationText(product, field.id)}
-                        </td>
-                      )}
-                    </For>
-                  </tr>
-                )}
-              </For>
+              <SpecificationRows fields={detailSpecifications} products={data.products} />
             </tbody>
           </Show>
           <tbody>
@@ -396,7 +463,11 @@ function ConsumerResults(
           aria-controls="consumer-comparison-details"
           onClick={() => setDetailsOpen((open) => !open)}
         >
-          <span>{detailsOpen() ? "閉じる" : "もっと見る…"}</span>
+          <span>
+            {detailsOpen()
+              ? "詳細項目を閉じる"
+              : `詳細項目を表示（${layout.detailAxes.length + detailSpecifications.length}項目）`}
+          </span>
           <span
             classList={{ "consumer-details-chevron": true, "is-open": detailsOpen() }}
             aria-hidden="true"
@@ -405,6 +476,20 @@ function ConsumerResults(
           </span>
         </button>
       </Show>
+      <details class="consumer-method">
+        <summary>比較条件</summary>
+        <p>送料・ポイント・クーポンは含みません。「—」は未確認です。</p>
+        <p>商品リンクにはアフィリエイト広告を含みます。</p>
+        <Show when={data.scoreBasis !== undefined && data.scoreBasis.length > 0}>
+          <p>
+            採点項目：
+            {data.categoryDefinition.axes
+              .filter((axis) => data.scoreBasis?.includes(axis.id) === true)
+              .map((axis) => axis.label)
+              .join("・")}
+          </p>
+        </Show>
+      </details>
     </section>
   );
 }
@@ -416,6 +501,9 @@ export function ConsumerApp(): JSX.Element {
   const [url, setUrl] = createSignal("");
   const [busy, setBusy] = createSignal(false);
   const [error, setError] = createSignal("");
+  const [recovery, setRecovery] = createSignal<ReturnType<typeof comparisonRecoveryAction>>(null);
+  const [keyword, setKeyword] = createSignal("");
+  const [keywordVisible, setKeywordVisible] = createSignal(false);
   const [result, setResult] = createSignal<DisplayResult>();
   const [detection, setDetection] = createSignal<DetectResult>();
   const [session, setSession] = createSignal<StoredComparisonSession | null>(null);
@@ -424,11 +512,17 @@ export function ConsumerApp(): JSX.Element {
   );
   const [pending, setPending] = createSignal<PendingOperation>();
   const sort = route.sort ?? "recommendation";
-  const [catalog] = createResource(async () => {
+  const [catalog, { refetch }] = createResource(async () => {
     try {
-      return await fetchProductCatalog({ signal: catalogController.signal });
+      const definitions = await fetchProductCatalog({ signal: catalogController.signal });
+      batch(() => {
+        setError("");
+        setRecovery(null);
+      });
+      return definitions;
     } catch {
-      setError("比較サービスに接続できません。");
+      setError("比較サービスに接続できません");
+      setRecovery("retry");
       return undefined;
     }
   });
@@ -465,6 +559,7 @@ export function ConsumerApp(): JSX.Element {
         setResult({ data: compared, expiresAt: job.expiresAt });
         setUrl(compared.source.canonicalUrl);
         setPending(undefined);
+        setKeywordVisible(false);
       });
     } else if (job.state === "failed" || job.state === "cancelled") {
       if (category !== null) {
@@ -472,7 +567,12 @@ export function ConsumerApp(): JSX.Element {
       }
       setSession(null);
       setPending(undefined);
-      throw new Error("比較できませんでした。");
+      throw new Error(
+        comparisonErrorMessage(
+          job.state === "cancelled" ? "cancelled" : (job.error?.code ?? "internal_error"),
+        ),
+        { cause: { code: job.state === "cancelled" ? "cancelled" : job.error?.code } },
+      );
     }
   };
 
@@ -504,21 +604,44 @@ export function ConsumerApp(): JSX.Element {
       setSession(null);
       setPending(undefined);
     }
-    setError(cause instanceof Error ? cause.message : "比較できませんでした。");
+    const action = comparisonRecoveryAction(cause);
+    if (action === "keyword") {
+      setKeywordVisible(true);
+    }
+    setRecovery(action);
+    setError(
+      cause instanceof TypeError || (cause instanceof Error && cause.name === "TimeoutError")
+        ? "接続できませんでした。再試行してください"
+        : cause instanceof Error
+          ? cause.message
+          : "比較できませんでした",
+    );
   };
 
   const start = async (confirmedCategory?: string): Promise<void> => {
     const request = scope.begin();
-    const sourceUrl = url().trim();
+    let sourceUrl = url().trim();
     batch(() => {
       setBusy(true);
       setError("");
+      setRecovery(null);
+      setDetection(undefined);
       setResult(undefined);
     });
     try {
+      sourceUrl = normalizeProductUrl(sourceUrl);
+      setUrl(sourceUrl);
+      if (new TextEncoder().encode(keyword().trim()).length > 128) {
+        throw new Error(comparisonErrorMessage("invalid_keyword"), {
+          cause: { code: "invalid_keyword" },
+        });
+      }
       let category = confirmedCategory;
       if (category === undefined) {
-        const detected = await detectProductCategory(sourceUrl, { signal: request.signal });
+        const detected = await detectProductCategory(sourceUrl, {
+          signal: request.signal,
+          keyword: keyword(),
+        });
         if (!request.isCurrent()) {
           return;
         }
@@ -527,15 +650,36 @@ export function ConsumerApp(): JSX.Element {
           return;
         }
         if (detected.category === null) {
-          throw new Error("この商品は比較できません。");
+          throw new Error(
+            detected.source !== null && detected.source.condition !== "new"
+              ? comparisonErrorMessage("listing_not_eligible")
+              : "この商品のカテゴリには対応していません。別の商品URLをお試しください。",
+            {
+              cause: {
+                code:
+                  detected.source !== null && detected.source.condition !== "new"
+                    ? "listing_not_eligible"
+                    : "unsupported_category",
+              },
+            },
+          );
         }
         category = detected.category;
       }
       const previous = pending();
       const next =
-        previous?.url === sourceUrl && previous.category === category && previous.sort === sort
+        previous?.url === sourceUrl &&
+        previous.category === category &&
+        previous.sort === sort &&
+        previous.keyword === keyword()
           ? previous
-          : { url: sourceUrl, category, sort, operation: createComparisonOperation() };
+          : {
+              url: sourceUrl,
+              category,
+              sort,
+              keyword: keyword(),
+              operation: createComparisonOperation(),
+            };
       const oldCategory = categoryId();
       if (oldCategory !== null && next !== previous) {
         clearComparisonSession(oldCategory);
@@ -551,6 +695,7 @@ export function ConsumerApp(): JSX.Element {
           url: sourceUrl,
           category,
           conditions: {},
+          keyword: keyword(),
           sort,
           idempotencyKey: next.operation.idempotencyKey,
         },
@@ -629,65 +774,19 @@ export function ConsumerApp(): JSX.Element {
 
   return (
     <>
-      <header class="top consumer-top">
-        <div class="top-inner">
-          <a class="brand" href="/">
-            <svg class="brand-icon" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-              <path
-                d="M16 3v25M5 7h22M9 29h14M7 7 2 18h10L7 7Zm18 0-5 11h10L25 7ZM2 18a5 5 0 0 0 10 0m8 0a5 5 0 0 0 10 0"
-                stroke="currentColor"
-                stroke-width="1.8"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-            </svg>
-            商品比較
-          </a>
-          <Show when={result() === undefined}>
-            <span class="consumer-home-provider">楽天市場の商品に対応</span>
-          </Show>
-        </div>
-      </header>
+      <ServiceHeader current="products" />
       <main class="consumer-main" classList={{ "consumer-home": result() === undefined }}>
-        <Show when={result() === undefined}>
-          <section class="consumer-home-intro" aria-labelledby="consumer-home-title">
-            <div>
-              <p class="consumer-home-eyebrow">商品選びを、もっとシンプルに。</p>
-              <h1 id="consumer-home-title">
-                その商品、
-                <br />
-                <span>比べてから決めよう。</span>
-              </h1>
-              <p class="consumer-home-description">
-                気になる商品と、似ている商品の価格やスペックを比較。
-                <br />
-                楽天市場の商品URLを貼るだけで、違いが見えてきます。
-              </p>
-            </div>
-            <div class="consumer-home-visual" aria-hidden="true">
-              <div class="consumer-visual-card consumer-visual-source">
-                <span class="consumer-visual-label">気になる商品</span>
-                <CategoryIcon category="laptop" />
-                <span class="consumer-visual-line" />
-                <span class="consumer-visual-line consumer-visual-short" />
-              </div>
-              <span class="consumer-visual-vs">vs</span>
-              <div class="consumer-visual-card consumer-visual-candidate">
-                <span class="consumer-visual-label">似ている商品</span>
-                <CategoryIcon category="laptop" />
-                <span class="consumer-visual-line" />
-                <span class="consumer-visual-line consumer-visual-short" />
-              </div>
-              <span class="consumer-visual-caption">価格も、スペックも。並べてわかる。</span>
-            </div>
-          </section>
-        </Show>
         <form
           id="consumer-form"
           class="url-panel"
+          noValidate
           onSubmit={(event) => {
             event.preventDefault();
-            if (!busy()) {
+            if (!busy() && !catalog.loading) {
+              if (catalog() === undefined) {
+                Promise.resolve(refetch()).catch(() => setError("比較サービスに接続できません"));
+                return;
+              }
               start().catch(() => setError("比較できませんでした。"));
             }
           }}
@@ -707,9 +806,14 @@ export function ConsumerApp(): JSX.Element {
               <input
                 id="consumer-url"
                 name="url"
-                type="url"
+                type="text"
+                inputmode="url"
+                autocapitalize="off"
+                spellcheck={false}
                 required
                 aria-label="商品URL"
+                aria-invalid={recovery() === "edit"}
+                aria-describedby={error().length > 0 ? "consumer-error" : undefined}
                 maxLength={2048}
                 placeholder="https://item.rakuten.co.jp/..."
                 value={url()}
@@ -726,6 +830,9 @@ export function ConsumerApp(): JSX.Element {
                     setDetection(undefined);
                     setResult(undefined);
                     setError("");
+                    setRecovery(null);
+                    setKeyword("");
+                    setKeywordVisible(false);
                     setUrl(event.currentTarget.value);
                   });
                 }}
@@ -734,15 +841,31 @@ export function ConsumerApp(): JSX.Element {
             <button
               class="primary-button compare-button"
               type="submit"
-              disabled={busy() || catalog() === undefined}
+              disabled={busy() || catalog.loading}
             >
-              {busy() ? "比較中…" : "比較する"}
+              {busy()
+                ? "比較中…"
+                : error().length > 0 && catalog() === undefined
+                  ? "再接続"
+                  : recovery() === "retry" || recovery() === "keyword"
+                    ? "再試行"
+                    : "比較する"}
             </button>
           </div>
-          <Show when={result() === undefined}>
-            <div class="consumer-home-form-note">
-              <span>楽天市場の商品ページのURLを入力してください。</span>
-              <span>カテゴリは自動で判定</span>
+          <Show when={keywordVisible()}>
+            <div class="consumer-recovery-field">
+              <label for="consumer-keyword">商品名</label>
+              <input
+                id="consumer-keyword"
+                type="text"
+                value={keyword()}
+                maxLength={128}
+                disabled={busy()}
+                onInput={(event) => {
+                  setPending(undefined);
+                  setKeyword(event.currentTarget.value);
+                }}
+              />
             </div>
           </Show>
         </form>
@@ -769,48 +892,12 @@ export function ConsumerApp(): JSX.Element {
           )}
         </Show>
         <Show when={error().length > 0}>
-          <p class="status error" role="alert">
+          <p id="consumer-error" class="status error" role="alert">
             {error()}
           </p>
         </Show>
         <Show when={busy()}>
           <div class="consumer-spinner" role="status" aria-label="比較中" />
-        </Show>
-        <Show when={result() === undefined && !busy() && catalog() !== undefined}>
-          <section class="consumer-home-categories" aria-labelledby="consumer-categories-title">
-            <div class="consumer-home-section-heading">
-              <h2 id="consumer-categories-title">こんな商品を比較できます</h2>
-              <span>比較例</span>
-            </div>
-            <ul class="consumer-home-category-list">
-              <For each={catalog()?.categories}>
-                {(category) => (
-                  <li>
-                    <CategoryIcon category={category.id} />
-                    <h3>{category.label}</h3>
-                    <p>
-                      {category.axes
-                        .slice(0, 2)
-                        .map((axis) => axis.label)
-                        .join("・")}
-                    </p>
-                  </li>
-                )}
-              </For>
-            </ul>
-            <ol class="consumer-home-steps" aria-label="比較の手順">
-              <li>
-                <span>01</span> 気になる商品のURLをコピー
-              </li>
-              <li>
-                <span>02</span> 貼り付けて「比較する」
-              </li>
-              <li>
-                <span>03</span> 価格とスペックを見比べる
-              </li>
-            </ol>
-            <p class="consumer-home-disclosure">商品リンクにはアフィリエイト広告を含みます。</p>
-          </section>
         </Show>
         <Show when={result()}>
           {(display) => (
@@ -824,7 +911,8 @@ export function ConsumerApp(): JSX.Element {
                 batch(() => {
                   setResult(undefined);
                   setSession(null);
-                  setError("再取得してください。");
+                  setError("表示期限切れ");
+                  setRecovery("retry");
                 });
               }}
             />

@@ -20,6 +20,16 @@ const contentTypes: Readonly<Record<string, string>> = {
   ".xml": "application/xml; charset=utf-8",
 };
 
+function containsControlCharacter(value: string): boolean {
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+    if (code < 32 || code === 127) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function response(
   statusCode: number,
   body = Buffer.alloc(0),
@@ -32,6 +42,10 @@ function response(
       "content-length": String(body.byteLength),
       "cache-control": "no-cache",
       "x-content-type-options": "nosniff",
+      "content-security-policy":
+        "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
+      "x-frame-options": "DENY",
+      "referrer-policy": "strict-origin-when-cross-origin",
     },
     body,
   };
@@ -54,7 +68,9 @@ export async function readPublicAsset(
   }
   if (
     !decoded.startsWith("/") ||
-    /[\\\0]/.test(decoded) ||
+    decoded.length > 8192 ||
+    decoded.includes("\\") ||
+    containsControlCharacter(decoded) ||
     decoded.split("/").some((segment) => segment.startsWith("."))
   ) {
     return response(404);

@@ -1,3 +1,4 @@
+import { resolveApiBase } from "./consumer-http.js";
 import { parseInvestigation } from "./index.js";
 import type { Investigation } from "./index.js";
 
@@ -274,7 +275,7 @@ export async function compareMonitors(
     }
     headers["authorization"] = `Bearer ${options.accessToken}`;
   }
-  const response = await fetch("/api/monitors", {
+  const response = await fetch(`${resolveApiBase()}/api/monitors`, {
     method: "POST",
     headers,
     body: JSON.stringify({
@@ -283,7 +284,7 @@ export async function compareMonitors(
       sort,
       keyword: (options.keyword?.trim() ?? "").length === 0 ? null : options.keyword?.trim(),
     }),
-    signal: AbortSignal.timeout(45_000),
+    signal: AbortSignal.timeout(95_000),
   });
   if (response.headers.get("content-type")?.includes("application/json") !== true) {
     throw new Error("商品APIが未接続です。APIの接続設定を確認してください");

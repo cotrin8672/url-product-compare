@@ -28,6 +28,41 @@ if (laptop === null) {
 }
 const url = "https://item.rakuten.co.jp/shop/product/";
 
+await test("explicit title screen sizes fill missing descriptions without selecting variants or accessory sizes", () => {
+  const television = consumerCategory("television");
+  assert.ok(television !== null);
+  assert.equal(
+    readConsumerInformation(television, "shop:tv", url, "新品 液晶テレビ 32V型 REGZA").specs[
+      "screenInches"
+    ],
+    32,
+  );
+  assert.equal(
+    readConsumerInformation(television, "shop:tv", url, "新品 テレビ 32型 / 43型").specs[
+      "screenInches"
+    ],
+    null,
+  );
+  assert.equal(
+    readConsumerInformation(television, "shop:tv", url, "新品 テレビ 32/43V型").specs[
+      "screenInches"
+    ],
+    null,
+  );
+  assert.equal(
+    readConsumerInformation(television, "shop:tv", url, "テレビ対応機種: 32型 保護フィルム").specs[
+      "screenInches"
+    ],
+    null,
+  );
+  assert.equal(
+    readConsumerInformation(television, "shop:tv", url, "液晶テレビ 32V型\n画面サイズ: 43型").specs[
+      "screenInches"
+    ],
+    null,
+  );
+});
+
 await test("six consumer categories have distinct fields, validated conditions, and no model-name scoring", () => {
   assert.deepEqual(
     consumerCategories.map((category) => category.id),

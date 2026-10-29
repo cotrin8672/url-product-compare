@@ -16,6 +16,19 @@ function pnpm(...args) {
   assert.equal(result.status, 0, `pnpm ${args.join(" ")} failed`);
 }
 
+pnpm(
+  "--filter",
+  "@app/rakuten-api",
+  "--filter",
+  "@app/valuecommerce-api",
+  "--filter",
+  "@app/jev-api",
+  "--filter",
+  "@app/amazon-api",
+  "--filter",
+  "@app/yahoo-shopping-api",
+  "build",
+);
 pnpm("--filter", "@app/api", "exec", "tsc", "--noEmit", "false");
 const site = spawnSync(process.execPath, ["tooling/build-site.mjs"], {
   cwd: root,
@@ -27,7 +40,8 @@ await mkdir(bundle, { recursive: true });
 // Verify the absolute target, including symlinks, before deleting generated files.
 assert.equal(await realpath(bundle), bundle);
 await rm(bundle, { recursive: true });
-pnpm("--filter", "@app/backend", "deploy", "--legacy", "--prod", bundle);
+// Legacy compatibility checks still exercise Firebase, which is now a development dependency.
+pnpm("--filter", "@app/backend", "deploy", "--legacy", bundle);
 for (const directory of ["apps", "packages"]) {
   await cp(path.join(root, "apps/api/dist", directory), path.join(bundle, directory), {
     recursive: true,

@@ -1,0 +1,19 @@
+---
+type Props = Readonly<{
+  origin: string;
+  entries: ReadonlyArray<Readonly<{ name: string; route: string }>>;
+}>;
+const { origin, entries } = Astro.props;
+const data = JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  itemListElement: [{ name: "商品比較", route: "/" }, ...entries].map((entry, index) => ({
+    "@type": "ListItem",
+    position: index + 1,
+    name: entry.name,
+    item: origin + entry.route,
+  })),
+}).replaceAll("<", "\\u003c");
+---
+
+<script type="application/ld+json" set:html={data} />

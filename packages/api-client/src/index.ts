@@ -1,4 +1,29 @@
+import { resolveApiBase } from "./consumer-http.js";
+export { fetchSecuritiesComparison, parseSecuritiesComparison } from "./securities.js";
+export type { SecuritiesRequest, SecuritiesComparison } from "./securities.js";
+export { prepareSecuritiesSubmission, securitiesDraftMatches } from "./securities-form.js";
+export type {
+  SecuritiesDraft,
+  SecuritiesFormIssue,
+  SecuritiesSubmission,
+} from "./securities-form.js";
+
 export { compareMonitors } from "./monitors.js";
+export {
+  fetchCommerceSources,
+  fetchCommerceListings,
+  fetchCommerceAffiliateLink,
+  parseCommercePage,
+  fetchFurusatoComparison,
+} from "./commerce.js";
+export type { FurusatoField, FurusatoComparison, FurusatoComparisonRequest } from "./furusato.js";
+export type {
+  CommerceSource,
+  CommerceRequest,
+  CommerceListing,
+  CommercePage,
+  CommerceSourceStatus,
+} from "./commerce.js";
 export {
   cancelConsumerComparisonJob,
   compareConsumerProducts,
@@ -24,6 +49,9 @@ export type {
 export {
   clearComparisonSession,
   comparisonJobCannotResume,
+  comparisonErrorMessage,
+  comparisonRecoveryAction,
+  normalizeProductUrl,
   parseConsumerComparison,
   parseDetectResult,
   parseProductCatalog,
@@ -877,11 +905,11 @@ async function postApi(
     }
     headers["authorization"] = `Bearer ${accessToken}`;
   }
-  const response = await fetch(path, {
+  const response = await fetch(`${resolveApiBase()}${path}`, {
     method: "POST",
     headers,
     body: JSON.stringify(input),
-    signal: AbortSignal.timeout(45_000),
+    signal: AbortSignal.timeout(95_000),
   });
   if (response.headers.get("content-type")?.includes("application/json") !== true) {
     throw new Error("商品APIが未接続です。APIの公開と /api/* の接続設定を確認してください");

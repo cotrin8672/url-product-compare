@@ -1,6 +1,8 @@
 # Xserver 向け静的フロントエンド
 
-`tooling/build-site.mjs` は公開カタログの短いHTMLとViteアセットを `apps/web/dist/` に生成します。Xserverには静的フロントを配置し、公開ゲートウェイ・内部API・ワーカーは別のバックエンドで運用します。この作業ではデプロイを行っていません。
+API・比較ワーカーをLambda、永続データをDynamoDBに置く構成の手順は [Xserver＋Lambda](../infrastructure/lambda/README.md) を参照してください。Xserverには静的ファイルだけを配置します。
+
+AstroのSSGで公開HTML・CSS・ブラウザー用JavaScriptを `apps/web/dist/` に生成します。比較画面は既存のSolid/TypeScriptをそのまま起動し、比較データの取得は既存APIクライアントへ委譲します。Xserver側でPHP、Node.js、Astroの実行環境は不要です。ふるさと納税の画面・ロジックは今回の移植対象外として既存の入口を維持しています。この作業ではデプロイを行っていません。
 
 ## 生成と接続先
 
@@ -10,7 +12,7 @@
 rtk mise exec -- node tooling/build-site.mjs
 ```
 
-生成器は既存のbackendコンパイルとWebビルドを実行し、コンパイル済み `publicConsumerCatalog()` だけを読みます。カテゴリや評価軸の代替表はありません。固有タイトル・見出し・スコアラベル・canonical・公開ルート・sitemapを検証します。
+`tooling/prepare-site.mjs` はコンパイル済み `publicConsumerCatalog()` から公開メタデータを生成します。カテゴリや評価軸の代替表はありません。AstroページがこのデータからHTMLを生成し、`tooling/build-site.mjs` が固有タイトル・見出し・スコアラベル・canonical・公開ルート・sitemap・アセット参照・実行可能なインラインスクリプトの不在を検証します。生成データはGit管理外で、dev/build/型検査の前に再生成します。外部の商品APIはビルド時に呼びません。
 
 | 環境変数          | 内容                                                                                                                                          |
 | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -32,6 +34,22 @@ sitemapには公開ページだけを入れます。API・ジョブ・一時結�
 
 ## 配置
 
+`SITE_ORIGIN` と `PUBLIC_API_BASE` を設定して、PHPを含まないフロントエンド用リリースを生成できます。
+
+```powershell
+rtk mise run xserver:static
+```
+
+出力は `dist/xserver-static/public_html/` です。この中身だけをXserverの公開ディレクトリへアップロードします。マニフェストと設置説明は公開ディレクトリの外にあります。リリース検査はソース・秘密ファイル・PHP・SQLの混入を拒否します。`.htaccess` には指定したAPIへのCSP接続許可が入ります。既存WordPressと同じ公開ディレクトリに上書きせず、専用のドメインまたはサブドメインで配置してください。
+
+この成果物にAPIやDBは含まれません。Lambdaの本番URL・許可オリジン・プロバイダー設定とDynamoDBの3テーブルを別途用意する必要があります。`xserver:package` もPHP不要の静的成果物を `dist/xserver/public_html/` へ生成します。カテゴリ定義はDynamoDBで共有し、比較ジョブとリクエスト制限もAWS内で完結します。本番デプロイは別途必要です。
+
 `apps/web/dist/` を公開ルートへ配置し、各ディレクトリの `index.html` を表示させます。既存の `.htaccess` を保持し、必要に応じて `DirectoryIndex index.html` とHTTPSを確認します。静的サイトにAPIの秘密情報やNodeワーカーを置きません。
 
-バックエンドには保存許諾、TTL、公開ゲートウェイと許可オリジンを設定します。許諾未設定の永続比較は `result_storage_denied` です。URL送信、曖昧なカテゴリ選択、再読み込み、期限切れ、POST制限を実接続先で確認してから公開します。保護された取消と既存診断は公開ゲートウェイに接続しません。
+バックエンドには保存許諾、TTL、公開ゲートウェイと許可オリジンを設定します。許諾未設定の永続比較は `result_storage_denied` です。URL送信、曖昧なカテゴリ選択、再読み込み、期限切れ、POST制限を実接続先で確認してから公開します。Lambdaの取消は比較ごとのアクセスキーで保護し、既存診断はサーバートークンを必要とします。
+
+## 検査とレビュー
+
+`rtk mise run verify` は既存検査に加え、Astroテンプレートの型検査・ESLint・整形を実行します。SolidのTS/TSXと共通ロジックの厳格なTypeScript設定は維持しています。Astroのフレームワーク型を通常のTSビルドへ混在させず、テンプレートは `astro check` が検査します。
+
+追加したAstro/Solid統合、Astro検査・整形用依存、lockfile、ESLintの正確な役割別例外、miseの静的リリースタスクは人間のレビュー対象です。既存のguardrailケースは削除していません。

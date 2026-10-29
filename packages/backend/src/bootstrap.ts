@@ -1,8 +1,3 @@
-import { defineJsonSecret } from "firebase-functions/params";
-import { onDocumentCreated } from "firebase-functions/v2/firestore";
-import { onRequest } from "firebase-functions/v2/https";
-import type { HttpsFunction } from "firebase-functions/v2/https";
-
 import { err, map, ok, sequence } from "./comparison/algebra.js";
 import type { Result } from "./comparison/algebra.js";
 import { productsSchema, readIdentified, readListing, readProduct } from "./comparison/catalog.js";
@@ -14,6 +9,11 @@ import {
   rankChargers,
 } from "./comparison/charger.js";
 import type { ChargerSpecification } from "./comparison/charger.js";
+import { createCommerceService } from "./comparison/commerce.js";
+import type {
+  ConsumerCategoryCache,
+  ConsumerCategoryCacheOptions,
+} from "./comparison/consumer-category-cache.js";
 import {
   comparisonJobExpired,
   runComparisonJob,
@@ -21,7 +21,11 @@ import {
   toComparisonJobPublicSnapshot,
   toComparisonJobSnapshot,
 } from "./comparison/consumer-jobs.js";
-import type { ComparisonJobStore, ConsumerComparisonRunner } from "./comparison/consumer-jobs.js";
+import type {
+  ComparisonJobRecord,
+  ComparisonJobStore,
+  ConsumerComparisonRunner,
+} from "./comparison/consumer-jobs.js";
 import { createConsumerComparisonService } from "./comparison/consumer-service.js";
 import type { ConsumerServiceError } from "./comparison/consumer-service.js";
 import { consumerConditionsSchema } from "./comparison/consumer.js";
@@ -32,6 +36,8 @@ import { compareProductListings } from "./comparison/product-comparison.js";
 import { readReference } from "./comparison/providers.js";
 import { factSchema } from "./comparison/ranking.js";
 import type { Candidate, RankingError, RankingPolicy } from "./comparison/ranking.js";
+import { compareSecurities } from "./comparison/securities.js";
+import type { SecuritiesBroker } from "./comparison/securities.js";
 import {
   instant,
   httpsUrl,
@@ -43,10 +49,6 @@ import {
 } from "./comparison/values.js";
 import type { Instant } from "./comparison/values.js";
 import {
-  createFirestoreComparisonJobStore,
-  createFirestoreRunStore,
-} from "./infrastructure/firebase/firestore.js";
-import {
   apiResponse,
   authorized,
   corsPreflightResponse,
@@ -56,6 +58,7 @@ import {
 } from "./infrastructure/http/request.js";
 import type { ApiResponse } from "./infrastructure/http/request.js";
 import { createMemoryComparisonJobStore } from "./infrastructure/jobs/memory.js";
+import { createExternalCommerceProviders } from "./providers/commerce/index.js";
 import {
   officialChargerUrlStatus,
   loadOfficialCharger,
@@ -65,11 +68,13 @@ import {
   createJevExtraction,
   createJevCategorySelection,
   createJevConsumerScoring,
+  createJevFurusatoScoring,
   jevExtractionConfigurationSchema,
 } from "./providers/jev/extraction.js";
 import { createJevJudge } from "./providers/jev/index.js";
 import { createSearchPlanner, openaiConfigurationSchema } from "./providers/openai/index.js";
 import { createSpecificationExtractor } from "./providers/openai/specifications.js";
+import { createRakutenCommerceProviders } from "./providers/rakuten/commerce.js";
 import { createRakutenConsumerProvider } from "./providers/rakuten/consumer.js";
 import {
   createRakutenLookup,
@@ -79,13 +84,24 @@ import {
 } from "./providers/rakuten/http.js";
 import type { RakutenListing } from "./providers/rakuten/http.js";
 import { rakutenProvider } from "./providers/rakuten/index.js";
+import { securitiesAffiliates } from "./providers/securities/affiliates.js";
+import { securitiesCatalog } from "./providers/securities/catalog.js";
 
 export { readPublicAsset } from "./infrastructure/http/static.js";
 
 export type BootstrapDependencies = Readonly<{
+  securitiesCatalog?: readonly SecuritiesBroker[];
+  securitiesAffiliateConfiguration?: unknown;
+  categoryCache?: ConsumerCategoryCache;
+  commerceConfiguration?: unknown;
+  commerceFetcher?: typeof fetch;
   consumerService?: ReturnType<typeof createConsumerComparisonService>;
   jobStore?: ComparisonJobStore;
+  runStore?: (
+    status: "succeeded" | "failed",
+  ) => Promise<Result<null, Readonly<{ code: "storage_unavailable" }>>>;
   dispatchComparisonJob?: (jobId: string) => Promise<void>;
+  redispatchQueued?: boolean;
   clock?: () => Instant;
   comparisonRunner?: ConsumerComparisonRunner;
   apiAccessToken?: string;
@@ -107,16 +123,17 @@ function createConfiguredConsumerService(
   clock: () => Instant,
   selectCategory: ReturnType<typeof createJevCategorySelection> | undefined,
   score: ReturnType<typeof createJevConsumerScoring> | undefined,
+  categoryCache?: ConsumerCategoryCacheOptions,
 ): ReturnType<typeof createConsumerComparisonService> | null {
   const providers =
     rakuten?.tag === "ok"
-      ? [createRakutenConsumerProvider(rakuten.value, clock, fetch, selectCategory)]
+      ? [createRakutenConsumerProvider(rakuten.value, clock, fetch, selectCategory, categoryCache)]
       : [];
   return providers.length === 0
     ? null
     : createConsumerComparisonService(providers, extraction ?? undefined, clock, undefined, score);
 }
-function configuredHttpDependencies(input: unknown): BootstrapDependencies {
+export function configuredHttpDependencies(input: unknown): BootstrapDependencies {
   if (input === null || input === undefined) {
     return {};
   }
@@ -140,7 +157,13 @@ function respond(statusCode: number, body: unknown, allowedOrigin: string | null
 }
 export function createPublicConsumerApi(
   internal: (event: unknown) => Promise<ApiResponse>,
-  settings: Readonly<{ accessToken: string | null; allowedOrigin?: string; clock?: () => number }>,
+  settings: Readonly<{
+    accessToken: string | null;
+    allowedOrigin?: string;
+    clock?: () => number;
+    consumeRateLimit?: (address: string) => Promise<boolean>;
+    allowCapabilityCancellation?: boolean;
+  }>,
 ): (event: unknown, clientAddress: string, serverOrigin?: string) => Promise<ApiResponse> {
   return createPublicConsumerGateway(internal, settings);
 }
@@ -216,6 +239,30 @@ export function createApiHandler(
   }
   const consumerExtract = jev?.tag === "ok" ? createJevExtraction(jev.value) : null;
   const clock = dependencies.clock ?? systemTime;
+  const brokerCatalog = dependencies.securitiesCatalog ?? securitiesCatalog;
+  const brokerAffiliates = securitiesAffiliates(dependencies.securitiesAffiliateConfiguration);
+  const commerce = createCommerceService(
+    [
+      ...(rakuten?.tag === "ok"
+        ? createRakutenCommerceProviders(
+            rakuten.value,
+            clock,
+            dependencies.commerceFetcher ?? fetch,
+          )
+        : []),
+      ...createExternalCommerceProviders(
+        dependencies.commerceConfiguration,
+        () => valueOf(clock()),
+        dependencies.commerceFetcher ?? fetch,
+      ),
+    ],
+    {
+      clock: () => Date.parse(valueOf(clock())),
+      ...(jev?.tag === "ok"
+        ? { score: createJevFurusatoScoring(jev.value, dependencies.commerceFetcher ?? fetch) }
+        : {}),
+    },
+  );
   const origin =
     dependencies.allowedOrigin === undefined ? null : httpsUrl(dependencies.allowedOrigin);
   if (
@@ -238,12 +285,25 @@ export function createApiHandler(
       clock,
       jev?.tag === "ok" ? createJevCategorySelection(jev.value) : undefined,
       jev?.tag === "ok" ? createJevConsumerScoring(jev.value) : undefined,
+      dependencies.categoryCache === undefined
+        ? undefined
+        : {
+            store: dependencies.categoryCache,
+            version: `selection-v1:${jev?.tag === "ok" ? jev.value.model : "none"}`,
+          },
     );
-  const jobStore =
-    dependencies.jobStore ??
-    (persistRuns
-      ? createFirestoreComparisonJobStore(clock)
-      : createMemoryComparisonJobStore(clock));
+  const jobStore = dependencies.jobStore ?? createMemoryComparisonJobStore(clock);
+  const canServeJobResult = (job: ComparisonJobRecord): boolean =>
+    job.state !== "succeeded" ||
+    job.result === null ||
+    consumerService?.canRestoreResult(
+      job.input.url,
+      job.resultExpiresAt,
+      jobStore.persistentResults,
+    ) === true;
+  if (persistRuns && dependencies.jobStore === undefined) {
+    throw new Error("Persistent storage must be wired at bootstrap");
+  }
   const comparisonRunner: ConsumerComparisonRunner =
     dependencies.comparisonRunner ??
     Object.freeze({
@@ -265,7 +325,7 @@ export function createApiHandler(
           await Promise.resolve();
         }
       : createMemoryJobDispatcher(jobStore, comparisonRunner, clock));
-  const store = persistRuns ? createFirestoreRunStore() : null;
+  const store = dependencies.runStore ?? null;
   return async (event) => {
     try {
       const request = parseApiRequest(event);
@@ -291,6 +351,57 @@ export function createApiHandler(
           return respond(204, "", null);
         }
         return corsPreflightResponse(allowedOrigin);
+      }
+      if (path === "/api/commerce/sources") {
+        return respond(
+          method === "GET" ? 200 : 405,
+          method === "GET"
+            ? ok({ sources: commerce.sources() })
+            : err({ code: "method_not_allowed" }),
+          allowedOrigin,
+        );
+      }
+      if (path === "/api/securities") {
+        if (method !== "GET" && method !== "POST") {
+          return respond(405, err({ code: "method_not_allowed" }), allowedOrigin);
+        }
+        const input =
+          method === "GET"
+            ? {
+                mode: "fund",
+                monthlyYen: 30_000,
+                monthlyShoppingYen: 0,
+                annualShoppingYen: 0,
+                rakutenFundBand: "unknown",
+              }
+            : request.value.commerceInput;
+        const result = compareSecurities(brokerCatalog, input, valueOf(clock()), brokerAffiliates);
+        return respond(result.tag === "ok" ? 200 : 400, result, allowedOrigin);
+      }
+      if (path === "/api/commerce" || path === "/api/furusato/compare") {
+        if (method !== "POST") {
+          return respond(405, err({ code: "method_not_allowed" }), allowedOrigin);
+        }
+        if (typeof accessToken !== "string" || !authorized(authorization, accessToken)) {
+          return respond(401, err({ code: "unauthorized" }), allowedOrigin);
+        }
+        const result =
+          path === "/api/furusato/compare"
+            ? await commerce.compareFurusato(request.value.commerceInput)
+            : await commerce.request(request.value.commerceInput);
+        const status =
+          result.tag === "ok"
+            ? 200
+            : result.error.code === "invalid_request"
+              ? 400
+              : result.error.code === "provider_rate_limited"
+                ? 429
+                : result.error.code === "not_configured" ||
+                    result.error.code === "provider_unavailable" ||
+                    result.error.code === "provider_unauthorized"
+                  ? 503
+                  : 422;
+        return respond(status, result, allowedOrigin);
       }
       if (path === "/api/catalog") {
         if (method !== "GET") {
@@ -381,8 +492,18 @@ export function createApiHandler(
                   : 503;
           return respond(status, err({ code: started.error.code }), allowedOrigin);
         }
-        if (started.value.created) {
-          await dispatchComparisonJob(started.value.record.id);
+        if (
+          started.value.created ||
+          (dependencies.redispatchQueued === true && started.value.record.state === "queued")
+        ) {
+          try {
+            await dispatchComparisonJob(started.value.record.id);
+          } catch {
+            return respond(503, err({ code: "job_dispatch_unavailable" }), allowedOrigin);
+          }
+        }
+        if (!canServeJobResult(started.value.record)) {
+          return respond(422, err({ code: "source_not_authorized" }), allowedOrigin);
         }
         const snapshot = !started.value.created
           ? toComparisonJobPublicSnapshot(started.value.record, clock())
@@ -413,6 +534,9 @@ export function createApiHandler(
                     : 503;
             return respond(status, err({ code: cancelled.error.code }), allowedOrigin);
           }
+          if (!canServeJobResult(cancelled.value)) {
+            return respond(422, err({ code: "source_not_authorized" }), allowedOrigin);
+          }
           return respond(
             200,
             ok(toComparisonJobPublicSnapshot(cancelled.value, clock())),
@@ -433,6 +557,9 @@ export function createApiHandler(
                   ? 410
                   : 503;
           return respond(status, err({ code: loaded.error.code }), allowedOrigin);
+        }
+        if (!canServeJobResult(loaded.value)) {
+          return respond(422, err({ code: "source_not_authorized" }), allowedOrigin);
         }
         return respond(
           200,
@@ -912,92 +1039,12 @@ export function createApiHandler(
   };
 }
 
-export function createFirebaseApi(): HttpsFunction {
-  const configuration = defineJsonSecret<unknown>("API_CONFIGURATION");
-  let handler: ReturnType<typeof createPublicConsumerApi> | null = null;
-  return onRequest(
-    {
-      region: "asia-northeast1",
-      invoker: "public",
-      secrets: [configuration],
-      minInstances: 0,
-      maxInstances: 2,
-      concurrency: 10,
-      memory: "256MiB",
-      timeoutSeconds: 60,
-    },
-    async (request, response) => {
-      let result: ApiResponse;
-      try {
-        const body = Buffer.isBuffer(request.rawBody) ? request.rawBody : Buffer.alloc(0);
-        if (body.length > 4096) {
-          result = apiResponse(413, err({ code: "invalid_request" }));
-        } else {
-          // Secrets are available at runtime, after Firebase's deployment discovery.
-          if (handler === null) {
-            const settings = configuration.value();
-            if (!record(settings) || !("rakuten" in settings) || !("openai" in settings)) {
-              throw new Error("API_CONFIGURATION requires rakuten and openai settings or null");
-            }
-            const dependencies = configuredHttpDependencies(settings["http"]);
-            const internal = createApiHandler(
-              true,
-              settings["rakuten"],
-              settings["openai"],
-              settings["jev"] ?? null,
-              dependencies,
-            );
-            const rakuten = settings["rakuten"];
-            const accessToken =
-              dependencies.apiAccessToken ??
-              (record(rakuten) && typeof rakuten["accessToken"] === "string"
-                ? rakuten["accessToken"]
-                : null);
-            const origin =
-              dependencies.allowedOrigin ??
-              (record(rakuten) && typeof rakuten["allowedOrigin"] === "string"
-                ? rakuten["allowedOrigin"]
-                : undefined);
-            handler = createPublicConsumerApi(internal, {
-              accessToken,
-              ...(origin === undefined ? {} : { allowedOrigin: origin }),
-            });
-          }
-          const route = new URL(request.originalUrl, "http://localhost");
-          const socket: unknown = request.socket;
-          const address =
-            record(socket) && typeof socket["remoteAddress"] === "string"
-              ? socket["remoteAddress"]
-              : "unknown";
-          const protocol: unknown = request.protocol;
-          const hostname: unknown = request.hostname;
-          const serverOrigin =
-            typeof protocol === "string" && typeof hostname === "string"
-              ? `${protocol}://${hostname}`
-              : undefined;
-          result = await handler(
-            {
-              path: route.pathname,
-              method: request.method,
-              query: route.search.slice(1),
-              headers: request.headers,
-              body: body.toString("utf8"),
-            },
-            address,
-            serverOrigin,
-          );
-        }
-      } catch {
-        result = apiResponse(500, err({ code: "internal_error" }));
-      }
-      response.status(result.statusCode).set(result.headers).send(result.body);
-    },
-  );
-}
-
-function createPersistedComparisonJobRunner(
+export function createPersistedComparisonJobRunner(
   rakutenConfiguration: unknown,
   jevConfiguration: unknown,
+  jobStore: ComparisonJobStore,
+  watchIntervalMs = 1500,
+  categoryCache?: ConsumerCategoryCache,
 ): (jobId: string) => Promise<void> {
   const clock = systemTime;
   const rakuten =
@@ -1011,8 +1058,13 @@ function createPersistedComparisonJobRunner(
     clock,
     jev?.tag === "ok" ? createJevCategorySelection(jev.value) : undefined,
     jev?.tag === "ok" ? createJevConsumerScoring(jev.value) : undefined,
+    categoryCache === undefined
+      ? undefined
+      : {
+          store: categoryCache,
+          version: `selection-v1:${jev?.tag === "ok" ? jev.value.model : "none"}`,
+        },
   );
-  const jobStore = createFirestoreComparisonJobStore(clock);
   const runner: ConsumerComparisonRunner = Object.freeze({
     compare: async (input, options) => {
       if (consumerService === null) {
@@ -1030,7 +1082,7 @@ function createPersistedComparisonJobRunner(
   });
   return async (jobId: string): Promise<void> => {
     const workerId = crypto.randomUUID();
-    await runComparisonJob(jobStore, runner, jobId, workerId, clock);
+    await runComparisonJob(jobStore, runner, jobId, workerId, clock, { watchIntervalMs });
     const latest = await jobStore.read(jobId);
     if (
       latest.tag === "err" ||
@@ -1041,35 +1093,6 @@ function createPersistedComparisonJobRunner(
       throw new Error("comparison_job_retry");
     }
   };
-}
-
-export function createComparisonJobWorkerTrigger(): ReturnType<typeof onDocumentCreated> {
-  const configuration = defineJsonSecret<unknown>("API_CONFIGURATION");
-  let runJob: ((jobId: string) => Promise<void>) | null = null;
-  return onDocumentCreated(
-    {
-      document: "comparison_jobs/{jobId}",
-      region: "asia-northeast1",
-      secrets: [configuration],
-      timeoutSeconds: 60,
-      memory: "512MiB",
-      retry: true,
-    },
-    async (event) => {
-      const jobId = event.params["jobId"];
-      if (typeof jobId !== "string") {
-        return;
-      }
-      if (runJob === null) {
-        const settings = configuration.value();
-        if (!record(settings) || !("rakuten" in settings) || !("openai" in settings)) {
-          throw new Error("API_CONFIGURATION requires rakuten and openai settings or null");
-        }
-        runJob = createPersistedComparisonJobRunner(settings["rakuten"], settings["jev"] ?? null);
-      }
-      await runJob(jobId);
-    },
-  );
 }
 
 const demoRankingPolicy = {
@@ -1374,7 +1397,7 @@ type DemoInvestigation = Readonly<{
   observedAt: string;
 }>;
 
-function systemTime(): Instant {
+export function systemTime(): Instant {
   const result = instant(new Date().toISOString());
   if (result.tag === "err") {
     throw new Error("System clock did not produce a valid instant");

@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
+import { readJsonResponse, validateProductUrl } from "./consumer-http.js";
 import { parseComparisonJob } from "./consumer.js";
+import { investigateProduct } from "./index.js";
+import { parseSecuritiesComparison } from "./index.js";
+import { prepareSecuritiesSubmission, securitiesDraftMatches } from "./index.js";
+import type { SecuritiesDraft } from "./index.js";
 import {
   cancelConsumerComparisonJob,
   clearComparisonSession,
@@ -11,10 +16,18 @@ import {
   compareMonitors,
   compareProducts,
   fetchProductCatalog,
+  fetchCommerceSources,
+  fetchCommerceListings,
+  fetchCommerceAffiliateLink,
+  fetchFurusatoComparison,
+  parseCommercePage,
   createComparisonOperation,
   createComparisonRequestScope,
   comparisonDisplayExpiresAt,
   comparisonDetailLayout,
+  comparisonJobCannotResume,
+  comparisonRecoveryAction,
+  normalizeProductUrl,
   detectProductCategory,
   parseConsumerComparison,
   parseDetectResult,
@@ -37,7 +50,170 @@ import {
   shouldPollJob,
   startConsumerComparisonJob,
 } from "./index.js";
-import type { ConsumerComparison, MonitorConditions, ProductCatalog } from "./index.js";
+
+await test("securities client validates result identity, source URLs, calculations, currency and freshness", () => {
+  const now = "2026-10-25T01:00:00.000Z";
+  const request = {
+    mode: "stock",
+    account: "taxable",
+    tradeYen: 100000,
+    orders: 2,
+    sbiElectronicDelivery: true,
+    rakutenZeroCourse: true,
+  } satisfies Parameters<typeof fetchSecuritiesComparison>[0];
+  const rows = [
+    { id: "sbi", officialUrl: "https://www.sbisec.co.jp/" },
+    { id: "rakuten", officialUrl: "https://www.rakuten-sec.co.jp/" },
+    { id: "monex", officialUrl: "https://info.monex.co.jp/" },
+  ].map((broker) => ({
+    ...broker,
+    name: broker.id,
+    checkedAt: "2026-10-25T00:00:00.000Z",
+    reviewAfter: "2026-10-26T00:00:00.000Z",
+    pointsFrom: "2026-10-01T00:00:00.000Z",
+    card: "代表カード",
+    minimumCardYen: 100,
+    pointName: "ポイント",
+    notes: [],
+    sources: [{ label: "公式", url: broker.officialUrl }],
+    value: 198,
+    status: "calculated",
+    reason: "条件付き試算",
+    breakdown: [
+      { label: "単価", value: 99 },
+      { label: "注文数", value: 2 },
+    ],
+    rank: 1,
+    link: { provider: "official", url: broker.officialUrl, approvedUntil: null },
+  }));
+  const valid = { tag: "ok", value: { generatedAt: now, request, unit: "JPY", rows, notices: [] } };
+  assert.equal(parseSecuritiesComparison(valid, request, now).rows.length, 3);
+  const affiliateRows = rows.map((row) =>
+    row.id === "sbi"
+      ? {
+          ...row,
+          link: {
+            provider: "accesstrade",
+            url: "https://h.accesstrade.net/sp/cc?rk=example",
+            approvedUntil: "2026-10-26T00:00:00.000Z",
+            creative: {
+              text: "広告主指定の申込案内",
+              impressionUrl: "https://h.accesstrade.net/sp/rr?rk=example",
+            },
+          },
+        }
+      : row,
+  );
+  const affiliate = parseSecuritiesComparison(
+    { ...valid, value: { ...valid.value, rows: affiliateRows } },
+    request,
+    now,
+  );
+  assert.equal(affiliate.rows[0]?.link.provider, "accesstrade");
+  assert.equal(affiliate.rows[0].link.url, "https://h.accesstrade.net/sp/cc?rk=example");
+  assert.equal(affiliate.rows[0].link.creative?.text, "広告主指定の申込案内");
+  for (const patch of [
+    { creative: null },
+    { url: "https://h.accesstrade.net/sp/cc?rk=example&rk=other" },
+    { creative: { text: "申込", impressionUrl: "https://evil.example/pixel" } },
+    { creative: { text: "申込", impressionUrl: "https://h.accesstrade.net/sp/rr?rk=other" } },
+  ]) {
+    const invalidRows = affiliateRows.map((row) =>
+      row.id === "sbi" ? { ...row, link: { ...row.link, ...patch } } : row,
+    );
+    assert.throws(() =>
+      parseSecuritiesComparison(
+        { ...valid, value: { ...valid.value, rows: invalidRows } },
+        request,
+        now,
+      ),
+    );
+  }
+  for (const data of [
+    { ...valid.value, unit: "points" },
+    { ...valid.value, request: { ...request, orders: 3 } },
+    { ...valid.value, rows: rows.map((row) => ({ ...row, value: 199 })) },
+    { ...valid.value, rows: rows.map((row) => ({ ...row, rank: 2 })) },
+    { ...valid.value, rows: rows.map((row) => ({ ...row, id: "sbi" })) },
+    {
+      ...valid.value,
+      rows: rows.map((row) => ({
+        ...row,
+        sources: [{ label: "偽公式", url: "https://evil.example/" }],
+      })),
+    },
+    {
+      ...valid.value,
+      rows: rows.map((row) => ({ ...row, link: { ...row.link, url: "javascript:alert(1)" } })),
+    },
+    { ...valid.value, rows: rows.map((row) => ({ ...row, reviewAfter: now })) },
+    { ...valid.value, rows: rows.map((row) => ({ ...row, status: "needs_information" })) },
+  ]) {
+    assert.throws(() => parseSecuritiesComparison({ tag: "ok", value: data }, request, now));
+  }
+  assert.throws(() => parseSecuritiesComparison(valid, request, "2026-10-26T00:00:00.000Z"));
+});
+import type {
+  CommerceListing,
+  CommerceSource,
+  CommerceSourceStatus,
+  CommerceRequest,
+  CommercePage,
+  FurusatoField,
+  FurusatoComparison,
+  FurusatoComparisonRequest,
+  ConsumerComparison,
+  MonitorConditions,
+  ProductCatalog,
+  fetchSecuritiesComparison,
+} from "./index.js";
+
+await test("legacy diagnostics use the configured Lambda origin and keep tokens in request headers", async (context) => {
+  const previous = Object.getOwnPropertyDescriptor(globalThis, "document");
+  const base = "https://fixture.lambda-url.ap-northeast-1.on.aws";
+  Object.defineProperty(globalThis, "document", {
+    configurable: true,
+    value: { querySelector: () => ({ getAttribute: () => base }) },
+  });
+  const seen: string[] = [];
+  const token = "t".repeat(36);
+  context.mock.method(globalThis, "fetch", (input: unknown, init: RequestInit) => {
+    assert.equal(typeof input, "string");
+    seen.push(String(input));
+    assert.equal(new Headers(init.headers).get("authorization"), `Bearer ${token}`);
+    assert.ok(init.signal instanceof AbortSignal);
+    return Promise.resolve(Response.json({ tag: "err", error: { code: "provider_unavailable" } }));
+  });
+  try {
+    await assert.rejects(
+      investigateProduct("https://item.rakuten.co.jp/shop/product/", { accessToken: token }),
+    );
+    await assert.rejects(
+      compareMonitors(
+        "https://item.rakuten.co.jp/shop/product/",
+        { screenSize: null, minResolution: null, usbCPowerW: 0, heightAdjustable: false },
+        "price",
+        { accessToken: token },
+      ),
+    );
+    assert.deepEqual(seen, [`${base}/api/investigate`, `${base}/api/monitors`]);
+  } finally {
+    if (previous === undefined) {
+      Reflect.deleteProperty(globalThis, "document");
+    } else {
+      Object.defineProperty(globalThis, "document", previous);
+    }
+  }
+});
+
+await test("conflicting and expired operations start fresh while transient failures preserve retry identity", () => {
+  for (const code of ["job_expired", "job_not_found", "job_conflict", "idempotency_conflict"]) {
+    assert.equal(comparisonJobCannotResume(new Error("retry", { cause: { code } })), true);
+  }
+  for (const code of ["provider_unavailable", "consumer_rate_limited", "invalid_response"]) {
+    assert.equal(comparisonJobCannotResume(new Error("retry", { cause: { code } })), false);
+  }
+});
 
 await test("comparison details hide wholly unknown fields, retain zero and false, and keep six shared primary axes without changing data", () => {
   const fixture = genericFixture();
@@ -133,7 +309,7 @@ await test("comparison details hide wholly unknown fields, retain zero and false
   );
   assert.deepEqual(
     layout.specificationFields.map((field) => field.id),
-    ["cpu", "lan", "os"],
+    ["cleanAirM3H", "noiseDb", "cpu", "lan", "os"],
   );
   assert.equal(JSON.stringify(category), original);
   assert.deepEqual(comparisonDetailLayout(base, products).detailAxes, []);
@@ -199,7 +375,10 @@ await test("comparison details hide wholly unknown fields, retain zero and false
   );
   assert.deepEqual(unscoredLayout.primaryAxes, []);
   assert.deepEqual(unscoredLayout.detailAxes, []);
-  assert.deepEqual(unscoredLayout.specificationFields, layout.specificationFields);
+  assert.deepEqual(
+    unscoredLayout.specificationFields.map((field) => field.id),
+    ["cleanAirM3H", "noiseDb", ...axes.map((axis) => axis.id), "cpu", "lan", "os"],
+  );
   const emptyLayout = { primaryAxes: [], detailAxes: [], specificationFields: [] };
   assert.deepEqual(comparisonDetailLayout(category, []), emptyLayout);
   assert.deepEqual(
@@ -1783,7 +1962,7 @@ await test("automatically discovered categories validate without the startup cat
   } satisfies ProductCatalog["categories"][number];
   const products = fixture.comparison.products.map((product) => ({
     ...product,
-    condition: "unknown",
+    condition: "new",
     rank: null,
     recommendationPercent: null,
     consumerInformation: {
@@ -1851,9 +2030,8 @@ await test("automatically discovered categories validate without the startup cat
           facts: [],
         },
       })),
-      "applied",
     ).specificationFields.map((field) => field.id),
-    ["attribute11"],
+    [],
   );
   assert.throws(
     () => parseConsumerComparison({ tag: "ok", value: result }, fixture.catalog),
@@ -1863,6 +2041,9 @@ await test("automatically discovered categories validate without the startup cat
     { aiCalls: { openai: 0, jev: 9 } },
     { categoryDefinition: { ...category, mainFields: ["invented"] } },
     { products: products.map((product) => ({ ...product, condition: "used" })) },
+    { products: products.map((product) => ({ ...product, condition: "unknown" })) },
+    { products: products.map((product) => ({ ...product, condition: "refurbished" })) },
+    { source: { ...source, condition: "unknown" } },
     {
       products: products.map((product) => ({
         ...product,
@@ -2538,14 +2719,226 @@ await test("reload identity stores no product or API token and rejects expired o
   assert.equal(readActiveComparisonCategory(), null);
 });
 
+await test("product URL recovery normalizes copied Rakuten URLs and rejects unsafe or variant-changing destinations", () => {
+  const providers = [
+    {
+      id: "rakuten",
+      label: "楽天",
+      urlHosts: ["item.rakuten.co.jp"],
+      affiliateHosts: ["hb.afl.rakuten.co.jp"],
+    },
+  ];
+  const canonical = "https://item.rakuten.co.jp/shop/product-1/";
+  for (const input of [
+    " item.rakuten.co.jp/shop/product-1 ",
+    "http://item.rakuten.co.jp/shop/product-1",
+    `${canonical}?utm_campaign=sample&rafcid=example#overview`,
+  ]) {
+    assert.equal(normalizeProductUrl(input), canonical);
+    assert.equal(validateProductUrl(input, providers).href, canonical);
+  }
+  const affiliate =
+    "https://hb.afl.rakuten.co.jp/hgc/11111111.22222222.33333333.44444444/?" +
+    new URLSearchParams({ pc: `${canonical}?s-id=copy`, m: `${canonical}?s-id=copy` }).toString();
+  assert.equal(validateProductUrl(affiliate, providers).href, canonical);
+  for (const input of [
+    "javascript:alert(1)",
+    "data:text/html,<script>alert(1)</script>",
+    "https://user:password@item.rakuten.co.jp/shop/product-1/",
+    "https://item.rakuten.co.jp:444/shop/product-1/",
+    "https://127.0.0.1/shop/product/",
+    "https://2130706433/shop/product/",
+    "https://[::1]/shop/product/",
+    "https://localhost/shop/product/",
+    "https://item.rakuten.co.jp\\@evil.test/shop/product/",
+    "https://item.rakuten.co.jp/shop/\nproduct/",
+    "https://item.rakuten.co.jp/shop/product/../other/",
+    "https://item.rakuten.co.jp/shop/%2e%2e/product/",
+    "https://item.rakuten.co.jp/shop/product%2Fother/",
+    "https://item.rakuten.co.jp/shop/",
+    `${canonical}?variantId=selected`,
+    `${canonical}?sku=128gb`,
+    `${canonical}?redirect=https%3A%2F%2Fevil.test`,
+    "https://item.rakuten.co.jp.evil.test/shop/product/",
+    affiliate + "&pc=https%3A%2F%2Fevil.test%2F",
+    "x".repeat(8193),
+  ]) {
+    assert.throws(
+      () => validateProductUrl(input, providers),
+      (cause: unknown) => {
+        assert.equal(comparisonRecoveryAction(cause), "edit");
+        return true;
+      },
+    );
+  }
+  assert.equal(
+    comparisonRecoveryAction(new Error("hidden", { cause: { code: "listing_not_found" } })),
+    "keyword",
+  );
+  assert.equal(
+    comparisonRecoveryAction(new Error("hidden", { cause: { code: "lookup_incomplete" } })),
+    "keyword",
+  );
+});
+
+await test("JSON transport bounds streaming bodies and never displays HTML, parser errors or upstream error messages", async () => {
+  let cancelled = false;
+  const tooLarge = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(new Uint8Array(2 * 1024 * 1024 + 1));
+    },
+    cancel() {
+      cancelled = true;
+    },
+  });
+  for (const response of [
+    new Response("<img src=x onerror=alert(1)>", { headers: { "content-type": "text/html" } }),
+    new Response("{}", { headers: { "content-type": "application/jsonp" } }),
+    new Response("{", { headers: { "content-type": "application/json" } }),
+    new Response(tooLarge, {
+      headers: { "content-type": "application/json", "content-length": "2" },
+    }),
+  ]) {
+    await assert.rejects(readJsonResponse(response), (cause: unknown) => {
+      assert.equal(comparisonRecoveryAction(cause), "retry");
+      assert.ok(cause instanceof Error);
+      assert.equal(cause.message, "接続できませんでした。再試行してください");
+      return true;
+    });
+  }
+  assert.equal(cancelled, true);
+  const bytes = new TextEncoder().encode(
+    JSON.stringify({ title: "日本語<script>alert(1)</script>" }),
+  );
+  const streamed = new ReadableStream<Uint8Array>({
+    start(controller) {
+      for (const byte of bytes) {
+        controller.enqueue(Uint8Array.of(byte));
+      }
+      controller.close();
+    },
+  });
+  assert.deepEqual(
+    await readJsonResponse(
+      new Response(streamed, { headers: { "content-type": "Application/JSON; charset=utf-8" } }),
+    ),
+    { title: "日本語<script>alert(1)</script>" },
+  );
+  await assert.rejects(
+    readJsonResponse(
+      Response.json(
+        {
+          tag: "err",
+          error: { code: "listing_not_found", message: "<script>alert(1)</script> secret stack" },
+        },
+        { status: 404 },
+      ),
+    ),
+    (cause: unknown) => {
+      assert.equal(comparisonRecoveryAction(cause), "keyword");
+      assert.ok(cause instanceof Error);
+      assert.equal(cause.message, "商品が見つかりません");
+      return true;
+    },
+  );
+});
+
+await test("detection refuses changed source URLs and invalid keyword payloads before sending a product request", async (context) => {
+  resetConsumerCatalogCache();
+  const { catalog, source, comparison } = genericFixture();
+  let calls = 0;
+  context.mock.method(globalThis, "fetch", (path: unknown) => {
+    if (path === "/api/catalog") {
+      return Promise.resolve(Response.json({ tag: "ok", value: catalog }));
+    }
+    calls += 1;
+    return Promise.resolve(
+      Response.json({
+        tag: "ok",
+        value: {
+          status: "unsupported",
+          source: comparison.products[1],
+          category: null,
+          categories: [],
+        },
+      }),
+    );
+  });
+  await fetchProductCatalog();
+  for (const keyword of ["日".repeat(43), "商品\u0000名"]) {
+    await assert.rejects(
+      detectProductCategory(source.canonicalUrl, { keyword }),
+      (cause: unknown) => {
+        assert.equal(comparisonRecoveryAction(cause), "edit");
+        return true;
+      },
+    );
+  }
+  assert.equal(calls, 0);
+  await assert.rejects(detectProductCategory(source.canonicalUrl), (cause: unknown) => {
+    assert.equal(comparisonRecoveryAction(cause), "retry");
+    return true;
+  });
+  assert.equal(calls, 1);
+});
+
+await test("consumer responses reject executable image destinations and preserve markup as plain product text", () => {
+  const { catalog, comparison } = genericFixture();
+  for (const imageUrl of [
+    "javascript:alert(1)",
+    "data:image/svg+xml,<svg onload=alert(1)>",
+    "https://user:secret@cdn.different.test/image.png",
+    "https://localhost/image.png",
+    "https://cdn.different.test/\nimage.png",
+  ]) {
+    assert.throws(() =>
+      parseConsumerComparison(
+        {
+          tag: "ok",
+          value: {
+            ...comparison,
+            source: { ...comparison.source, imageUrl },
+            products: comparison.products.map((product) => ({ ...product, imageUrl })),
+          },
+        },
+        catalog,
+      ),
+    );
+  }
+  const title = "<img src=x onerror=alert(1)> & <script>alert(1)</script>";
+  const checked = parseConsumerComparison(
+    {
+      tag: "ok",
+      value: {
+        ...comparison,
+        source: { ...comparison.source, title },
+        products: comparison.products.map((product) => ({ ...product, title })),
+      },
+    },
+    catalog,
+  );
+  assert.equal(checked.source.title, title);
+  assert.equal(checked.products[0]?.title, title);
+});
+
 await test("transport rejects non-OK JSON, malformed JSON and token-bearing API bases; detect accepts unreconciled sources", async (context) => {
   resetConsumerCatalogCache();
   const { catalog, source } = genericFixture();
   let response = Response.json({ tag: "ok", value: catalog }, { status: 503 });
   context.mock.method(globalThis, "fetch", () => Promise.resolve(response));
-  await assert.rejects(fetchProductCatalog(), /HTTP 503/);
+  await assert.rejects(fetchProductCatalog(), (cause: unknown) => {
+    assert.equal(comparisonRecoveryAction(cause), "retry");
+    assert.ok(cause instanceof Error);
+    assert.equal(cause.message, "接続できませんでした。再試行してください");
+    return true;
+  });
   response = new Response("{", { headers: { "content-type": "application/json" } });
-  await assert.rejects(fetchProductCatalog(), SyntaxError);
+  await assert.rejects(fetchProductCatalog(), (cause: unknown) => {
+    assert.equal(comparisonRecoveryAction(cause), "retry");
+    assert.ok(cause instanceof Error);
+    assert.equal(cause.message, "接続できませんでした。再試行してください");
+    return true;
+  });
   await assert.rejects(
     fetchProductCatalog({ apiBase: "https://api.test/?token=secret" }),
     /HTTPS URL/,
@@ -2609,4 +3002,524 @@ await test("in-flight detect, start and cancel requests reject delayed responses
     await aborted;
     mock.mock.restore();
   }
+});
+
+function commerceClientFixture(): CommerceListing {
+  const url = "https://www.satofull.jp/products/detail.php?product_id=1234567";
+  const affiliate = new URL("https://ck.jp.ap.valuecommerce.com/servlet/referral");
+  affiliate.search = new URLSearchParams({
+    sid: "1234567",
+    pid: "123456789",
+    vc_url: url,
+  }).toString();
+  return {
+    source: "satofull",
+    id: "1234567",
+    title: "精米10kg",
+    imageUrl: "https://www.satofull.jp/upload/rice.jpg",
+    url,
+    affiliateUrl: affiliate.href,
+    description: "内容量: 5kg×2袋",
+    amount: { minimum: 20000, maximum: 20000, currency: "JPY", kind: "donation" },
+    priceBasis: "listing",
+    condition: "not_applicable",
+    availability: "unknown",
+    shipping: "unknown",
+    tax: "included",
+    observedAt: new Date(Date.now() - 1000).toISOString(),
+    expiresAt: new Date(Date.now() + 600000).toISOString(),
+    usage: { ai: false, priceComparison: true, store: false },
+    notices: ["寄付額です"],
+  } satisfies CommerceListing;
+}
+
+await test("affiliate link lookup uses the common commerce API and preserves the verified destination and expiry", async (context) => {
+  const listing = commerceClientFixture();
+  context.mock.method(globalThis, "fetch", (_input: unknown, init?: RequestInit) => {
+    assert.ok(typeof init?.body === "string");
+    const body: unknown = JSON.parse(init.body);
+    assert.deepEqual(body, { source: "satofull", query: listing.id, operation: "lookup" });
+    return Promise.resolve(
+      Response.json({ tag: "ok", value: { listings: [listing], total: 1, page: 1, limit: 1 } }),
+    );
+  });
+  const result = await fetchCommerceAffiliateLink({ source: "satofull", query: listing.id });
+  assert.deepEqual(result, {
+    source: listing.source,
+    id: listing.id,
+    url: listing.url,
+    affiliateUrl: listing.affiliateUrl,
+    observedAt: listing.observedAt,
+    expiresAt: listing.expiresAt,
+  });
+});
+
+await test("commerce client validates expiry, source, amounts, link destinations and Amazon usage restrictions", () => {
+  const listing = commerceClientFixture();
+  const envelope = (items: readonly unknown[]): unknown => ({
+    tag: "ok",
+    value: { listings: items, total: 1, page: 1, limit: 10 },
+  });
+  assert.equal(
+    parseCommercePage(envelope([listing]), "satofull").listings[0]?.amount?.kind,
+    "donation",
+  );
+  for (const patch of [
+    { source: "yahoo" },
+    { imageUrl: "javascript:alert(1)" },
+    { imageUrl: "https://127.0.0.1/private" },
+    { imageUrl: "https://localhost/private" },
+    { imageUrl: "https://user:secret@www.satofull.jp/image.jpg" },
+    { condition: "new" },
+    { expiresAt: "2020-01-01T00:00:00.000Z" },
+    { amount: { minimum: 1, maximum: 2, currency: "JPY", kind: "purchase" } },
+    { amount: { minimum: 3, maximum: 2, currency: "JPY", kind: "donation" } },
+    { affiliateUrl: "https://ck.jp.ap.valuecommerce.com.evil.example/servlet/referral" },
+    {
+      affiliateUrl:
+        "https://ck.jp.ap.valuecommerce.com/servlet/referral?vc_url=https%3A%2F%2Fevil.example",
+    },
+    { url: "http://www.satofull.jp/products/detail.php?product_id=1234567" },
+    { usage: { ai: false, priceComparison: true, store: true } },
+  ]) {
+    assert.throws(() => parseCommercePage(envelope([{ ...listing, ...patch }]), "satofull"));
+  }
+  assert.throws(() => parseCommercePage(envelope([listing, listing]), "satofull"));
+  const amazon: CommerceListing = {
+    ...listing,
+    source: "amazon",
+    id: "B000000001",
+    url: "https://www.amazon.co.jp/dp/B000000001",
+    affiliateUrl: "https://www.amazon.co.jp/dp/B000000001?tag=test-22",
+    description: null,
+    amount: null,
+    priceBasis: "featured_offer",
+    condition: "new",
+    usage: { ai: false, priceComparison: false, store: false },
+  };
+  assert.equal(parseCommercePage(envelope([amazon]), "amazon").listings[0]?.usage.ai, false);
+  for (const patch of [
+    { usage: { ai: true, priceComparison: false, store: false } },
+    { usage: { ai: false, priceComparison: true, store: false } },
+    { description: "API商品説明" },
+    { priceBasis: "listing" },
+  ]) {
+    assert.throws(() => parseCommercePage(envelope([{ ...amazon, ...patch }]), "amazon"));
+  }
+});
+
+await test("commerce client fetches sources and listings through the public API and rejects invalid input before fetch", async (context) => {
+  const listing = commerceClientFixture();
+  const sourceIds: readonly CommerceSource[] = [
+    "rakuten",
+    "yahoo",
+    "amazon",
+    "rakuten_furusato",
+    "satofull",
+  ];
+  const sources = sourceIds.map((id) => ({ id, label: id, configured: id === "satofull" }));
+  let calls = 0;
+  context.mock.method(globalThis, "fetch", (url: unknown, init: RequestInit) => {
+    calls += 1;
+    assert.equal(init.headers !== undefined, true);
+    if (url === "/api/commerce/sources") {
+      return Promise.resolve(Response.json({ tag: "ok", value: { sources } }));
+    }
+    assert.equal(url, "/api/commerce");
+    assert.equal(init.method, "POST");
+    assert.equal(
+      init.body,
+      JSON.stringify({ source: "satofull", operation: "search", query: "米" }),
+    );
+    return Promise.resolve(
+      Response.json({ tag: "ok", value: { listings: [listing], total: 1, page: 1, limit: 10 } }),
+    );
+  });
+  const statuses: readonly CommerceSourceStatus[] = await fetchCommerceSources();
+  assert.equal(statuses.length, 5);
+  assert.equal(statuses.find((status) => status.id === "satofull")?.configured, true);
+  const input: CommerceRequest = { source: "satofull", operation: "search", query: "米" };
+  const result: CommercePage = await fetchCommerceListings(input);
+  assert.equal(result.listings[0]?.id, listing.id);
+  await assert.rejects(
+    fetchCommerceListings({ source: "satofull", operation: "search", query: "" }),
+  );
+  await assert.rejects(
+    fetchCommerceListings({ source: "satofull", operation: "search", query: "米", limit: 11 }),
+  );
+  assert.equal(calls, 2);
+});
+
+function furusatoClientFixture(listings: readonly CommerceListing[]): FurusatoComparison {
+  const fields: readonly FurusatoField[] = [
+    { id: "origin", label: "産地", status: "unknown", value: null, unit: null, evidence: [] },
+    { id: "storage", label: "保存温度", status: "unknown", value: null, unit: null, evidence: [] },
+    { id: "shipment", label: "発送", status: "unknown", value: null, unit: null, evidence: [] },
+    { id: "expiry", label: "期限", status: "unknown", value: null, unit: null, evidence: [] },
+    { id: "deliveryMode", label: "形式", status: "unknown", value: null, unit: null, evidence: [] },
+    {
+      id: "perDeliveryGrams",
+      label: "1回",
+      status: "unknown",
+      value: null,
+      unit: "g",
+      evidence: [],
+    },
+    {
+      id: "deliveryCount",
+      label: "回数",
+      status: "unknown",
+      value: null,
+      unit: "回",
+      evidence: [],
+    },
+    {
+      id: "totalGrams",
+      label: "合計",
+      status: "known",
+      value: 10000,
+      unit: "g",
+      evidence: [{ source: "description", quote: "内容量: 5kg×2袋" }],
+    },
+  ];
+  return {
+    items: listings.map((listing) => ({
+      source: "satofull",
+      id: listing.id,
+      category: {
+        id: "category",
+        label: "種類",
+        status: "known",
+        value: "rice",
+        unit: null,
+        evidence: [{ source: "title", quote: "精米" }],
+      },
+      fields,
+      donationPerKg: 2000,
+    })),
+    pairs:
+      listings.length === 2
+        ? [
+            {
+              left: 0,
+              right: 1,
+              status: "partial",
+              reasons: [
+                "deliveryMode_unknown_or_conflicting",
+                "storage_unknown_or_conflicting",
+                "milling_unknown_or_conflicting",
+                "cultivar_unknown_or_conflicting",
+              ],
+              unitDonationComparable: false,
+            },
+          ]
+        : [],
+  };
+}
+
+await test("furusato client validates source evidence, normalized donation math, references and pair structure", () => {
+  const listing = commerceClientFixture();
+  const furusato = furusatoClientFixture([listing]);
+  const envelope = (value: unknown): unknown => ({
+    tag: "ok",
+    value: { listings: [listing], total: 1, page: 1, limit: 10, furusato: value },
+  });
+  const parsed = parseCommercePage(envelope(furusato), "satofull");
+  assert.equal(parsed.furusato?.items[0]?.donationPerKg, 2000);
+  const item = furusato.items[0];
+  assert.ok(item !== undefined);
+  for (const patch of [
+    { id: "another-item" },
+    { donationPerKg: 1 },
+    { category: { ...item.category, value: "hotel" } },
+    {
+      fields: item.fields.map((field) =>
+        field.id === "totalGrams" ? { ...field, value: 30000 } : field,
+      ),
+    },
+    {
+      fields: item.fields.map((field) =>
+        field.id === "totalGrams"
+          ? { ...field, evidence: [{ source: "description", quote: "合計30kg" }] }
+          : field,
+      ),
+    },
+    { fields: [...item.fields, item.fields[0]] },
+  ]) {
+    assert.throws(() =>
+      parseCommercePage(envelope({ ...furusato, items: [{ ...item, ...patch }] }), "satofull"),
+    );
+  }
+  assert.throws(() =>
+    parseCommercePage(
+      envelope({
+        ...furusato,
+        pairs: [
+          { left: 0, right: 0, status: "comparable", reasons: [], unitDonationComparable: true },
+        ],
+      }),
+      "satofull",
+    ),
+  );
+});
+
+await test("furusato client sends only lookup references and rejects invalid comparisons before fetch", async (context) => {
+  const first = commerceClientFixture();
+  const second = { ...first, id: "7654321" };
+  const listings = [first, second];
+  let calls = 0;
+  context.mock.method(globalThis, "fetch", (url: unknown, init: RequestInit) => {
+    calls += 1;
+    assert.equal(url, "/api/furusato/compare");
+    assert.equal(init.method, "POST");
+    assert.equal(
+      init.body,
+      JSON.stringify({
+        items: [
+          { source: "satofull", query: "1234567" },
+          { source: "satofull", query: "7654321" },
+        ],
+      }),
+    );
+    return Promise.resolve(
+      Response.json({
+        tag: "ok",
+        value: { listings, total: 2, page: 1, limit: 2, furusato: furusatoClientFixture(listings) },
+      }),
+    );
+  });
+  const request: FurusatoComparisonRequest = {
+    items: [
+      { source: "satofull", query: "1234567" },
+      { source: "satofull", query: "7654321" },
+    ],
+  };
+  const result = await fetchFurusatoComparison(request);
+  assert.equal(result.furusato?.items.length, 2);
+  assert.equal(result.furusato.pairs[0]?.status, "partial");
+  await assert.rejects(fetchFurusatoComparison({ items: [] }));
+  await assert.rejects(
+    fetchFurusatoComparison({ items: [request.items[0] ?? { source: "satofull", query: "1" }] }),
+  );
+  await assert.rejects(
+    fetchFurusatoComparison({
+      items: [
+        { source: "satofull", query: "1" },
+        { source: "satofull", query: " 1 " },
+      ],
+    }),
+  );
+  assert.equal(calls, 1);
+});
+
+await test("furusato client verifies overall Jev scores and ranks and rejects attribute scoring", () => {
+  const first = {
+    ...commerceClientFixture(),
+    title: "精米10kg 一括配送",
+    usage: { ai: true, priceComparison: true, store: false },
+  } satisfies CommerceListing;
+  const listings = [first, { ...first, id: "2" }];
+  const initial = furusatoClientFixture(listings);
+  const comparison: FurusatoComparison = {
+    items: initial.items.map((item) => ({
+      ...item,
+      fields: item.fields.map((field) =>
+        field.id !== "deliveryMode"
+          ? field
+          : {
+              ...field,
+              status: "known",
+              value: "single",
+              evidence: [{ source: "title", quote: "一括配送" }],
+            },
+      ),
+    })),
+    pairs: initial.pairs.map((pair) => ({
+      ...pair,
+      reasons: pair.reasons.filter((reason) => reason !== "deliveryMode_unknown_or_conflicting"),
+    })),
+  };
+  const assessment = { model: "jev-1.13.0", index: 2, confidence: 1 };
+  const item = { score: 50, rank: 1, assessment };
+  const scoring = { status: "applied", calls: 1, scope: "overall", items: [item, item] };
+  const envelope = (value: unknown): unknown => ({
+    tag: "ok",
+    value: { listings, total: 2, page: 1, limit: 2, furusato: { ...comparison, scoring: value } },
+  });
+  assert.equal(
+    parseCommercePage(envelope(scoring), "satofull").furusato?.scoring?.items[0]?.score,
+    50,
+  );
+  for (const invalid of [
+    { ...scoring, scope: "attributes" },
+    { ...scoring, scope: undefined, basis: ["totalGrams"] },
+    { ...scoring, calls: 0 },
+    { ...scoring, items: [{ ...item, score: 100 }, item] },
+    { ...scoring, items: [{ ...item, rank: 2 }, item] },
+    { ...scoring, items: [{ ...item, assessment: { ...assessment, confidence: 0.1 } }, item] },
+    { ...scoring, items: [{ ...item, assessment: { ...assessment, model: "jev-latest" } }, item] },
+    { ...scoring, items: [{ ...item, axes: [{ id: "cultivar", score: 50 }] }, item] },
+    { ...scoring, status: "not_authorized" },
+  ]) {
+    assert.throws(() => parseCommercePage(envelope(invalid), "satofull"));
+  }
+  const noScore = {
+    status: "needs_information",
+    calls: 1,
+    scope: "overall",
+    items: listings.map(() => ({ score: null, rank: null })),
+  };
+  assert.equal(
+    parseCommercePage(envelope(noScore), "satofull").furusato?.scoring?.items[0]?.score,
+    null,
+  );
+  const denied = {
+    tag: "ok",
+    value: {
+      listings: listings.map((listing) => ({ ...listing, usage: { ...listing.usage, ai: false } })),
+      total: 2,
+      page: 1,
+      limit: 2,
+      furusato: { ...comparison, scoring },
+    },
+  };
+  assert.throws(() => parseCommercePage(denied, "satofull"));
+});
+
+await test("securities form distinguishes missing shopping amounts from an explicit zero", () => {
+  const draft = {
+    mode: "fund",
+    monthlyYen: 30_000,
+    annualShoppingYen: null,
+    monthlyShoppingYen: null,
+    rakutenFundBand: "unknown",
+  } satisfies SecuritiesDraft;
+  const missing = prepareSecuritiesSubmission(draft);
+  assert.ok(missing.ok);
+  assert.deepEqual(missing.submission.missing, ["sbi", "monex"]);
+  const explicit = prepareSecuritiesSubmission({
+    ...draft,
+    annualShoppingYen: 0,
+    monthlyShoppingYen: 0,
+  });
+  assert.ok(explicit.ok);
+  assert.deepEqual(explicit.submission.missing, []);
+  assert.deepEqual(missing.submission.request, explicit.submission.request);
+  assert.equal(
+    securitiesDraftMatches({ ...draft, annualShoppingYen: 0 }, missing.submission),
+    false,
+  );
+  assert.equal(securitiesDraftMatches(draft, missing.submission), true);
+  assert.equal(
+    securitiesDraftMatches(draft, {
+      request: {
+        mode: "fund",
+        monthlyYen: 30_000,
+        monthlyShoppingYen: 0,
+        annualShoppingYen: 0,
+        rakutenFundBand: "unknown",
+      },
+      missing: ["monex", "sbi"],
+    }),
+    true,
+  );
+});
+
+await test("securities form validates hidden optional inputs without rejecting unanswered ones", () => {
+  const draft = {
+    mode: "fund",
+    monthlyYen: 30_000,
+    annualShoppingYen: null,
+    monthlyShoppingYen: null,
+    rakutenFundBand: "unknown",
+  } satisfies SecuritiesDraft;
+  for (const value of [-1, NaN, Infinity, 0.5, 100_000_001]) {
+    const result = prepareSecuritiesSubmission({ ...draft, annualShoppingYen: value });
+    assert.ok(!result.ok);
+    assert.deepEqual(
+      result.issues.map((issue) => issue.field),
+      ["annualShoppingYen"],
+    );
+  }
+  const result = prepareSecuritiesSubmission({ ...draft, monthlyShoppingYen: 10_000_001 });
+  assert.ok(!result.ok);
+  assert.equal(result.issues[0]?.field, "monthlyShoppingYen");
+});
+
+await test("securities form rejects blank and invalid primary amounts before requesting a comparison", () => {
+  const fund = {
+    mode: "fund",
+    monthlyYen: null,
+    annualShoppingYen: null,
+    monthlyShoppingYen: null,
+    rakutenFundBand: "unknown",
+  } satisfies SecuritiesDraft;
+  assert.equal(prepareSecuritiesSubmission(fund).ok, false);
+  assert.equal(prepareSecuritiesSubmission({ ...fund, monthlyYen: 99 }).ok, false);
+  assert.equal(prepareSecuritiesSubmission({ ...fund, monthlyYen: 100_001 }).ok, false);
+  const stock = {
+    mode: "stock",
+    account: "taxable",
+    tradeYen: NaN,
+    orders: 0,
+    sbiElectronicDelivery: true,
+    rakutenZeroCourse: true,
+  } satisfies SecuritiesDraft;
+  const result = prepareSecuritiesSubmission(stock);
+  assert.ok(!result.ok);
+  assert.deepEqual(
+    result.issues.map((issue) => issue.field),
+    ["tradeYen", "orders"],
+  );
+  assert.equal(prepareSecuritiesSubmission({ ...stock, tradeYen: 1, orders: 1001 }).ok, false);
+  assert.equal(
+    prepareSecuritiesSubmission({ ...stock, tradeYen: 100_000_000, orders: 1000 }).ok,
+    true,
+  );
+});
+
+await test("securities form marks every fund condition as unreflected until recalculation", () => {
+  const draft = {
+    mode: "fund",
+    monthlyYen: 30_000,
+    annualShoppingYen: 0,
+    monthlyShoppingYen: 0,
+    rakutenFundBand: "low",
+  } satisfies SecuritiesDraft;
+  const result = prepareSecuritiesSubmission(draft);
+  assert.ok(result.ok);
+  for (const changed of [
+    { ...draft, monthlyYen: 100_000 },
+    { ...draft, annualShoppingYen: 1_000_000 },
+    { ...draft, monthlyShoppingYen: 50_000 },
+    { ...draft, rakutenFundBand: "high" },
+    { ...draft, annualShoppingYen: null },
+  ] satisfies readonly SecuritiesDraft[]) {
+    assert.equal(securitiesDraftMatches(changed, result.submission), false);
+  }
+  assert.equal(securitiesDraftMatches(draft, result.submission), true);
+});
+
+await test("securities form tracks account, amount, order count and eligibility changes independently", () => {
+  const draft = {
+    mode: "stock",
+    account: "nisa",
+    tradeYen: 100_000,
+    orders: 1,
+    sbiElectronicDelivery: false,
+    rakutenZeroCourse: false,
+  } satisfies SecuritiesDraft;
+  const result = prepareSecuritiesSubmission(draft);
+  assert.ok(result.ok);
+  for (const changed of [
+    { ...draft, account: "taxable" },
+    { ...draft, tradeYen: 200_000 },
+    { ...draft, orders: 2 },
+    { ...draft, sbiElectronicDelivery: true },
+    { ...draft, rakutenZeroCourse: true },
+    { ...draft, tradeYen: NaN },
+  ] satisfies readonly SecuritiesDraft[]) {
+    assert.equal(securitiesDraftMatches(changed, result.submission), false);
+  }
+  assert.equal(securitiesDraftMatches(draft, result.submission), true);
 });

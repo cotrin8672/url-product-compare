@@ -1,0 +1,21 @@
+{
+  "name": "@app/amazon-api",
+  "version": "0.1.0",
+  "private": true,
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "pnpm build && node --test dist/index.test.js"
+  }
+}

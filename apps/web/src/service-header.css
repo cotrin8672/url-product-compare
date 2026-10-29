@@ -1,0 +1,57 @@
+.site-header .top-inner {
+  width: 100%;
+  margin: 0 auto;
+  flex-wrap: nowrap;
+  max-width: 1600px;
+  min-height: 60px;
+  padding: 0 26px;
+  gap: 24px;
+}
+.site-header .brand {
+  font-size: 22px;
+  gap: 9px;
+  color: #080e45;
+}
+.site-header .brand-icon {
+  width: 30px;
+  height: 30px;
+  color: #0876ee;
+}
+.site-header .site-service-nav {
+  width: auto;
+  margin-left: auto;
+  gap: 24px;
+}
+@media (max-width: 600px) {
+  .site-header .top-inner {
+    padding-top: 0;
+    min-height: 56px;
+    padding: 0 14px;
+    gap: 12px;
+  }
+  .site-header .brand {
+    font-size: 17px;
+    gap: 6px;
+  }
+  .site-header .brand-icon {
+    width: 24px;
+    height: 24px;
+  }
+  .site-header .site-service-nav {
+    gap: 14px;
+  }
+  .site-header .site-service-nav a {
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 360px) {
+  .site-header .top-inner {
+    flex-wrap: wrap;
+    gap: 0;
+    padding-top: 8px;
+  }
+  .site-header .site-service-nav {
+    width: 100%;
+  }
+}

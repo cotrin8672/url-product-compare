@@ -23,6 +23,9 @@ const attributes = [
   { id: 11, label: "総重量" },
   { id: 12, label: "産地（都道府県）" },
   { id: 13, label: "シリーズ名（カナ）" },
+  { id: 14, label: "中古状態" },
+  { id: 15, label: "商品状態" },
+  { id: 16, label: "状態" },
 ];
 const genre = { id: "201184", label: "白米", attributes };
 const permissions: ConsumerProvider["permissions"] = () => ({

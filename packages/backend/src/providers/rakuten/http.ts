@@ -1,3 +1,5 @@
+import { createRakutenClient } from "@app/rakuten-api";
+
 import { andThen, err, ok, sequence } from "../../comparison/algebra.js";
 import type { Result } from "../../comparison/algebra.js";
 import { readConsumerListingCondition } from "../../comparison/consumer-catalog.js";
@@ -121,6 +123,9 @@ export type RakutenListing = Readonly<{
 
 // Keep source descriptions inside the adapter; JSON serialization never sends them to clients.
 const descriptions = new WeakMap<RakutenListing, string>();
+export function readRakutenListingDescription(listing: RakutenListing): string | null {
+  return descriptions.get(listing) ?? null;
+}
 const specificationEvidence = new WeakMap<
   RakutenListing,
   Readonly<{ listing: string; product: string }>
@@ -136,9 +141,7 @@ export function readRakutenConsumerInformation(
     category,
     listing.listingId,
     listing.canonicalUrl,
-    category.fields.some((field) => field.extraction?.kind === "attribute")
-      ? `${listing.title}\n${description}`
-      : description,
+    `${listing.title}\n${description}`,
     specificationEvidence.get(listing)?.product ?? "",
     { listing: "rakuten_item_api", product: "rakuten_product_api" },
   );
@@ -149,60 +152,6 @@ export function readRakutenListingCondition(listing: RakutenListing): ConsumerLi
     specificationEvidence.get(listing)?.listing ?? descriptions.get(listing) ?? "";
   return readConsumerListingCondition(listing.title, description);
 }
-const requests = new WeakMap<RakutenConfiguration, WeakMap<typeof fetch, typeof fetch>>();
-
-function pacedFetcher(configuration: RakutenConfiguration, fetcher: typeof fetch): typeof fetch {
-  const existing = requests.get(configuration)?.get(fetcher);
-  if (existing !== undefined) {
-    return existing;
-  }
-  let nextRequestAt = 0;
-  let previous: Promise<void> = Promise.resolve();
-  const paced: typeof fetch = async (input, init) => {
-    const result = previous.then(async () => {
-      const signal = init?.signal ?? null;
-      if (signal?.aborted === true) {
-        throw new Error("request_expired");
-      }
-      const wait = nextRequestAt - Date.now();
-      if (wait > 0) {
-        await new Promise<void>((resolve, reject) => {
-          const onAbort = (): void => {
-            clearTimeout(timer);
-            signal?.removeEventListener("abort", onAbort);
-            reject(new Error("request_expired"));
-          };
-          const timer = setTimeout(() => {
-            signal?.removeEventListener("abort", onAbort);
-            resolve();
-          }, wait);
-          signal?.addEventListener("abort", onAbort, { once: true });
-          if (signal?.aborted === true) {
-            onAbort();
-          }
-        });
-      }
-      nextRequestAt = Date.now() + 1100;
-      signal?.throwIfAborted();
-      return await fetcher(input, init);
-    });
-    previous = result.then(
-      () => undefined,
-      () => undefined,
-    );
-    return await result;
-  };
-  const scoped = requests.get(configuration) ?? new WeakMap<typeof fetch, typeof fetch>();
-  scoped.set(fetcher, paced);
-  requests.set(configuration, scoped);
-  return paced;
-}
-
-function requestSignal(signal: AbortSignal | undefined, timeout: number): AbortSignal {
-  const deadline = AbortSignal.timeout(timeout);
-  return signal === undefined ? deadline : AbortSignal.any([signal, deadline]);
-}
-
 type RakutenItem = Readonly<{
   itemCode: string;
   itemName: string;
@@ -482,11 +431,12 @@ export function createRakutenSearch(
     excludeKeyword?: string;
     signal?: AbortSignal;
     invalidAffiliate?: "skip";
+    itemCode?: string;
   }>,
 ) => Promise<
   Result<Readonly<{ count: number; listings: readonly RakutenListing[] }>, RakutenLookupError>
 > {
-  const request = pacedFetcher(configuration, fetcher);
+  const client = createRakutenClient(configuration, fetcher);
   return async (search, shopCode, genreId, options = {}) => {
     try {
       if (options.signal?.aborted === true) {
@@ -495,6 +445,7 @@ export function createRakutenSearch(
       if (
         (shopCode !== null && !/^[a-zA-Z0-9_-]+$/.test(shopCode)) ||
         (genreId !== undefined && !/^\d{1,6}$/.test(genreId)) ||
+        (options.itemCode !== undefined && !/^[a-zA-Z0-9_-]+:\d{1,20}$/.test(options.itemCode)) ||
         !Number.isSafeInteger(options.page ?? 1) ||
         (options.page ?? 1) < 1 ||
         (options.page ?? 1) > 100 ||
@@ -517,68 +468,43 @@ export function createRakutenSearch(
       ) {
         return err({ code: "source_not_authorized" });
       }
-      // Never treat the URL slug as an itemCode or a keyword match as product identity.
-      const endpoint = new URL(
-        "https://openapi.rakuten.co.jp/ichibams/api/IchibaItem/Search/20260701",
+      // Search hints are never product identity; lookup still verifies the returned URL.
+      const response = await client.searchItems(
+        {
+          ...(shopCode === null ? {} : { shopCode }),
+          ...(genreId === undefined ? {} : { genreId }),
+          ...(search.length === 0 ? {} : { keyword: search }),
+          ...(options.itemCode === undefined ? {} : { itemCode: options.itemCode }),
+          ...(options.excludeKeyword === undefined
+            ? {}
+            : { excludeKeyword: options.excludeKeyword }),
+          hits: options.hits ?? (shopCode === null ? 10 : 30),
+          page: options.page ?? 1,
+          elements:
+            "count,itemCode,itemName,itemCaption,mediumImageUrls,itemUrl,affiliateUrl,shopCode,shopName,itemPriceBaseField,itemPriceMin1,itemPriceMax1,itemPriceMin2,itemPriceMax2,itemPriceMin3,itemPriceMax3,taxFlag,postageFlag,availability,genreId".split(
+              ",",
+            ),
+        },
+        options.signal,
       );
-      endpoint.search = new URLSearchParams({
-        applicationId: configuration.applicationId,
-        affiliateId: configuration.affiliateId,
-        format: "json",
-        formatVersion: "2",
-        ...(shopCode === null ? {} : { shopCode }),
-        ...(genreId === undefined ? {} : { genreId }),
-        ...(search.length === 0 ? {} : { keyword: search }),
-        availability: "0",
-        ...(options.excludeKeyword === undefined ? {} : { NGKeyword: options.excludeKeyword }),
-        hits: String(options.hits ?? (shopCode === null ? 10 : 30)),
-        page: String(options.page ?? 1),
-        elements:
-          "count,itemCode,itemName,itemCaption,mediumImageUrls,itemUrl,affiliateUrl,shopCode,shopName,itemPriceBaseField,itemPriceMin1,itemPriceMax1,itemPriceMin2,itemPriceMax2,itemPriceMin3,itemPriceMax3,taxFlag,postageFlag,availability,genreId",
-      }).toString();
-      const response = await request(endpoint, {
-        headers: { accessKey: configuration.accessKey, Origin: configuration.allowedOrigin },
-        redirect: "error",
-        signal: requestSignal(options.signal, 8000),
-      });
-      if (response.status === 401 || response.status === 403) {
-        return err({ code: "provider_unauthorized" });
+      if (response.tag === "err") {
+        const code = response.error.code;
+        return code === "invalid_response" || code === "invalid_response_size"
+          ? err({
+              code: "invalid_data",
+              field:
+                code === "invalid_response_size" ? "rakuten_response_size" : "rakuten_response",
+            })
+          : err({
+              code:
+                code === "invalid_request"
+                  ? "invalid_keyword"
+                  : code === "invalid_json"
+                    ? "provider_unavailable"
+                    : code,
+            });
       }
-      if (response.status === 429) {
-        return err({ code: "provider_rate_limited" });
-      }
-      if (response.status === 404) {
-        return err({ code: "listing_not_found" });
-      }
-      if (!response.ok) {
-        return err({ code: "provider_unavailable" });
-      }
-      const contentLength = response.headers.get("content-length");
-      if (contentLength !== null && Number(contentLength) > 1_048_576) {
-        return err({ code: "invalid_data", field: "rakuten_response_size" });
-      }
-      const rawBody = await response.text();
-      if (new TextEncoder().encode(rawBody).length > 1_048_576) {
-        return err({ code: "invalid_data", field: "rakuten_response_size" });
-      }
-      const body: unknown = JSON.parse(rawBody);
-      const itemsRaw =
-        record(body) && body["count"] === 0 && body["Items"] === undefined
-          ? []
-          : record(body)
-            ? body["Items"]
-            : undefined;
-      if (
-        !record(body) ||
-        !Array.isArray(itemsRaw) ||
-        itemsRaw.length > (options.hits ?? (shopCode === null ? 10 : 30)) ||
-        typeof body["count"] !== "number" ||
-        !Number.isSafeInteger(body["count"]) ||
-        body["count"] < 0
-      ) {
-        return err({ code: "invalid_data", field: "rakuten_response" });
-      }
-      const items: readonly unknown[] = itemsRaw;
+      const items = response.value.items;
       const decoded = sequence(
         items
           .map((item) => parseItem(item, configuration.affiliateId))
@@ -632,7 +558,7 @@ export function createRakutenSearch(
         descriptions.set(listing, item.description);
         return listing;
       });
-      return ok(Object.freeze({ count: body["count"], listings: Object.freeze(listings) }));
+      return ok(Object.freeze({ count: response.value.count, listings: Object.freeze(listings) }));
     } catch {
       return err({ code: "provider_unavailable" });
     }
@@ -670,6 +596,25 @@ export function createRakutenLookup(
     }
     let query = keyword?.trim() ?? slug;
     const backupQuery = fallbackKeyword ?? "";
+    // Numeric slugs are only a search hint. Shops may use a different API item ID.
+    if (maxPages > 1 && /^\d{1,20}$/.test(slug)) {
+      const direct = await search("", shopCode, undefined, {
+        itemCode: `${shopCode}:${slug}`,
+        hits: 1,
+        ...(options?.signal === undefined ? {} : { signal: options.signal }),
+      });
+      if (
+        direct.tag === "err" &&
+        direct.error.code !== "listing_not_found" &&
+        direct.error.code !== "invalid_keyword"
+      ) {
+        return direct;
+      }
+      const item = direct.tag === "ok" ? direct.value.listings[0] : undefined;
+      if (item?.canonicalUrl === canonicalUrl && item.listingId.startsWith(`${shopCode}:`)) {
+        return ok(item);
+      }
+    }
     let page = 1;
     for (let attempt = 1; attempt <= Math.min(3, maxPages); attempt += 1) {
       if (options?.signal?.aborted === true) {
@@ -763,7 +708,7 @@ export function createRakutenGenreResolver(
   genreId: string | null | undefined,
   options?: Readonly<{ signal?: AbortSignal }>,
 ) => Promise<RakutenGenre | null> {
-  const request = pacedFetcher(configuration, fetcher);
+  const client = createRakutenClient(configuration, fetcher);
   const cache = new Map<string, Readonly<{ genre: RakutenGenre; expires: number }>>();
   return async (genreId, options) => {
     if (
@@ -783,30 +728,13 @@ export function createRakutenGenreResolver(
       return null;
     }
     try {
-      const endpoint = new URL(
-        "https://openapi.rakuten.co.jp/ichibagt/api/IchibaGenre/Search/20260701",
-      );
-      endpoint.search = new URLSearchParams({
-        applicationId: configuration.applicationId,
-        genreId,
-        format: "json",
-        formatVersion: "2",
-      }).toString();
-      const response = await request(endpoint, {
-        headers: { accessKey: configuration.accessKey, Origin: configuration.allowedOrigin },
-        redirect: "error",
-        signal: requestSignal(options?.signal, 5000),
-      });
-      if (!response.ok) {
+      const response = await client.genre(genreId, options?.signal);
+      options?.signal?.throwIfAborted();
+      if (response.tag === "err") {
         return null;
       }
-      const raw = await response.text();
-      if (new TextEncoder().encode(raw).length > 262144) {
-        return null;
-      }
-      const body: unknown = JSON.parse(raw);
+      const body = response.value;
       if (
-        !record(body) ||
         !record(body["genre"]) ||
         rakutenGenreId(body["genre"]["genreId"]) !== genreId ||
         !Array.isArray(body["ancestors"]) ||
@@ -1096,7 +1024,7 @@ export function createRakutenEnricher(
   listings: readonly RakutenListing[],
   options?: Readonly<{ signal?: AbortSignal }>,
 ) => Promise<readonly RakutenListing[]> {
-  const request = pacedFetcher(configuration, fetcher);
+  const client = createRakutenClient(configuration, fetcher);
   const cache = new Map<string, Readonly<{ until: number; listings: readonly RakutenListing[] }>>();
   const inflight = new Map<string, Promise<readonly RakutenListing[]>>();
   const authorized = (now: Instant): boolean =>
@@ -1121,48 +1049,21 @@ export function createRakutenEnricher(
         Date.parse(listing.expiresAt) > Date.parse(valueOf(clock()))
       ) {
         try {
-          const endpoint = new URL(
-            "https://openapi.rakuten.co.jp/ichibaproduct/api/Product/Search/20250801",
+          const response = await client.searchProducts(
+            {
+              hits: 10,
+              ...(hints.gtin === null
+                ? { keyword: hints.model ?? "" }
+                : { productCode: hints.gtin }),
+            },
+            options?.signal,
+            Math.max(1, Math.min(8000, deadline - Date.now())),
           );
-          endpoint.search = new URLSearchParams({
-            applicationId: configuration.applicationId,
-            format: "json",
-            formatVersion: "2",
-            hits: "10",
-            ...(hints.gtin === null ? { keyword: hints.model ?? "" } : { productCode: hints.gtin }),
-          }).toString();
-          const response = await request(endpoint, {
-            headers: { accessKey: configuration.accessKey, Origin: configuration.allowedOrigin },
-            redirect: "error",
-            signal: requestSignal(
-              options?.signal,
-              Math.max(1, Math.min(8000, deadline - Date.now())),
-            ),
-          });
-          if (response.ok) {
-            const contentLength = response.headers.get("content-length");
-            const raw =
-              contentLength !== null && Number(contentLength) > 1_048_576
-                ? ""
-                : await response.text();
-            if (new TextEncoder().encode(raw).length <= 1_048_576) {
-              const body: unknown = JSON.parse(raw);
-              if (
-                record(body) &&
-                Array.isArray(body["Products"]) &&
-                body["Products"].length <= 10
-              ) {
-                const products: readonly unknown[] = body["Products"];
-                const matches = products
-                  .map((product) => productMetadata(product, hints, listing.canonicalUrl))
-                  .filter((product) => product !== null);
-                metadata = matches.length === 1 ? (matches[0] ?? null) : null;
-              } else {
-                cacheable = false;
-              }
-            } else {
-              cacheable = false;
-            }
+          if (response.tag === "ok") {
+            const matches = response.value
+              .map((product) => productMetadata(product, hints, listing.canonicalUrl))
+              .filter((product) => product !== null);
+            metadata = matches.length === 1 ? (matches[0] ?? null) : null;
           } else {
             cacheable = false;
           }

@@ -30,6 +30,13 @@ export function parseRakutenUrl(
     "utm_campaign",
     "utm_term",
     "utm_content",
+    "l-id",
+    "l2-id",
+    "iasid",
+    "gclid",
+    "icm_agid",
+    "icm_acid",
+    "icm_cid",
   ];
   if (
     shop === undefined ||

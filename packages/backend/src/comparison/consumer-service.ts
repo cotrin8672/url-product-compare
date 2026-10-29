@@ -111,6 +111,9 @@ function selectProvider(
   providers: readonly ConsumerProvider[],
   url: string,
 ): Result<ConsumerProvider, ConsumerServiceError> {
+  if (httpsUrl(url).tag === "err") {
+    return err({ code: "invalid_url" });
+  }
   const matches = providers.filter((provider) => provider.acceptsUrl(url));
   const provider = matches[0];
   return matches.length > 1
@@ -151,6 +154,7 @@ export function createConsumerComparisonService(
   catalog: () => readonly ConsumerCatalogCategory[];
   providerDefinitions: () => readonly ConsumerProviderMetadata[];
   canStoreResult: (url: string) => boolean;
+  canRestoreResult: (url: string, expiresAt: string, persistentResults: boolean) => boolean;
   acceptsConditions: (categoryId: string | null, conditions: unknown) => boolean;
   detect: (
     input: Readonly<{ url: string; keyword: string | null }>,
@@ -216,6 +220,23 @@ export function createConsumerComparisonService(
         storage.store && storage.storeExpiresAt !== null && storage.storeExpiresAt > valueOf(now)
       );
     },
+    canRestoreResult(url: string, expiresAt: string, persistentResults: boolean): boolean {
+      const selected = selectProvider(providers, url);
+      const expiry = instant(expiresAt);
+      if (selected.tag === "err" || expiry.tag === "err") {
+        return false;
+      }
+      const now = readServiceClock(clock);
+      const current = selected.value.permissions(now);
+      return (
+        expiresAt > valueOf(now) &&
+        current.fetch &&
+        current.display &&
+        current.affiliate &&
+        (!persistentResults ||
+          (current.store && current.storeExpiresAt !== null && expiresAt <= current.storeExpiresAt))
+      );
+    },
     async detect(input, options): Promise<Result<ConsumerDetectResult, ConsumerServiceError>> {
       options?.signal?.throwIfAborted();
       const selected = selectProvider(providers, input.url);
@@ -225,7 +246,7 @@ export function createConsumerComparisonService(
       const provider = selected.value;
       const permissions = provider.permissions(readServiceClock(clock));
       if (!permissions.display || !permissions.fetch || !permissions.affiliate) {
-        return err({ code: "provider_unavailable" });
+        return err({ code: "source_not_authorized" });
       }
       const lookup = await provider.lookup(input.url, input.keyword, options);
       if (lookup.tag === "err") {
@@ -239,11 +260,7 @@ export function createConsumerComparisonService(
       if (lookup.value.expiresAt <= valueOf(now) || !provider.permissions(now).display) {
         return err({ code: "source_not_authorized" });
       }
-      if (
-        lookup.value.condition === "used" ||
-        lookup.value.condition === "refurbished" ||
-        (lookup.value.condition === "unknown" && provider.discoverCategory === undefined)
-      ) {
+      if (lookup.value.condition !== "new") {
         return ok(
           Object.freeze({
             status: "unsupported",
@@ -262,16 +279,6 @@ export function createConsumerComparisonService(
           )
           .map((category) => category.id),
       );
-      if (categories.length > 0 && !consumerListingConditionEligible(lookup.value.condition)) {
-        return ok(
-          Object.freeze({
-            status: "unsupported",
-            source: lookup.value,
-            categories: Object.freeze([]),
-            category: null,
-          }),
-        );
-      }
       if (categories.length === 1) {
         return ok(
           Object.freeze({
@@ -295,10 +302,7 @@ export function createConsumerComparisonService(
       if (provider.discoverCategory !== undefined) {
         const discovered = await provider.discoverCategory(lookup.value.genreId, options);
         options?.signal?.throwIfAborted();
-        if (
-          discovered !== null &&
-          consumerListingConditionEligible(lookup.value.condition, discovered.definition)
-        ) {
+        if (discovered !== null && consumerListingConditionEligible(lookup.value.condition)) {
           const category = discovered.definition;
           discoveredCategories.delete(category.id);
           discoveredCategories.set(category.id, category);
@@ -365,7 +369,7 @@ export function createConsumerComparisonService(
       const provider = selected.value;
       const permissions = provider.permissions(readServiceClock(clock));
       if (!permissions.display || !permissions.fetch || !permissions.affiliate) {
-        return err({ code: "provider_unavailable" });
+        return err({ code: "source_not_authorized" });
       }
       const publicCategory = toPublicCategory(category);
       const deadline = Date.now() + 35_000;
@@ -382,7 +386,7 @@ export function createConsumerComparisonService(
       if (!validAffiliate(original.value, provider)) {
         return err({ code: "invalid_affiliate_url" });
       }
-      if (!consumerListingConditionEligible(original.value.condition, category)) {
+      if (!consumerListingConditionEligible(original.value.condition)) {
         return err({ code: "listing_not_eligible" });
       }
       const lineage = await provider.resolveGenreLineage(original.value.genreId ?? null, options);
@@ -398,10 +402,7 @@ export function createConsumerComparisonService(
         return err({ code: "listing_not_found" });
       }
       options?.signal?.throwIfAborted();
-      if (
-        !consumerListingConditionEligible(first.condition, category) ||
-        !validAffiliate(first, provider)
-      ) {
+      if (!consumerListingConditionEligible(first.condition) || !validAffiliate(first, provider)) {
         return err({ code: "listing_not_eligible" });
       }
       let collected: ConsumerAttachedListing[] = [attach(first)];
@@ -450,7 +451,7 @@ export function createConsumerComparisonService(
           examined += 1;
           options?.signal?.throwIfAborted();
           if (
-            !consumerListingConditionEligible(listing.condition, category) ||
+            !consumerListingConditionEligible(listing.condition) ||
             !validAffiliate(listing, provider)
           ) {
             continue;
@@ -488,7 +489,7 @@ export function createConsumerComparisonService(
         for (const listing of await provider.enrich(batch, options)) {
           options?.signal?.throwIfAborted();
           if (
-            !consumerListingConditionEligible(listing.condition, category) ||
+            !consumerListingConditionEligible(listing.condition) ||
             !validAffiliate(listing, provider)
           ) {
             continue;
@@ -518,7 +519,10 @@ export function createConsumerComparisonService(
           stopReason = "enough_candidates";
           break;
         }
-        if (found.value.listings.length === 0 || found.value.count <= page * 6) {
+        if (
+          (found.value.listings.length === 0 && found.value.pageSize === undefined) ||
+          found.value.count <= page * (found.value.pageSize ?? 6)
+        ) {
           stopReason = "exhausted";
           break;
         }

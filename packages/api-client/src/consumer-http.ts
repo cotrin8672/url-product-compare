@@ -164,7 +164,12 @@ function validInstant(input: unknown): input is string {
 }
 
 function publicHttps(input: unknown): input is string {
-  if (typeof input !== "string" || !URL.canParse(input)) {
+  if (
+    typeof input !== "string" ||
+    input.length > 8192 ||
+    /[\s\\\p{Cc}]/u.test(input) ||
+    !URL.canParse(input)
+  ) {
     return false;
   }
   const url = new URL(input);
@@ -453,11 +458,97 @@ function matchProviderForUrl(
   return providers.find((provider) => provider.urlHosts.includes(url.hostname));
 }
 
-export function validateProductUrl(urlText: string, providers: readonly CatalogProvider[]): URL {
-  if (!URL.canParse(urlText)) {
-    throw new Error("商品URLを確認してください");
+export function normalizeProductUrl(input: string): string {
+  const text = input.trim();
+  const candidate = /^item\.rakuten\.co\.jp\//i.test(text) ? `https://${text}` : text;
+  if (
+    candidate.length > 8192 ||
+    !URL.canParse(candidate) ||
+    /[\s\\\p{Cc}]/u.test(candidate) ||
+    /\/(?:\.|%2e){1,2}(?:\/|$|\?|#)/i.test(candidate)
+  ) {
+    throw new Error("商品ページのURLを確認してください", { cause: { code: "invalid_url" } });
   }
-  const url = new URL(urlText);
+  const url = new URL(candidate);
+  if (
+    url.protocol === "http:" &&
+    ["item.rakuten.co.jp", "hb.afl.rakuten.co.jp"].includes(url.hostname) &&
+    url.port === ""
+  ) {
+    url.protocol = "https:";
+  }
+  if (url.hostname === "hb.afl.rakuten.co.jp") {
+    const destination = affiliateDestination(url.href);
+    if (
+      url.protocol !== "https:" ||
+      url.username !== "" ||
+      url.password !== "" ||
+      url.port !== "" ||
+      !/^\/hgc\/[a-f0-9]{8}(?:\.[a-f0-9]{8}){3}\/$/i.test(url.pathname) ||
+      destination?.protocol !== "https:" ||
+      destination.hostname !== "item.rakuten.co.jp" ||
+      destination.username !== "" ||
+      destination.password !== "" ||
+      destination.port !== "" ||
+      !/^\/[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+\/?$/.test(destination.pathname)
+    ) {
+      throw new Error("楽天の商品ページのURLを入力してください", {
+        cause: { code: "unsupported_url" },
+      });
+    }
+    return normalizeProductUrl(destination.href);
+  }
+  if (
+    url.protocol !== "https:" ||
+    url.username !== "" ||
+    url.password !== "" ||
+    url.port !== "" ||
+    !publicHost(url.hostname)
+  ) {
+    throw new Error(comparisonErrorMessage("invalid_url"), { cause: { code: "invalid_url" } });
+  }
+  if (url.hostname === "item.rakuten.co.jp") {
+    const tracking = new Set([
+      "scid",
+      "rafcid",
+      "s-id",
+      "utm_source",
+      "utm_medium",
+      "utm_campaign",
+      "utm_term",
+      "utm_content",
+      "l-id",
+      "l2-id",
+      "iasid",
+      "gclid",
+      "icm_agid",
+      "icm_acid",
+      "icm_cid",
+    ]);
+    if (
+      !/^\/[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+\/?$/.test(url.pathname) ||
+      [...url.searchParams.keys()].some((key) => !tracking.has(key))
+    ) {
+      throw new Error(comparisonErrorMessage("unsupported_url"), {
+        cause: { code: "unsupported_url" },
+      });
+    }
+    url.search = "";
+    url.hash = "";
+    url.pathname = url.pathname.replace(/\/?$/, "/");
+  }
+  return url.href;
+}
+
+export function validateProductUrl(urlText: string, providers: readonly CatalogProvider[]): URL {
+  const url = new URL(normalizeProductUrl(urlText));
+  if (
+    url.hostname === "item.rakuten.co.jp" &&
+    /^\/[^/]+\/[^/]+\/?$/.test(url.pathname) &&
+    url.hash !== ""
+  ) {
+    url.hash = "";
+  }
   if (
     url.protocol !== "https:" ||
     url.username !== "" ||
@@ -465,14 +556,16 @@ export function validateProductUrl(urlText: string, providers: readonly CatalogP
     url.port !== "" ||
     url.hash !== ""
   ) {
-    throw new Error("商品URLを確認してください");
+    throw new Error("商品ページのURLを確認してください", { cause: { code: "invalid_url" } });
   }
   if (!publicHost(url.hostname)) {
-    throw new Error("商品URLを確認してください");
+    throw new Error("商品ページのURLを確認してください", { cause: { code: "invalid_url" } });
   }
   const provider = matchProviderForUrl(url, providers);
   if (provider === undefined) {
-    throw new Error("この商品URLは現在の比較フローでは未対応です");
+    throw new Error("楽天の商品ページのURLを入力してください", {
+      cause: { code: "unsupported_url" },
+    });
   }
   return url;
 }
@@ -920,10 +1013,7 @@ export function parseConsumerComparison(
       throw new Error("比較対象を検証できませんでした");
     }
     const listing = parseConsumerListing(entry, providerDefinitions, definition);
-    if (
-      listing.condition !== "new" &&
-      !(listing.condition === "unknown" && definition.allowUnknownCondition === true)
-    ) {
+    if (listing.condition !== "new") {
       throw new Error("比較対象は新品掲載のみです");
     }
     const info = listing.consumerInformation;
@@ -1037,10 +1127,7 @@ export function parseConsumerComparison(
   ) {
     throw new Error("カテゴリ定義を検証できませんでした");
   }
-  if (
-    source.condition !== "new" &&
-    !(source.condition === "unknown" && definition.allowUnknownCondition === true)
-  ) {
+  if (source.condition !== "new") {
     throw new Error("比較対象は新品掲載のみです");
   }
   const sourceProduct = products.find(
@@ -1428,28 +1515,76 @@ export function parseComparisonJob(
 
 const errorMessages: Readonly<Record<string, string>> = {
   unauthorized: "比較サービスに接続できません",
-  invalid_request: "商品URLと補助の商品名（UTF-8で128バイト以内）を確認してください",
-  invalid_url: "商品URLを確認してください",
-  unsupported_url: "この商品URLは現在の比較フローでは未対応です",
+  invalid_request: "商品URLと商品名を確認してください",
+  invalid_keyword: "商品名を短くしてください",
+  invalid_url: "商品ページのURLを確認してください",
+  unsupported_url: "楽天の商品ページのURLを入力してください",
   unsupported_category:
     "入力商品とカテゴリの一致を確認できませんでした。カテゴリと商品名を確認してください",
-  job_not_found: "比較ジョブが見つかりません。最初からやり直してください",
+  job_not_found: "比較結果を復元できませんでした。URLを入力して再比較してください",
   job_expired: "比較結果の有効期限が切れました。再取得してください",
-  job_conflict: "同じ操作キーで入力内容が変わっています。やり直してください",
-  idempotency_conflict: "同じ操作キーで入力内容が変わっています。やり直してください",
+  job_conflict: "再比較してください",
+  idempotency_conflict: "再比較してください",
   result_storage_denied: "比較サービスを利用できません。時間をおいて再度お試しください",
   consumer_rate_limited: "少し待ってからもう一度比較してください",
+  provider_rate_limited: "楽天の商品取得が混み合っています。1分ほど待ってから再度お試しください",
+  provider_unavailable: "楽天から商品情報を取得できませんでした。時間をおいて再度お試しください",
+  provider_unauthorized: "商品取得の接続設定を確認できません。管理者による確認が必要です",
+  listing_not_found: "商品が見つかりません",
+  lookup_incomplete: "商品を特定できません",
+  listing_not_eligible: "新品と確認できる商品のみ比較できます。別の新品の商品URLをお試しください",
+  source_not_authorized: "商品情報の利用期限が切れています。管理者による更新が必要です",
+  cancelled: "比較をキャンセルしました",
   origin_forbidden: "比較サービスに接続できません",
   method_not_allowed: "APIの呼び出し方法が対応していません",
 };
+
+export function comparisonErrorMessage(code: string): string {
+  return errorMessages[code] ?? "商品を確認できませんでした";
+}
+
+export function comparisonRecoveryAction(cause: unknown): "keyword" | "retry" | "edit" | null {
+  const code = cause instanceof Error && record(cause.cause) ? cause.cause["code"] : null;
+  if (code === "listing_not_found" || code === "lookup_incomplete") {
+    return "keyword";
+  }
+  if (
+    [
+      "invalid_url",
+      "unsupported_url",
+      "invalid_request",
+      "invalid_keyword",
+      "listing_not_eligible",
+      "unsupported_category",
+    ].includes(String(code))
+  ) {
+    return "edit";
+  }
+  if (
+    cause instanceof TypeError ||
+    (cause instanceof Error && cause.name === "TimeoutError") ||
+    [
+      "provider_unavailable",
+      "provider_rate_limited",
+      "consumer_rate_limited",
+      "job_not_found",
+      "job_expired",
+      "job_conflict",
+      "idempotency_conflict",
+      "internal_error",
+      "invalid_response",
+    ].includes(String(code))
+  ) {
+    return "retry";
+  }
+  return null;
+}
 
 function throwApiError(input: Record<string, unknown>): never {
   const error = input["error"];
   const code = record(error) ? error["code"] : null;
   throw new Error(
-    typeof code === "string"
-      ? (errorMessages[code] ?? "商品を確認できませんでした")
-      : "APIの応答を読み取れませんでした",
+    typeof code === "string" ? comparisonErrorMessage(code) : "APIの応答を読み取れませんでした",
     { cause: { code } },
   );
 }
@@ -1458,7 +1593,9 @@ export function comparisonJobCannotResume(error: unknown): boolean {
   return (
     error instanceof Error &&
     record(error.cause) &&
-    (error.cause["code"] === "job_expired" || error.cause["code"] === "job_not_found")
+    ["job_expired", "job_not_found", "job_conflict", "idempotency_conflict"].includes(
+      String(error.cause["code"]),
+    )
   );
 }
 
@@ -1494,15 +1631,45 @@ export function resolveApiBase(apiBase?: string): string {
 }
 
 export async function readJsonResponse(response: Response): Promise<unknown> {
-  if (response.headers.get("content-type")?.includes("application/json") !== true) {
-    throw new Error("商品APIが未接続です。APIの公開と /api/* の接続設定を確認してください");
+  const invalidResponse = (): Error =>
+    new Error("接続できませんでした。再試行してください", { cause: { code: "invalid_response" } });
+  if (
+    !/^application\/json(?:\s*;|\s*$)/i.test(response.headers.get("content-type") ?? "") ||
+    response.body === null
+  ) {
+    await response.body?.cancel();
+    throw invalidResponse();
   }
-  const body: unknown = await response.json();
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let size = 0;
+  let text = "";
+  try {
+    let chunk = await reader.read();
+    while (!chunk.done) {
+      size += chunk.value.byteLength;
+      if (size > 2 * 1024 * 1024) {
+        await reader.cancel();
+        throw invalidResponse();
+      }
+      text += decoder.decode(chunk.value, { stream: true });
+      chunk = await reader.read();
+    }
+    text += decoder.decode();
+  } finally {
+    reader.releaseLock();
+  }
+  let body: unknown;
+  try {
+    body = JSON.parse(text);
+  } catch {
+    throw invalidResponse();
+  }
   if (!response.ok) {
     if (record(body) && body["tag"] === "err") {
       throwApiError(body);
     }
-    throw new Error(`商品APIへの接続に失敗しました（HTTP ${response.status}）`);
+    throw invalidResponse();
   }
   return body;
 }

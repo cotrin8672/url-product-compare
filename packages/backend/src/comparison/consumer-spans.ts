@@ -6,7 +6,12 @@ export function consumerValueSpans(text: string): readonly Span[] {
   const seen = new Set<string>();
   const add = (value: string, start: number, end: number): void => {
     const trimmed = value.trim();
-    if (trimmed.length === 0 || trimmed.length > 100 || seen.has(trimmed)) {
+    if (
+      trimmed.length === 0 ||
+      trimmed.length > 100 ||
+      seen.has(trimmed) ||
+      /(?:です|ます|ください|しました|されています)(?:$|[、,])/.test(trimmed)
+    ) {
       return;
     }
     seen.add(trimmed);

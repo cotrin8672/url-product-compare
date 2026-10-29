@@ -36,6 +36,9 @@ export type {
 export {
   clearComparisonSession,
   comparisonJobCannotResume,
+  comparisonErrorMessage,
+  comparisonRecoveryAction,
+  normalizeProductUrl,
   createComparisonOperation,
   parseConsumerComparison,
   parseDetectResult,
@@ -61,7 +64,7 @@ async function fetchApi(
 ): Promise<unknown> {
   const base = resolveApiBase(options.apiBase);
   options.signal?.throwIfAborted();
-  const timeout = AbortSignal.timeout(58_000);
+  const timeout = AbortSignal.timeout(95_000);
   const response = await fetch(`${base}${path}`, {
     ...init,
     signal: options.signal === undefined ? timeout : AbortSignal.any([options.signal, timeout]),
@@ -88,6 +91,14 @@ async function requireCatalog(options: ApiRequestOptions): Promise<ProductCatalo
   return await fetchProductCatalog(options);
 }
 
+function checkedKeyword(input: string | undefined): string | null {
+  const text = input?.trim() ?? "";
+  if (new TextEncoder().encode(text).byteLength > 128 || /[\p{Cc}]/u.test(text)) {
+    throw new Error("商品名を短くしてください", { cause: { code: "invalid_keyword" } });
+  }
+  return text.length === 0 ? null : text;
+}
+
 function checkCategoryConditions(
   catalog: ProductCatalog,
   categoryId: string,
@@ -108,19 +119,25 @@ export async function detectProductCategory(
   options: ApiRequestOptions & Readonly<{ keyword?: string }> = {},
 ): Promise<DetectResult> {
   const catalog = await requireCatalog(options);
-  validateProductUrl(url, catalog.providers);
-  const keyword =
-    options.keyword === undefined || options.keyword.trim().length === 0
-      ? null
-      : options.keyword.trim();
+  const requested = validateProductUrl(url, catalog.providers);
+  const keyword = checkedKeyword(options.keyword);
   const detected = parseDetectResult(
     await fetchApi(
       "/api/detect",
-      { method: "POST", headers: authHeaders(options), body: JSON.stringify({ url, keyword }) },
+      {
+        method: "POST",
+        headers: authHeaders(options),
+        body: JSON.stringify({ url: requested.href, keyword }),
+      },
       options,
     ),
     catalog,
   );
+  if (detected.source !== null && new URL(detected.source.canonicalUrl).href !== requested.href) {
+    throw new Error("商品を確認できませんでした。再試行してください", {
+      cause: { code: "invalid_response" },
+    });
+  }
   if (detected.categoryDefinition !== undefined) {
     cachedCatalog = {
       base: resolveApiBase(options.apiBase),
@@ -150,7 +167,7 @@ export async function startConsumerComparisonJob(
   options: ApiRequestOptions & Readonly<{ comparisonKey: string }>,
 ): Promise<ComparisonJob> {
   const catalog = await requireCatalog(options);
-  validateProductUrl(input.url, catalog.providers);
+  const requested = validateProductUrl(input.url, catalog.providers);
   if (
     input.idempotencyKey.trim().length === 0 ||
     new TextEncoder().encode(input.idempotencyKey).byteLength > 128 ||
@@ -161,10 +178,9 @@ export async function startConsumerComparisonJob(
   if (input.category !== null) {
     checkCategoryConditions(catalog, input.category, input.conditions);
   }
-  const keyword =
-    input.keyword === undefined || input.keyword.trim().length === 0 ? null : input.keyword.trim();
+  const keyword = checkedKeyword(input.keyword);
   const payload = {
-    url: input.url,
+    url: requested.href,
     keyword,
     category: input.category,
     conditions: input.conditions,
@@ -249,17 +265,20 @@ export async function compareConsumerProducts(
     provider?.id === "rakuten"
       ? `${requested.origin}${requested.pathname.replace(/\/?$/, "/")}`
       : requested.href;
-  const keyword =
-    options.keyword === undefined || options.keyword.trim().length === 0
-      ? null
-      : options.keyword.trim();
+  const keyword = checkedKeyword(options.keyword);
   const result = parseConsumerComparison(
     await fetchApi(
       "/api/compare",
       {
         method: "POST",
         headers: authHeaders(options),
-        body: JSON.stringify({ url, category: categoryId, conditions: checked, sort, keyword }),
+        body: JSON.stringify({
+          url: requested.href,
+          category: categoryId,
+          conditions: checked,
+          sort,
+          keyword,
+        }),
       },
       options,
     ),

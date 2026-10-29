@@ -5,6 +5,31 @@ import {
 
 const allowedOrigin = process.env["API_ALLOWED_ORIGIN"] ?? process.env["RENDER_EXTERNAL_URL"];
 const jevApiKey = process.env["JEV_API_KEY"] ?? process.env["TYPESAFE_API_KEY"];
+function commerceConfiguration(): unknown {
+  const raw = process.env["COMMERCE_CONFIGURATION"];
+  if (raw === undefined || raw.trim() === "") {
+    return null;
+  }
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return parsed;
+  } catch {
+    throw new Error("COMMERCE_CONFIGURATION must be valid JSON");
+  }
+}
+
+function securitiesAffiliateConfiguration(): unknown {
+  const raw = process.env["SECURITIES_AFFILIATES"];
+  if (raw === undefined || raw.trim() === "") {
+    return null;
+  }
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return parsed;
+  } catch {
+    throw new Error("SECURITIES_AFFILIATES must be valid JSON");
+  }
+}
 
 const internal = createApiHandler(
   false,
@@ -36,6 +61,8 @@ const internal = createApiHandler(
     ? null
     : { apiKey: jevApiKey, model: process.env["JEV_MODEL"] ?? "jev-1.13.0" },
   {
+    commerceConfiguration: commerceConfiguration(),
+    securitiesAffiliateConfiguration: securitiesAffiliateConfiguration(),
     ...(process.env["API_ACCESS_TOKEN"] === undefined
       ? {}
       : { apiAccessToken: process.env["API_ACCESS_TOKEN"] }),

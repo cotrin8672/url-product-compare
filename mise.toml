@@ -1,5 +1,5 @@
 [tools]
-node = "24.21.0"
+node = "24.22.1"
 pnpm = "10.34.5"
 
 [tasks.install]
@@ -34,3 +34,19 @@ run = "pnpm verify"
 [tasks."firebase:package"]
 description = "Build and check the Firebase production package without deploying"
 run = "node tooling/package-firebase.mjs"
+
+[tasks."lambda:package"]
+description = "Build and check the Xserver + Lambda production package without deploying"
+run = "node tooling/package-lambda.mjs"
+
+[tasks."xserver:package"]
+description = "Build and check a credential-free Xserver release for SITE_ORIGIN and PUBLIC_API_BASE"
+run = "node tooling/package-xserver.mjs"
+
+[tasks."migration:smoke"]
+description = "Check a deployed SITE_ORIGIN and PUBLIC_API_BASE without provider calls"
+run = "node tooling/smoke-migration.mjs"
+
+[tasks."xserver:static"]
+description = "Build and check the PHP-free Astro frontend for SITE_ORIGIN and PUBLIC_API_BASE"
+run = "node tooling/package-xserver.mjs --static-only"

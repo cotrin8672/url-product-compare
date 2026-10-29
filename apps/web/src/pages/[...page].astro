@@ -1,0 +1,84 @@
+---
+import site from "../../.generated/site.json";
+import Breadcrumbs from "../components/Breadcrumbs.astro";
+import "../style.css";
+import "../furusato.css";
+
+export const getStaticPaths = (): ReadonlyArray<
+  Readonly<{ params: Readonly<{ page: string | undefined }>; props: Props }>
+> =>
+  site.pages.map((page) => ({
+    params: { page: page.route === "/" ? undefined : page.route.slice(1, -1) },
+    props: { page },
+  }));
+
+type Props = Readonly<{ page: (typeof site.pages)[number] }>;
+const { page } = Astro.props;
+const canonical = site.siteOrigin.length > 0 ? site.siteOrigin + page.route : null;
+const robots =
+  site.siteOrigin.length > 0 && page.kind !== "legacy" ? "index,follow" : "noindex,nofollow";
+---
+
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="api-base" content={site.apiBase} />
+    <title>{page.title}</title>
+    <meta name="description" content={page.description} />
+    <meta name="robots" content={robots} />
+    {canonical !== null && <link rel="canonical" href={canonical} />}
+    {canonical !== null && page.breadcrumbs.length > 0 && (
+      <Breadcrumbs origin={site.siteOrigin} entries={page.breadcrumbs} />
+    )}
+  </head>
+  <body>
+    <header class="public-site-nav">
+      <nav aria-label="サイト">
+        <a href="/">商品比較</a> · <a href="#public-content">比較ページ</a>
+      </nav>
+    </header>
+    <section id="public-content" class="public-content" aria-label="商品比較">
+      <h1>{page.heading}</h1>
+      <p>{page.intro}</p>
+      {page.kind === "home" && (
+        <nav aria-label="カテゴリ">
+          <ul class="public-categories">
+            {page.links.map((link) => (
+              <li>
+                <a href={link.href}>{link.label}</a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      )}
+      {page.kind === "category" && (
+        <nav aria-label="比較方法">
+          <ul>
+            {page.links.map((link) => (
+              <li>
+                <a href={link.href}>{link.label}</a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      )}
+      {page.kind === "comparison" && (
+        <nav aria-label="比較方法">
+          {page.links.map((link, index) => (
+            <>
+              {index > 0 && " · "}
+              <a href={link.href}>{link.label}</a>
+            </>
+          ))}
+        </nav>
+      )}
+    </section>
+    <noscript>
+      <p>比較の実行にはJavaScriptを有効にしてください。</p>
+    </noscript>
+    <div id="app"></div>
+    <script src="../index.tsx"></script>
+  </body>
+</html>

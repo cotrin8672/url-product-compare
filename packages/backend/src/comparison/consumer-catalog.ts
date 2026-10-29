@@ -143,7 +143,7 @@ const screen = field(
   Object.freeze({
     kind: "numberPattern",
     pattern:
-      "(?:画面サイズ|パネルサイズ|ディスプレイサイズ|対角サイズ|screen\\s*size)\\s*[:：]?\\s*(\\d+(?:\\.\\d+)?)\\s*(インチ|型|inch(?:es)?)",
+      "(?:画面サイズ|画面の大きさ|パネルサイズ|ディスプレイ(?:タイプ|サイズ)?|対角サイズ|screen\\s*size)\\s*[:：]?\\s*(?:約\\s*)?(\\d+(?:\\.\\d+)?)\\s*(インチ|型|inch(?:es)?)",
   }),
 );
 const width = field(
@@ -1023,13 +1023,8 @@ export function readConsumerListingCondition(
   return "unknown";
 }
 
-export function consumerListingConditionEligible(
-  condition: ConsumerListingCondition,
-  category?: Pick<ConsumerCategoryDefinition, "allowUnknownCondition">,
-): boolean {
-  return (
-    condition === "new" || (condition === "unknown" && category?.allowUnknownCondition === true)
-  );
+export function consumerListingConditionEligible(condition: ConsumerListingCondition): boolean {
+  return condition === "new";
 }
 
 export function readFieldNumberPattern(definition: ConsumerFieldDefinition): string | null {

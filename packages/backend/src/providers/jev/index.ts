@@ -1,3 +1,5 @@
+import { createJevClient } from "@app/jev-api";
+
 import { err, ok } from "../../comparison/algebra.js";
 import type { Result } from "../../comparison/algebra.js";
 import { parseScoreAnswer } from "../../comparison/ranking.js";
@@ -47,24 +49,17 @@ export function createJevJudge(
       return err("unavailable");
     }
     try {
-      const response = await fetcher("https://api.typesafe.ai/v1/systemone", {
-        method: "POST",
-        redirect: "error",
-        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ model, state: request.state, questions: request.questions }),
-        signal: AbortSignal.timeout(10_000),
+      const result = await createJevClient({ apiKey, model }, fetcher).evaluate(request, {
+        timeoutMs: 10000,
       });
-      if (response.status === 402) {
-        return err("payment_required");
+      if (result.tag === "err") {
+        return err(
+          result.error === "invalid_request" || result.error === "rate_limited"
+            ? "unavailable"
+            : result.error,
+        );
       }
-      if (response.status === 401 || response.status === 403) {
-        return err("unauthorized");
-      }
-      if (!response.ok) {
-        return err("unavailable");
-      }
-      const body: unknown = await response.json();
-      return parseResponse(body, request, model);
+      return parseResponse(result.value, request, model);
     } catch {
       return err("unavailable");
     }

@@ -541,7 +541,7 @@ async function serveFixture() {
     const parsed = client.parseConsumerComparison(compared, checkedCatalog);
     assert.equal(parsed.products.length, 4);
     assert.equal(parsed.status, "ranked");
-    const layout = client.comparisonDetailLayout(parsed.categoryDefinition);
+    const layout = client.comparisonDetailLayout(parsed.categoryDefinition, parsed.products);
     assert.equal(layout.primaryAxes.length, 6);
     assert.ok(layout.detailAxes.length > 0);
     assert.equal(parsed.source.consumerInformation.specs["gpuVramGb"], null);

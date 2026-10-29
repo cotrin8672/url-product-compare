@@ -1,0 +1,579 @@
+.service-nav {
+  margin-left: auto;
+  gap: 24px;
+}
+.furu-ready {
+  background: #f5f8fc;
+}
+.furu-ready .consumer-top .top-inner {
+  max-width: 1200px;
+  min-height: 68px;
+  padding: 0 28px;
+}
+.furu-ready .consumer-top .brand {
+  font-size: 22px;
+  gap: 10px;
+}
+.furu-ready .consumer-top .brand-icon {
+  width: 30px;
+  height: 30px;
+}
+.furu-main {
+  max-width: 1200px;
+  margin: 36px auto;
+  padding: 0 28px;
+}
+.furu-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+.furu-title p {
+  margin: 0 0 8px;
+  color: #61738d;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+.furu-title h1 {
+  margin: 0;
+  font-size: 34px;
+  letter-spacing: -0.04em;
+}
+.furu-search-panel {
+  padding: 24px;
+  border: 1px solid #cfdeef;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 4px 16px #254a8006;
+  margin-bottom: 28px;
+}
+.furu-search-panel > label {
+  display: block;
+  font-weight: 650;
+  margin-bottom: 10px;
+}
+.furu-search-panel .url-input-wrap {
+  border: 1px solid #9caec5;
+  border-radius: 6px;
+}
+.furu-search-panel .url-input-wrap:focus-within {
+  border-color: #0876ee;
+}
+.furu-search-panel .primary-button {
+  min-width: 132px;
+}
+.furu-search-options {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 16px;
+}
+.furu-category-chips {
+  display: flex;
+  gap: 8px;
+}
+.furu-category-chips button {
+  min-width: 54px;
+  min-height: 36px;
+  padding: 6px 14px;
+  border: 1px solid #dce5ef;
+  border-radius: 20px;
+  color: #334e70;
+  background: #f5f8fc;
+}
+.furu-category-chips button:hover:not(:disabled) {
+  background: #eaf3ff;
+  border-color: #85b8f0;
+}
+.furu-source-select {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: #5e6f86;
+}
+.furu-source-select select,
+.furu-sort select {
+  min-height: 36px;
+  border: 1px solid #cbd7e5;
+  border-radius: 5px;
+  padding: 6px 28px 6px 10px;
+  color: #243f60;
+  background: #fff;
+}
+.furu-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+.furu-section-heading h2 {
+  margin: 0;
+  font-size: 19px;
+  overflow-wrap: anywhere;
+  scroll-margin-top: 24px;
+}
+.furu-section-heading h2 span {
+  margin-left: 8px;
+  font-size: 13px;
+  color: #65758b;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.furu-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+.furu-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border: 1px solid #d8e2ed;
+  border-radius: 10px;
+  background: #fff;
+  padding: 20px;
+  transition: border-color 0.15s;
+}
+.furu-card-selected {
+  border-color: #0876ee;
+  box-shadow: inset 0 0 0 1px #0876ee;
+}
+.furu-card-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.furu-source {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 650;
+  color: #8f293a;
+  background: #fff0f2;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+.furu-source-satofull {
+  color: #286149;
+  background: #eaf6ef;
+}
+.furu-delivery,
+.furu-unavailable {
+  font-size: 11px;
+  color: #586c86;
+}
+.furu-card h3 {
+  margin: 16px 0 20px;
+  font-size: 14px;
+  line-height: 1.8;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.furu-product-image {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 170px;
+  margin-top: 16px;
+  border-radius: 8px;
+  background: #f7f9fc;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  overflow: hidden;
+}
+.furu-image-missing {
+  color: #6b7d92;
+  font-size: 12px;
+}
+.furu-card-municipality {
+  margin: -8px 0 16px;
+  font-size: 12px;
+  color: #526983;
+}
+.furu-column-heading .furu-product-image {
+  height: 140px;
+}
+.furu-card-facts {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: auto;
+}
+.furu-card-facts strong {
+  font-size: 23px;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+.furu-card-facts > span {
+  font-size: 14px;
+  color: #526983;
+}
+.furu-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-top: 16px;
+}
+.furu-select-button {
+  min-height: 42px;
+  flex: 1;
+  padding: 8px;
+  border: 1px solid #bbd5f5;
+  border-radius: 6px;
+  background: #f2f7ff;
+  color: #1566c5;
+  font-size: 13px;
+  font-weight: 650;
+}
+.furu-select-button[aria-pressed="true"] {
+  background: #e4f0ff;
+  border-color: #0876ee;
+}
+.furu-card-actions a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  font-size: 12px;
+  text-decoration: none;
+}
+.furu-state {
+  padding: 24px;
+  color: #5e718b;
+  text-align: center;
+}
+.furu-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 30px 0;
+  color: #526983;
+}
+.furu-loading .consumer-spinner {
+  width: 22px;
+  height: 22px;
+  margin: 0;
+}
+.furu-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  margin: 28px 0;
+  font-size: 12px;
+}
+.furu-ad-notice {
+  margin: 28px 0 0;
+  color: #60728a;
+  font-size: 11px;
+}
+.furu-has-selection {
+  padding-bottom: 180px;
+}
+.furu-tray {
+  position: fixed;
+  bottom: 0;
+  inset-inline: 0;
+  z-index: 10;
+  background: #fff;
+  border-top: 1px solid #c6d9ef;
+  box-shadow: 0 -6px 24px #17365e0b;
+  padding: 16px 28px calc(16px + env(safe-area-inset-bottom));
+}
+.furu-tray-inner {
+  max-width: 1144px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 194px;
+  gap: 10px 24px;
+}
+.furu-tray-summary {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.furu-tray-summary strong {
+  font-size: 13px;
+}
+.furu-tray-summary strong span {
+  margin-left: 6px;
+  color: #1266c9;
+}
+.furu-tray .text-button {
+  font-size: 11px;
+  min-height: 28px;
+  margin: 0;
+}
+.furu-selected-list {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 3px;
+}
+.furu-selected-chip {
+  flex: 0 0 180px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  border: 1px solid #d3e1f0;
+  border-radius: 5px;
+  background: #f6f9fd;
+  text-align: left;
+  color: #334e70;
+  font-size: 11px;
+  min-height: 40px;
+}
+.furu-selected-chip span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.furu-compare {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  align-self: center;
+  min-height: 50px;
+}
+.furu-differences {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #526983;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.furu-differences input {
+  width: 17px;
+  height: 17px;
+  accent-color: #0876ee;
+}
+.furu-table-wrap {
+  border-radius: 10px;
+  background: #fff;
+}
+.furu-table {
+  min-width: calc(160px + var(--product-count) * 260px);
+  table-layout: fixed;
+  font-size: 13px;
+}
+.furu-table .row-label {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  width: 160px;
+  background: #f1f6fc;
+  box-shadow: 1px 0 0 #dbe4ee;
+  padding: 16px;
+  font-size: 12px;
+}
+.furu-table th,
+.furu-table td {
+  padding: 18px;
+  overflow-wrap: anywhere;
+  border-color: #e2e9f1;
+}
+.furu-table .furu-column-heading {
+  vertical-align: top;
+  background: #fff;
+  text-align: left;
+}
+.furu-column-heading h3 {
+  font-size: 14px;
+  line-height: 1.8;
+  margin: 16px 0 0;
+}
+.furu-column-number {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  color: #526983;
+  background: #edf2f8;
+  font-size: 11px;
+}
+.furu-donation-row strong {
+  font-size: 24px;
+  font-variant-numeric: tabular-nums;
+}
+.furu-score {
+  display: block;
+  font-size: 34px;
+  color: #1169cb;
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 10px;
+}
+.furu-score-row progress {
+  display: block;
+  width: 100%;
+  height: 7px;
+}
+.furu-rank {
+  font-size: 12px;
+  color: #1169cb;
+  font-weight: 700;
+}
+.furu-score-status {
+  display: inline-block;
+}
+.furu-table .purchase-button {
+  font-size: 13px;
+}
+.furu-pairs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+.furu-pair {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  color: #596c85;
+  font-size: 11px;
+  background: #eaf0f7;
+  border-radius: 5px;
+}
+.furu-pair-matched {
+  background: #e7f4ed;
+  color: #286149;
+}
+@media (max-width: 960px) {
+  .furu-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 700px) {
+  .consumer-top .service-nav {
+    gap: 16px;
+  }
+  .consumer-top .service-nav a {
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  .furu-ready .consumer-top .top-inner {
+    min-height: 60px;
+    padding: 0 16px;
+    gap: 12px;
+  }
+  .furu-ready .consumer-top .brand {
+    font-size: 18px;
+    gap: 6px;
+  }
+  .furu-ready .consumer-top .brand-icon {
+    width: 25px;
+    height: 25px;
+  }
+  .furu-main {
+    margin-top: 26px;
+    padding-inline: 16px;
+  }
+  .furu-title {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    margin-bottom: 22px;
+  }
+  .furu-title h1 {
+    font-size: 28px;
+  }
+  .furu-search-panel {
+    padding: 18px 14px;
+  }
+  .furu-search-panel .search {
+    flex-direction: row;
+    gap: 8px;
+  }
+  .furu-search-panel .primary-button {
+    min-width: 86px;
+    padding-inline: 12px;
+  }
+  .furu-search-panel .url-input-wrap {
+    padding-left: 10px;
+  }
+  .furu-search-panel .url-input-wrap svg {
+    width: 18px;
+    height: 18px;
+    margin-right: 8px;
+  }
+  .furu-search-panel .url-input-wrap input {
+    font-size: 16px;
+  }
+  .furu-search-options {
+    flex-wrap: wrap;
+    gap: 14px;
+  }
+  .furu-source-select {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .furu-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+  .furu-card {
+    padding: 18px;
+  }
+  .furu-card h3 {
+    margin: 12px 0 16px;
+  }
+  .furu-section-heading h2 {
+    font-size: 16px;
+  }
+  .furu-sort select {
+    max-width: 140px;
+    font-size: 12px;
+  }
+  .furu-tray {
+    padding: 10px 16px calc(12px + env(safe-area-inset-bottom));
+  }
+  .furu-tray-inner {
+    grid-template-columns: minmax(0, 1fr) 140px;
+    gap: 6px 12px;
+  }
+  .furu-selected-list {
+    grid-column: 1 / 3;
+    grid-row: 1;
+  }
+  .furu-selected-chip {
+    min-height: 34px;
+    flex-basis: 150px;
+  }
+  .furu-tray-summary {
+    grid-row: 2;
+    flex-wrap: wrap;
+    gap: 0 12px;
+  }
+  .furu-compare {
+    grid-row: 2;
+    min-height: 44px;
+    padding-inline: 10px;
+    font-size: 13px;
+  }
+  .furu-table {
+    min-width: calc(112px + var(--product-count) * 220px);
+  }
+  .furu-table .row-label {
+    width: 112px;
+    padding: 12px;
+    font-size: 11px;
+  }
+  .furu-table th,
+  .furu-table td {
+    padding: 14px;
+  }
+  .furu-donation-row strong {
+    font-size: 22px;
+  }
+}
