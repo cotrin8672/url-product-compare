@@ -37,6 +37,7 @@ export {
   clearComparisonSession,
   comparisonJobCannotResume,
   comparisonErrorMessage,
+  productCatalogFailure,
   comparisonRecoveryAction,
   normalizeProductUrl,
   createComparisonOperation,

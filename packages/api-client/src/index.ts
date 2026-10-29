@@ -51,6 +51,7 @@ export {
   comparisonJobCannotResume,
   comparisonErrorMessage,
   comparisonRecoveryAction,
+  productCatalogFailure,
   normalizeProductUrl,
   parseConsumerComparison,
   parseDetectResult,

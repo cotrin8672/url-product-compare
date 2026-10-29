@@ -9,6 +9,7 @@ import {
   comparisonJobCannotResume,
   comparisonErrorMessage,
   comparisonRecoveryAction,
+  productCatalogFailure,
   normalizeProductUrl,
   createComparisonOperation,
   createComparisonRequestScope,
@@ -520,9 +521,10 @@ export function ConsumerApp(): JSX.Element {
         setRecovery(null);
       });
       return definitions;
-    } catch {
-      setError("比較サービスに接続できません");
-      setRecovery("retry");
+    } catch (cause: unknown) {
+      const failure = productCatalogFailure(cause);
+      setError(failure.message);
+      setRecovery(failure.recovery);
       return undefined;
     }
   });
@@ -841,12 +843,18 @@ export function ConsumerApp(): JSX.Element {
             <button
               class="primary-button compare-button"
               type="submit"
-              disabled={busy() || catalog.loading}
+              disabled={
+                busy() ||
+                catalog.loading ||
+                (catalog() === undefined && error().length > 0 && recovery() !== "retry")
+              }
             >
               {busy()
                 ? "比較中…"
                 : error().length > 0 && catalog() === undefined
-                  ? "再接続"
+                  ? recovery() === "retry"
+                    ? "再接続"
+                    : "準備中"
                   : recovery() === "retry" || recovery() === "keyword"
                     ? "再試行"
                     : "比較する"}

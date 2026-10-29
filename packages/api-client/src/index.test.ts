@@ -16,6 +16,7 @@ import {
   compareMonitors,
   compareProducts,
   fetchProductCatalog,
+  productCatalogFailure,
   fetchCommerceSources,
   fetchCommerceListings,
   fetchCommerceAffiliateLink,
@@ -50,6 +51,31 @@ import {
   shouldPollJob,
   startConsumerComparisonJob,
 } from "./index.js";
+
+await test("catalog failures distinguish unconfigured comparison from transport errors without exposing server details", async () => {
+  const response = Response.json(
+    { tag: "err", error: { code: "provider_unavailable", detail: "private configuration" } },
+    { status: 503 },
+  );
+  await assert.rejects(readJsonResponse(response), (cause: unknown) => {
+    assert.deepEqual(productCatalogFailure(cause), {
+      message: "商品比較は準備中です",
+      recovery: null,
+    });
+    return true;
+  });
+  for (const cause of [
+    new TypeError("private network detail"),
+    new Error("private upstream detail", { cause: { code: "invalid_response" } }),
+    new Error("private auth detail", { cause: { code: "unauthorized" } }),
+    { cause: { code: "provider_unavailable" } },
+  ]) {
+    assert.deepEqual(productCatalogFailure(cause), {
+      message: "比較サービスに接続できません",
+      recovery: "retry",
+    });
+  }
+});
 
 await test("securities client validates result identity, source URLs, calculations, currency and freshness", () => {
   const now = "2026-10-25T01:00:00.000Z";

@@ -1543,6 +1543,17 @@ export function comparisonErrorMessage(code: string): string {
   return errorMessages[code] ?? "商品を確認できませんでした";
 }
 
+export function productCatalogFailure(
+  cause: unknown,
+): Readonly<{ message: string; recovery: "retry" | null }> {
+  const code = cause instanceof Error && record(cause.cause) ? cause.cause["code"] : null;
+  // The catalog endpoint returns this code only when its comparison provider is not configured.
+  if (code === "provider_unavailable") {
+    return { message: "商品比較は準備中です", recovery: null };
+  }
+  return { message: "比較サービスに接続できません", recovery: "retry" };
+}
+
 export function comparisonRecoveryAction(cause: unknown): "keyword" | "retry" | "edit" | null {
   const code = cause instanceof Error && record(cause.cause) ? cause.cause["code"] : null;
   if (code === "listing_not_found" || code === "lookup_incomplete") {
