@@ -143,6 +143,47 @@ await test("securities approved ASP links are validated at bootstrap and expire 
   }
 });
 
+await test("Lambda accepts optional AccessTrade WSID without exposing it and rejects malformed secret settings", async () => {
+  const settings = {
+    rakuten: null,
+    openai: null,
+    http: { accessToken: "t".repeat(36), allowedOrigin: "https://consumer.example" },
+  };
+  const workerArn = "arn:aws:lambda:ap-northeast-1:123456789012:function:worker";
+  for (const accesstrade of [undefined, null, { wsId: "private-test-wsid" }]) {
+    const configuration = { ...settings, accesstrade };
+    const api = createLambdaApi(configuration, workerArn, tables);
+    createLambdaWorker(configuration, tables);
+    const response = await api({
+      ...event,
+      rawPath: "/api/commerce/sources",
+      body: "",
+      requestContext: { http: { method: "GET", sourceIp: "192.0.2.1" } },
+    });
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.includes("private-test-wsid"), false);
+  }
+  for (const accesstrade of [
+    "private-test-wsid",
+    {},
+    { wsId: "" },
+    { wsId: "contains whitespace" },
+    { wsId: "secret\nvalue" },
+    { wsId: "x".repeat(513) },
+    { wsId: 123 },
+    { wsid: "wrong-field-name" },
+    { wsId: "private-test-wsid", token: "unexpected" },
+  ]) {
+    const configuration = { ...settings, accesstrade };
+    assert.throws(() => createLambdaApi(configuration, workerArn, tables), {
+      message: "Invalid AccessTrade settings; expected wsId",
+    });
+    assert.throws(() => createLambdaWorker(configuration, tables), {
+      message: "Invalid AccessTrade settings; expected wsId",
+    });
+  }
+});
+
 await test("Lambda bootstrap runs the catalog without Firebase and rejects public-shaped worker events", async () => {
   const settings = {
     rakuten: {

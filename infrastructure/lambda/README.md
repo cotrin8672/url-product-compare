@@ -56,6 +56,13 @@ authorizedUntil. Set `resultStorageAuthorizedUntil` **only with actual provider
 storage permission**, no later than authorizedUntil. Without it, persistent jobs
 return `422 result_storage_denied`; synchronous `POST /api/compare` remains
 available without storing results. Moving storage does not grant permission.
+AccessTrade credentials belong in the same secret as a top-level
+`"accesstrade": {"wsId": "YOUR_WS_ID"}` entry. The product Web Service uses WSID
+as its credential; do not add a separate invented API token. Leave this entry
+`null` when unused. API and worker bootstrap validate it without returning it to
+the browser. Storing WSID does not enable a securities product feed or replace
+the separately approved `securitiesAffiliates` advertisement links.
+
 Jev uses the existing `{apiKey, model}` setting; unused AI/commerce entries stay
 null. The existing optional Amazon/Yahoo/satofull schemas remain supported.
 

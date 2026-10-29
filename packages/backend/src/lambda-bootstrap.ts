@@ -47,6 +47,7 @@ function configuration(
   openai: unknown;
   jev: unknown;
   commerce: unknown;
+  accesstrade: Readonly<{ wsId: string }> | null;
   securitiesAffiliates: unknown;
   accessToken: string;
   allowedOrigin: string;
@@ -69,6 +70,17 @@ function configuration(
   if (origin.protocol !== "https:" || origin.origin !== input["http"]["allowedOrigin"]) {
     throw new Error("A production HTTPS origin is required");
   }
+  const accesstrade = input["accesstrade"];
+  if (
+    accesstrade !== undefined &&
+    accesstrade !== null &&
+    (!record(accesstrade) ||
+      Object.keys(accesstrade).length !== 1 ||
+      typeof accesstrade["wsId"] !== "string" ||
+      !/^[!-~]{1,512}$/u.test(accesstrade["wsId"]))
+  ) {
+    throw new Error("Invalid AccessTrade settings; expected wsId");
+  }
   const globalPerMinute = input["http"]["globalPerMinute"] ?? 60;
   const globalPerDay = input["http"]["globalPerDay"] ?? 1000;
   if (
@@ -88,6 +100,10 @@ function configuration(
     openai: input["openai"],
     jev: input["jev"] ?? null,
     commerce: input["commerce"] ?? null,
+    accesstrade:
+      record(accesstrade) && typeof accesstrade["wsId"] === "string"
+        ? { wsId: accesstrade["wsId"] }
+        : null,
     securitiesAffiliates: input["securitiesAffiliates"] ?? null,
     accessToken: input["http"]["accessToken"],
     allowedOrigin: origin.origin,
