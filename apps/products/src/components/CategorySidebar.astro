@@ -1,0 +1,37 @@
+---
+import DeviceIcon from "./DeviceIcon.astro";
+import { guides } from "../content/editorial.js";
+const currentPath = Astro.url.pathname;
+---
+
+<aside class="category-sidebar">
+  <nav aria-label="商品カテゴリ">
+    <h2>商品カテゴリ</h2>
+    {guides
+      .filter((guide) => guide.category !== null)
+      .map((guide) => (
+        <a
+          href={`/category/${guide.slug}/`}
+          aria-current={currentPath.includes(`/${guide.slug}/`) ? "page" : undefined}
+        >
+          <DeviceIcon kind={guide.slug} />
+          <span>{guide.categoryLabel}</span>
+          <span class="nav-chevron" aria-hidden="true">
+            ›
+          </span>
+        </a>
+      ))}
+  </nav>
+  <nav class="sidebar-help" aria-label="比較のヘルプ">
+    <h2>はじめての方へ</h2>
+    <a href="/methodology/">
+      比較スコアの見方 <span aria-hidden="true">›</span>
+    </a>
+    <a href="/guides/before-purchase/">
+      購入前のチェック <span aria-hidden="true">›</span>
+    </a>
+    <a href="/guides/total-cost/">
+      価格・送料の見方 <span aria-hidden="true">›</span>
+    </a>
+  </nav>
+</aside>

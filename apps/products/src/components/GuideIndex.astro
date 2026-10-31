@@ -4,18 +4,16 @@ import { guides } from "../content/editorial.js";
 ---
 
 <main id="main-content" class="editorial-wrap">
-  <p class="eyebrow">BUYING GUIDES</p>
-  <h1>
-    数字を比べる前に、
-    <br />
-    選ぶ基準を決めよう。
-  </h1>
-  <p class="editorial-lead">
-    使う場所、必要な機能、購入後の費用。商品比較で見落としやすい条件を、カテゴリごとに整理しました。
-  </p>
-  <h2>カテゴリから選ぶ</h2>
+  <header class="page-heading">
+    <div>
+      <h1>選び方ガイド</h1>
+      <p>用途に合う条件と、購入前の確認ポイント。</p>
+    </div>
+    <span class="page-count">10記事</span>
+  </header>
+  <h2 class="section-title">カテゴリ別ガイド</h2>
   <GuideCards entries={guides.filter((guide) => guide.category !== null)} />
-  <h2>比較表を上手に使う</h2>
+  <h2 class="section-title">価格・スペックの基礎知識</h2>
   <GuideCards entries={guides.filter((guide) => guide.category === null)} />
   <aside class="editorial-callout">
     各ガイドは公開情報をもとにした選び方の解説です。実機を使用したレビューや性能試験ではありません。出典と情報の扱いは、各記事と

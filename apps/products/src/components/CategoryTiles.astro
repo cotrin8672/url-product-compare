@@ -1,0 +1,21 @@
+---
+import { guides } from "../content/editorial.js";
+import DeviceIcon from "./DeviceIcon.astro";
+---
+
+<nav class="category-tiles" aria-label="商品カテゴリ">
+  {guides
+    .filter((guide) => guide.category !== null)
+    .map((guide) => (
+      <a href={`/category/${guide.slug}/`}>
+        <DeviceIcon kind={guide.slug} />
+        <span>
+          <strong>{guide.categoryLabel}</strong>
+          <small>価格・仕様を比較</small>
+        </span>
+        <span class="category-tile-arrow" aria-hidden="true">
+          ›
+        </span>
+      </a>
+    ))}
+</nav>

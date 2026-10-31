@@ -1,0 +1,67 @@
+---
+type Props = Readonly<{ kind: string }>;
+const { kind } = Astro.props;
+---
+
+<svg
+  class="device-icon"
+  viewBox="0 0 40 40"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="1.6"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+  aria-hidden="true"
+>
+  {kind === "laptop" ? (
+    <>
+      <rect x="7" y="8" width="26" height="20" rx="2" />
+      <path d="M3 32h34l-4-4H7l-4 4Zm12 0h10" />
+      <path d="m15 17 3 3 7-7" />
+    </>
+  ) : kind === "desktop" ? (
+    <>
+      <rect x="23" y="5" width="12" height="30" rx="2" />
+      <path d="M27 11h4m-4 5h4" />
+      <circle cx="29" cy="29" r="1" />
+      <rect x="4" y="10" width="16" height="16" rx="1" />
+      <path d="M12 27v6m-6 0h12" />
+    </>
+  ) : kind === "tablet" ? (
+    <>
+      <rect x="7" y="5" width="26" height="30" rx="3" />
+      <path d="M12 11h16v17H12zM18 32h4" />
+    </>
+  ) : kind === "smartphone" ? (
+    <>
+      <rect x="11" y="3" width="19" height="34" rx="4" />
+      <path d="M16 7h9M17 32h7M15 12h11v15H15z" />
+    </>
+  ) : kind === "monitor" || kind === "television" ? (
+    <>
+      <rect x="3" y="7" width="34" height="23" rx="2" />
+      <path d={kind === "television" ? "m10 30-4 5m24-5 4 5" : "M20 30v5m-9 0h18"} />
+      <path d="m8 24 8-8 6 5 9-10" />
+    </>
+  ) : kind === "memory-storage" ? (
+    <>
+      <rect x="8" y="8" width="24" height="24" rx="3" />
+      <path d="M14 14h12v12H14zM14 3v5m6-5v5m6-5v5M14 32v5m6-5v5m6-5v5M3 14h5m-5 6h5m-5 6h5m24-12h5m-5 6h5m-5 6h5" />
+    </>
+  ) : kind === "total-cost" ? (
+    <>
+      <path d="M10 4h20v32l-5-3-5 3-5-3-5 3V4Z" />
+      <path d="m16 11 4 5 4-5m-8 7h8m-8 4h8m-4-6v11" />
+    </>
+  ) : kind === "comparison-scores" ? (
+    <>
+      <path d="M5 5v30h31M11 26h4V16h-4Zm9 0h4V11h-4Zm9 0h4V6h-4Z" />
+    </>
+  ) : (
+    <>
+      <rect x="8" y="6" width="25" height="30" rx="2" />
+      <rect x="15" y="3" width="11" height="6" rx="1" />
+      <path d="m13 17 2 2 4-5m3 3h6m-15 9 2 2 4-5m3 3h6" />
+    </>
+  )}
+</svg>

@@ -3,6 +3,7 @@ import { serviceLinks } from "@app/site-config";
 import type { ServiceOrigins } from "@app/site-config";
 import Breadcrumbs from "../components/Breadcrumbs.astro";
 import { publisher } from "../content/publisher.js";
+import CategorySidebar from "../components/CategorySidebar.astro";
 import "@app/ui/base.css";
 import "../style.css";
 import "../editorial.css";
@@ -17,6 +18,8 @@ type Props = Readonly<{
 }>;
 const { site, title, description, route, legacy = false, breadcrumbs = [] } = Astro.props;
 const canonical = site.siteOrigin.length > 0 ? site.siteOrigin + route : null;
+const showSidebar =
+  !legacy && !["/privacy/", "/terms/", "/about/", "/editorial-policy/"].includes(route);
 ---
 
 <!doctype html>
@@ -45,12 +48,31 @@ const canonical = site.siteOrigin.length > 0 ? site.siteOrigin + route : null;
     </a>
     {!legacy && (
       <header class="product-header">
+        <div class="service-strip">
+          <nav aria-label="比較サービス">
+            <span>比較サービス</span>
+            {serviceLinks(site.serviceOrigins).map((service) => (
+              <a href={service.href} aria-current={service.id === "products" ? "true" : undefined}>
+                {service.label}
+              </a>
+            ))}
+          </nav>
+        </div>
         <div class="product-header-inner">
           <a class="product-brand" href="/" aria-label="商品比較 トップ">
-            商品比較<span>選ぶ理由が、見つかる。</span>
+            商品比較<span>家電・PCの価格とスペックを比較</span>
           </a>
           <nav aria-label="商品サイト">
-            <a href="/#compare-tool">商品を比較</a>
+            <a
+              href="/#compare-tool"
+              aria-current={
+                route === "/" || route.startsWith("/category/") || route.startsWith("/compare/")
+                  ? "page"
+                  : undefined
+              }
+            >
+              商品を比較
+            </a>
             <a href="/guides/" aria-current={route.startsWith("/guides/") ? "page" : undefined}>
               選び方ガイド
             </a>
@@ -61,8 +83,14 @@ const canonical = site.siteOrigin.length > 0 ? site.siteOrigin + route : null;
         </div>
       </header>
     )}
-    <div id="public-content">
-      <slot />
+    <div
+      id="public-content"
+      class:list={["site-workspace", { "site-workspace--document": !showSidebar }]}
+    >
+      {showSidebar && <CategorySidebar />}
+      <div class="workspace-body">
+        <slot />
+      </div>
     </div>
     <footer class="product-footer">
       <div class="product-footer-inner">

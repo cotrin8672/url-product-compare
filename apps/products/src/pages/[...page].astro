@@ -4,6 +4,7 @@ import ProductLayout from "../layouts/ProductLayout.astro";
 import GuideCards from "../components/GuideCards.astro";
 import Methodology from "../components/Methodology.astro";
 import GuideIndex from "../components/GuideIndex.astro";
+import CategoryTiles from "../components/CategoryTiles.astro";
 import GuideArticle from "../components/GuideArticle.astro";
 import { guides } from "../content/editorial.js";
 
@@ -68,24 +69,15 @@ const guide = guides.find((entry) => page.route === `/guides/${entry.slug}/`);
   ) : (
     <>
       <section id="main-content" class="product-hero" aria-label="商品比較の案内">
-        <p class="eyebrow">{isHome ? "COMPARE WITH CONFIDENCE" : "PRODUCT COMPARISON"}</p>
-        <h1>
-          {isHome ? (
-            <>
-              気になる商品から、
-              <br />
-              自分に合う一台を見つける。
-            </>
-          ) : (
-            page.heading
-          )}
-        </h1>
+        <h1>{isHome ? "商品を比較する" : page.heading}</h1>
         <p>
           {isHome
-            ? "楽天市場の商品URLを貼ると、類似する新品商品の価格と仕様を一覧で比較できます。選び方ガイドで条件を整理し、候補の違いを確かめましょう。"
-            : (categoryGuide?.takeaway ?? page.intro)}
+            ? "楽天市場の商品URLから、価格とスペックをまとめて比較。"
+            : categoryGuide !== undefined
+              ? categoryGuide.categoryLabel + "の価格・仕様を比較できます。"
+              : page.intro}
         </p>
-        <p class="product-support-note">対応：楽天市場の新品商品URL</p>
+        <span class="product-support-note">楽天市場の新品商品に対応</span>
         {page.labels.length > 0 && (
           <details>
             <summary>このカテゴリの比較項目</summary>
@@ -115,7 +107,7 @@ const guide = guides.find((entry) => page.route === `/guides/${entry.slug}/`);
         )}
       </section>
       <p class="product-disclosure">
-        広告：商品リンクにはアフィリエイト広告を含みます。報酬額は比較スコア・価格順位に影響しません。送料・ポイント・クーポンは比較に含みません。
+        商品リンクには広告を含みます。送料・ポイント・クーポンは比較対象外です。
         <a href="/methodology/">比較のしくみ</a>
       </p>
       <div id="compare-tool">
@@ -129,28 +121,13 @@ const guide = guides.find((entry) => page.route === `/guides/${entry.slug}/`);
       <script src="../index.tsx"></script>
       <div class="editorial-wrap">
         {isHome && (
-          <section>
-            <h2>比較までの3ステップ</h2>
-            <ol class="product-how">
-              <li>
-                <strong>用途と条件を決める</strong>
-                <span>持ち運ぶか、何につなぐか。選び方ガイドで必要な条件を整理します。</span>
-              </li>
-              <li>
-                <strong>商品URLを貼り付ける</strong>
-                <span>
-                  楽天市場の商品ページのURLをコピーして入力。検索一覧や注文画面のURLは使いません。
-                </span>
-              </li>
-              <li>
-                <strong>違いを確かめる</strong>
-                <span>価格と仕様の内訳を確認。購入前に販売店で型番・送料・保証を確かめます。</span>
-              </li>
-            </ol>
+          <section class="category-section">
+            <h2 class="section-title">カテゴリから比較する</h2>
+            <CategoryTiles />
           </section>
         )}
         <section>
-          <h2>{isHome ? "カテゴリ別の選び方" : "比較に役立つガイド"}</h2>
+          <h2 class="section-title">{isHome ? "カテゴリ別ガイド" : "比較に役立つガイド"}</h2>
           <GuideCards
             entries={
               isHome

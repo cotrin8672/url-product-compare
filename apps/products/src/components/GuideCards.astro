@@ -1,17 +1,32 @@
 ---
 import type { Guide } from "../content/editorial.js";
+import DeviceIcon from "./DeviceIcon.astro";
 type Props = Readonly<{ entries: readonly Guide[] }>;
 const { entries } = Astro.props;
+const shortTitles: Readonly<Record<string, string>> = {
+  "memory-storage": "メモリとストレージの違い",
+  "total-cost": "価格・送料・ポイントの見方",
+  "comparison-scores": "比較スコアの読み方",
+  "before-purchase": "購入前のチェックリスト",
+};
 ---
 
 <div class="guide-grid">
   {entries.map((guide) => (
     <a class="guide-card" href={`/guides/${guide.slug}/`}>
-      <span class="guide-card-label">{guide.categoryLabel}</span>
-      <h3>{guide.title}</h3>
-      <p>{guide.description}</p>
-      <span class="guide-card-link">
-        ガイドを読む <span aria-hidden="true">→</span>
+      <span class="guide-card-icon">
+        <DeviceIcon kind={guide.slug} />
+      </span>
+      <div class="guide-card-copy">
+        <span class="guide-card-label">{guide.categoryLabel}</span>
+        <h3>
+          {guide.category !== null
+            ? `${guide.categoryLabel}の選び方`
+            : (shortTitles[guide.slug] ?? guide.title)}
+        </h3>
+      </div>
+      <span class="guide-card-link" aria-hidden="true">
+        ›
       </span>
     </a>
   ))}

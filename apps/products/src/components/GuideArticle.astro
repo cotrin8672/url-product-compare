@@ -21,7 +21,6 @@ const related = guides
     <header>
       <p class="eyebrow">{guide.categoryLabel}</p>
       <h1>{guide.title}</h1>
-      <p class="editorial-lead">{guide.description}</p>
       <p class="article-meta">
         公開・更新：<time datetime={editorialDate}>2026年10月31日</time> ·
         選び方の解説（実機レビューではありません）
@@ -32,14 +31,16 @@ const related = guides
       <p>{guide.takeaway}</p>
     </aside>
     <nav class="article-toc" aria-label="記事の目次">
-      <strong>目次</strong>
-      <ol>
-        {guide.sections.map((section, index) => (
-          <li>
-            <a href={`#section-${index + 1}`}>{section.heading}</a>
-          </li>
-        ))}
-      </ol>
+      <details>
+        <summary>目次（{guide.sections.length}項目）</summary>
+        <ol>
+          {guide.sections.map((section, index) => (
+            <li>
+              <a href={`#section-${index + 1}`}>{section.heading}</a>
+            </li>
+          ))}
+        </ol>
+      </details>
     </nav>
     {guide.sections.map((section, index) => (
       <section id={`section-${index + 1}`}>
