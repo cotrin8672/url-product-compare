@@ -3,14 +3,15 @@
 画面をPages、API/workerとDBを既存Lambda/DynamoDBへ配置する。
 Workersの新規作成画面ではなく、PagesのGit接続を選ぶ。
 
-## 現在の公開状態（2026-10-29）
+## 現在の公開状態（2026-10-31）
 
 - 公開先: https://url-product-compare.pages.dev/（本番ブランチ: `main`）。
 - 商品・ふるさと納税・証券の3画面のHTTP 200とAPI接続先・CSPを確認済み。
-- AWSの`http.allowedOrigin`を上記Pagesオリジンへ変更し、最新のLambdaコードを反映済み。
+- AWSの通常設定`APPLICATION_CONFIGURATION.http.allowedOrigin`を上記Pagesオリジンへ設定し、最新のLambdaコードを反映済み。Secretには認証情報のみを保持する。
 - 証券APIの3社取得・比較POST・CORSプリフライト成功、別Originの403を確認済み。ブラウザーでも3社の比較表を確認した。
 - 証券の条件データは確認期限を過ぎており、画面上のポイント試算は更新待ち。API疎通成功と試算可能な状態は区別する。
-- AWS側の商品・ふるさと納税の5つの取得元はすべて未設定。外部API取得・AI比較の本番稼働は未完了。
+- AWS側の楽天市場・楽天ふるさと納税は設定済み。カタログAPIは200だが、楽天の商品検索は許可サイト未登録（`HTTP_REFERRER_NOT_ALLOWED`）で拒否されている。さとふるなど残りの取得元は未設定。
+- Jevの実API評価とアクセストレードWSIDの認証を確認済み。WSID認証は証券案件の商品フィード取得を意味しない。
 - `SITE_ORIGIN`を未設定でビルドした初期公開のため、検索エンジン向けにはnoindex。
 
 ## Pagesの設定
