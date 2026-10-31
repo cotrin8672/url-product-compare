@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
 
+import { guides, informationPages } from "../apps/products/src/content/editorial.ts";
 import { workspacePnpm } from "./workspace-pnpm.mjs";
 
 const root = path.resolve(import.meta.dirname, "..");
@@ -12,6 +13,24 @@ const { siteOrigin, apiBase, serviceOrigins, pages } = JSON.parse(
   readFileSync(path.join(root, "apps/" + target + "/.generated/site.json"), "utf8"),
 );
 const webDist = path.join(root, "apps/" + target + "/dist");
+const editorialPages =
+  target === "products"
+    ? [
+        { route: "/guides/", title: "選び方ガイド", kind: "editorial", labels: [] },
+        ...guides.map((guide) => ({
+          route: `/guides/${guide.slug}/`,
+          title: guide.title,
+          kind: "editorial",
+          labels: [],
+        })),
+        ...informationPages.map((page) => ({
+          route: `/${page.slug}/`,
+          title: page.title,
+          kind: "editorial",
+          labels: [],
+        })),
+      ]
+    : [];
 const titles = new Set();
 const escapeHtml = (value) =>
   value
@@ -21,6 +40,16 @@ const escapeHtml = (value) =>
     .replaceAll(">", "&gt;");
 const publicPages = pages.filter((page) => page.kind !== "legacy" && page.kind !== "securities");
 assert.equal(new Set(pages.map((page) => page.route)).size, pages.length, "Duplicate public route");
+const allPages = [...pages, ...editorialPages];
+assert.equal(
+  new Set(allPages.map((page) => page.route)).size,
+  allPages.length,
+  "Editorial route collision",
+);
+if (target === "products") {
+  assert.equal(guides.length, 10, "Missing buying guides");
+  assert.equal(informationPages.length, 4, "Missing permanent information pages");
+}
 assert.equal(
   publicPages.length,
   target === "products"
@@ -30,7 +59,7 @@ assert.equal(
       : 0,
   "Missing public route",
 );
-for (const page of pages) {
+for (const page of allPages) {
   const html = readFileSync(path.join(webDist, page.route.slice(1), "index.html"), "utf8");
   const title = html.match(/<title>([^<]+)<\/title>/)?.[1];
   assert.equal(title, escapeHtml(page.title));
@@ -63,10 +92,26 @@ for (const page of pages) {
     assert.ok(html.includes(escapeHtml(label)), "Score label missing: " + label);
   // A static host must not need inline bootstrap code or a Node/Astro runtime.
   const scripts = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)];
-  assert.ok(
-    scripts.some((script) => /type="module"/.test(script[1]) && /src="/.test(script[1])),
-    "Missing browser entry",
-  );
+  // Comparison routes retain the browser entry. Editorial-only pages must remain readable without it.
+  if (page.kind !== "editorial" && page.kind !== "methodology")
+    assert.ok(
+      scripts.some((script) => /type="module"/.test(script[1]) && /src="/.test(script[1])),
+      "Missing browser entry",
+    );
+  if (page.kind === "editorial" || page.kind === "methodology") {
+    assert.ok(html.includes("編集・広告掲載方針"), "Missing policy navigation");
+    assert.ok(html.includes('id="main-content"'), "Missing editorial content");
+    assert.equal(
+      html.includes('id="app"'),
+      false,
+      "Editorial pages must not mount the comparison app",
+    );
+    assert.equal(
+      scripts.some((script) => /type="module"/.test(script[1])),
+      false,
+      "Editorial content must not depend on the comparison bundle",
+    );
+  }
   for (const script of scripts) {
     assert.ok(
       /src="/.test(script[1]) || /type="application\/ld\+json"/.test(script[1]),
@@ -103,11 +148,11 @@ const sitemap = readFileSync(path.join(webDist, "sitemap.xml"), "utf8");
 assert.ok(!/\/jobs\/|\/results\/|\/api\//.test(sitemap), "Private route in sitemap");
 assert.equal(
   (sitemap.match(/<loc>/g) ?? []).length,
-  siteOrigin.length > 0 ? publicPages.length : 0,
+  siteOrigin.length > 0 ? publicPages.length + editorialPages.length : 0,
 );
 if (siteOrigin.length > 0 && target !== "securities") {
   assert.ok(robots.includes("Sitemap: " + siteOrigin + "/sitemap.xml"));
-  for (const page of publicPages) {
+  for (const page of [...publicPages, ...editorialPages]) {
     assert.ok(sitemap.includes("<loc>" + siteOrigin + page.route + "</loc>"));
     if (page.route !== "/") assert.ok(!robots.includes("Disallow: " + page.route));
   }

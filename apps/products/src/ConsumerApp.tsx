@@ -34,7 +34,6 @@ import type {
   DetectResult,
   StoredComparisonSession,
 } from "@app/api-client";
-import { ServiceHeader } from "@app/ui";
 
 type DisplayResult = Readonly<{ data: ConsumerComparison; expiresAt: string }>;
 type PendingOperation = Readonly<{
@@ -222,13 +221,13 @@ function ConsumerResults(
   return (
     <section class="consumer-results" aria-label="比較結果">
       <div class="bar consumer-result-heading">
-        <h1>
+        <h2>
           {data.status === "ranked"
             ? data.sort === "price"
               ? "価格順"
               : "おすすめ順"
             : "商品比較"}
-        </h1>
+        </h2>
         <span class="consumer-category-label">
           {data.categoryDefinition.label} · 新品 {data.products.length}件
         </span>
@@ -248,6 +247,11 @@ function ConsumerResults(
           入力商品のみ
         </span>
       </Show>
+      <p class="consumer-price-context">
+        情報元：楽天市場。価格・仕様の確認日時は各商品の欄に表示しています。
+        送料・ポイント・クーポンは含みません。購入前に販売ページで型番と条件をご確認ください。
+        <a href="/methodology/">比較スコアの見方</a>
+      </p>
       <div class="table-wrap" tabindex="0" role="region" aria-label="商品比較表">
         <table
           class="comparison-table consumer-comparison-table"
@@ -265,6 +269,16 @@ function ConsumerResults(
                     classList={{ "product-heading": true, "best-product": emphasized(product) }}
                     scope="col"
                   >
+                    <p class="consumer-price-context">
+                      確認：
+                      <time dateTime={product.observedAt}>
+                        {new Intl.DateTimeFormat("ja-JP", {
+                          timeZone: "Asia/Tokyo",
+                          dateStyle: "short",
+                          timeStyle: "short",
+                        }).format(new Date(product.observedAt))}
+                      </time>
+                    </p>
                     <div class="rank-line">
                       <Show when={product.rank}>
                         {(rank) => (
@@ -775,7 +789,6 @@ export function ConsumerApp(): JSX.Element {
 
   return (
     <>
-      <ServiceHeader current="products" />
       <main class="consumer-main" classList={{ "consumer-home": result() === undefined }}>
         <form
           id="consumer-form"
@@ -793,6 +806,9 @@ export function ConsumerApp(): JSX.Element {
           }}
         >
           <label for="consumer-url">商品URLを貼り付けて比較</label>
+          <p class="consumer-price-context">
+            楽天市場の商品ページURLを入力してください。注文履歴など個人情報を含むURLは入力しないでください。
+          </p>
           <div class="search">
             <div class="url-input-wrap">
               <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">

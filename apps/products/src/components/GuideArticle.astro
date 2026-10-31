@@ -1,0 +1,93 @@
+---
+import GuideCards from "./GuideCards.astro";
+import { editorialDate, guides } from "../content/editorial.js";
+import type { Guide } from "../content/editorial.js";
+type Props = Readonly<{ guide: Guide }>;
+const { guide } = Astro.props;
+const related = guides
+  .filter((entry) => entry.slug !== guide.slug && entry.category === null)
+  .slice(0, 3);
+---
+
+<main id="main-content" class="editorial-wrap">
+  <nav class="breadcrumbs" aria-label="パンくず">
+    <a href="/">トップ</a>
+    <span>/</span>
+    <a href="/guides/">選び方ガイド</a>
+    <span>/</span>
+    <span>{guide.categoryLabel}</span>
+  </nav>
+  <article class="editorial-article">
+    <header>
+      <p class="eyebrow">{guide.categoryLabel}</p>
+      <h1>{guide.title}</h1>
+      <p class="editorial-lead">{guide.description}</p>
+      <p class="article-meta">
+        公開・更新：<time datetime={editorialDate}>2026年10月31日</time> ·
+        選び方の解説（実機レビューではありません）
+      </p>
+    </header>
+    <aside class="editorial-takeaway">
+      <strong>このガイドのポイント</strong>
+      <p>{guide.takeaway}</p>
+    </aside>
+    <nav class="article-toc" aria-label="記事の目次">
+      <strong>目次</strong>
+      <ol>
+        {guide.sections.map((section, index) => (
+          <li>
+            <a href={`#section-${index + 1}`}>{section.heading}</a>
+          </li>
+        ))}
+      </ol>
+    </nav>
+    {guide.sections.map((section, index) => (
+      <section id={`section-${index + 1}`}>
+        <h2>{section.heading}</h2>
+        {section.paragraphs.map((paragraph) => (
+          <p>{paragraph}</p>
+        ))}
+        {section.checklist !== undefined && (
+          <ul class="editorial-checklist">
+            {section.checklist.map((item) => (
+              <li>{item}</li>
+            ))}
+          </ul>
+        )}
+      </section>
+    ))}
+    {guide.sources.length > 0 && (
+      <section class="article-sources">
+        <h2>確認に使える情報</h2>
+        <p>
+          メーカーなどの公式情報、または当サイトの説明です。個別製品の条件は購入する型番の案内で確認してください。
+        </p>
+        <ul>
+          {guide.sources.map((source) => (
+            <li>
+              <a href={source.href}>{source.label}</a>
+            </li>
+          ))}
+        </ul>
+      </section>
+    )}
+    <aside class="editorial-callout">
+      <strong>条件を整理したら、候補を比較</strong>
+      <p>
+        現在は楽天市場の新品商品URLに対応しています。送料・ポイント・クーポンは価格に含みません。
+      </p>
+      <a
+        class="editorial-button"
+        href={
+          guide.category === null ? "/#compare-tool" : `/category/${guide.category}/#compare-tool`
+        }
+      >
+        商品URLから比較する →
+      </a>
+    </aside>
+  </article>
+  <section>
+    <h2>あわせて読みたい</h2>
+    <GuideCards entries={related} />
+  </section>
+</main>

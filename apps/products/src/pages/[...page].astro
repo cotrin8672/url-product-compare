@@ -1,91 +1,201 @@
 ---
 import site from "../../.generated/site.json";
-import { serviceLinks } from "@app/site-config";
-import Breadcrumbs from "../components/Breadcrumbs.astro";
-import "@app/ui/base.css";
-import "../style.css";
+import ProductLayout from "../layouts/ProductLayout.astro";
+import GuideCards from "../components/GuideCards.astro";
+import Methodology from "../components/Methodology.astro";
+import GuideIndex from "../components/GuideIndex.astro";
+import GuideArticle from "../components/GuideArticle.astro";
+import { guides } from "../content/editorial.js";
 
 export const getStaticPaths = (): ReadonlyArray<
   Readonly<{ params: Readonly<{ page: string | undefined }>; props: Props }>
 > =>
-  site.pages.map((page) => ({
+  [
+    ...site.pages,
+    ...guides.map((guide) => ({
+      route: `/guides/${guide.slug}/`,
+      title: guide.title,
+      description: guide.description,
+      heading: guide.title,
+      intro: guide.takeaway,
+      kind: "guide",
+      links: [],
+      labels: [],
+      breadcrumbs: [
+        { name: "選び方ガイド", route: "/guides/" },
+        { name: guide.title, route: `/guides/${guide.slug}/` },
+      ],
+    })),
+    {
+      route: "/guides/",
+      title: "選び方ガイド",
+      description: "家電・PCの選び方と、価格・仕様・比較スコアの読み方をまとめました。",
+      heading: "選び方ガイド",
+      intro: "用途から選ぶためのガイドです。",
+      kind: "guide-index",
+      links: [],
+      labels: [],
+      breadcrumbs: [{ name: "選び方ガイド", route: "/guides/" }],
+    },
+  ].map((page) => ({
     params: { page: page.route === "/" ? undefined : page.route.slice(1, -1) },
     props: { page },
   }));
-
 type Props = Readonly<{ page: (typeof site.pages)[number] }>;
 const { page } = Astro.props;
-const canonical = site.siteOrigin.length > 0 ? site.siteOrigin + page.route : null;
-const robots =
-  site.siteOrigin.length > 0 && page.kind !== "legacy" ? "index,follow" : "noindex,nofollow";
+const categoryId = page.route.split("/")[2];
+const categoryGuide = guides.find(
+  (guide) => guide.category !== null && guide.category === categoryId,
+);
+const isHome = page.kind === "home";
+const guide = guides.find((entry) => page.route === `/guides/${entry.slug}/`);
 ---
 
-<!doctype html>
-<html lang="ja">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="api-base" content={site.apiBase} />
-    <meta name="service-products" content={site.serviceOrigins.products} />
-    <meta name="service-furusato" content={site.serviceOrigins.furusato} />
-    <meta name="service-securities" content={site.serviceOrigins.securities} />
-    <title>{page.title}</title>
-    <meta name="description" content={page.description} />
-    <meta name="robots" content={robots} />
-    {canonical !== null && <link rel="canonical" href={canonical} />}
-    {canonical !== null && page.breadcrumbs.length > 0 && (
-      <Breadcrumbs origin={site.siteOrigin} entries={page.breadcrumbs} />
-    )}
-  </head>
-  <body>
-    <header class="public-site-nav">
-      <nav aria-label="サイト">
-        <a href="/">商品比較</a> · <a href="#public-content">比較ページ</a>
-        {serviceLinks(site.serviceOrigins).map((service) => (
-          <a href={service.href}>{service.label}</a>
-        ))}
-      </nav>
-    </header>
-    <section id="public-content" class="public-content" aria-label="商品比較">
-      <h1>{page.heading}</h1>
-      <p>{page.intro}</p>
-      {page.kind === "home" && (
-        <nav aria-label="カテゴリ">
-          <ul class="public-categories">
-            {page.links.map((link) => (
-              <li>
-                <a href={link.href}>{link.label}</a>
-              </li>
-            ))}
-          </ul>
-        </nav>
-      )}
-      {page.kind === "category" && (
-        <nav aria-label="比較方法">
-          <ul>
-            {page.links.map((link) => (
-              <li>
-                <a href={link.href}>{link.label}</a>
-              </li>
-            ))}
-          </ul>
-        </nav>
-      )}
-      {page.kind === "comparison" && (
-        <nav aria-label="比較方法">
-          {page.links.map((link, index) => (
+<ProductLayout
+  site={site}
+  title={page.title}
+  description={page.description}
+  route={page.route}
+  legacy={page.kind === "legacy"}
+  breadcrumbs={page.breadcrumbs}
+>
+  {page.kind === "guide-index" ? (
+    <GuideIndex />
+  ) : guide !== undefined ? (
+    <GuideArticle guide={guide} />
+  ) : page.kind === "methodology" ? (
+    <Methodology />
+  ) : (
+    <>
+      <section id="main-content" class="product-hero" aria-label="商品比較の案内">
+        <p class="eyebrow">{isHome ? "COMPARE WITH CONFIDENCE" : "PRODUCT COMPARISON"}</p>
+        <h1>
+          {isHome ? (
             <>
-              {index > 0 && " · "}
-              <a href={link.href}>{link.label}</a>
+              気になる商品から、
+              <br />
+              自分に合う一台を見つける。
             </>
-          ))}
-        </nav>
-      )}
-    </section>
-    <noscript>
-      <p>比較の実行にはJavaScriptを有効にしてください。</p>
-    </noscript>
-    <div id="app"></div>
-    <script src="../index.tsx"></script>
-  </body>
-</html>
+          ) : (
+            page.heading
+          )}
+        </h1>
+        <p>
+          {isHome
+            ? "楽天市場の商品URLを貼ると、類似する新品商品の価格と仕様を一覧で比較できます。選び方ガイドで条件を整理し、候補の違いを確かめましょう。"
+            : (categoryGuide?.takeaway ?? page.intro)}
+        </p>
+        <p class="product-support-note">対応：楽天市場の新品商品URL</p>
+        {page.labels.length > 0 && (
+          <details>
+            <summary>このカテゴリの比較項目</summary>
+            <ul>
+              {page.labels.map((label) => (
+                <li>{label}</li>
+              ))}
+            </ul>
+          </details>
+        )}
+        {categoryGuide !== undefined && (
+          <p>
+            <a href={`/guides/${categoryGuide.slug}/`}>
+              {categoryGuide.categoryLabel}の選び方を読む →
+            </a>
+          </p>
+        )}
+        {(page.kind === "category" || page.kind === "comparison") && (
+          <nav aria-label="比較方法">
+            {page.links.map((link, index) => (
+              <>
+                <span>{index > 0 ? " · " : ""}</span>
+                <a href={link.href}>{link.label}</a>
+              </>
+            ))}
+          </nav>
+        )}
+      </section>
+      <p class="product-disclosure">
+        広告：商品リンクにはアフィリエイト広告を含みます。報酬額は比較スコア・価格順位に影響しません。送料・ポイント・クーポンは比較に含みません。
+        <a href="/methodology/">比較のしくみ</a>
+      </p>
+      <div id="compare-tool">
+        <div id="app"></div>
+      </div>
+      <noscript>
+        <p class="product-disclosure">
+          比較の実行にはJavaScriptが必要です。選び方ガイドと比較の説明は、そのままお読みいただけます。
+        </p>
+      </noscript>
+      <script src="../index.tsx"></script>
+      <div class="editorial-wrap">
+        {isHome && (
+          <section>
+            <h2>比較までの3ステップ</h2>
+            <ol class="product-how">
+              <li>
+                <strong>用途と条件を決める</strong>
+                <span>持ち運ぶか、何につなぐか。選び方ガイドで必要な条件を整理します。</span>
+              </li>
+              <li>
+                <strong>商品URLを貼り付ける</strong>
+                <span>
+                  楽天市場の商品ページのURLをコピーして入力。検索一覧や注文画面のURLは使いません。
+                </span>
+              </li>
+              <li>
+                <strong>違いを確かめる</strong>
+                <span>価格と仕様の内訳を確認。購入前に販売店で型番・送料・保証を確かめます。</span>
+              </li>
+            </ol>
+          </section>
+        )}
+        <section>
+          <h2>{isHome ? "カテゴリ別の選び方" : "比較に役立つガイド"}</h2>
+          <GuideCards
+            entries={
+              isHome
+                ? guides.filter((guide) => guide.category !== null)
+                : guides.filter(
+                    (guide) =>
+                      guide === categoryGuide ||
+                      guide.slug === "comparison-scores" ||
+                      guide.slug === "total-cost",
+                  )
+            }
+          />
+          <p>
+            <a href="/guides/">すべての選び方ガイドを見る →</a>
+          </p>
+        </section>
+        <section class="product-faq">
+          <h2>よくある質問</h2>
+          <details>
+            <summary>AmazonやYahoo!ショッピングの商品も比較できますか？</summary>
+            <p>
+              現在の商品URL比較は楽天市場の新品商品に対応しています。Amazon・Yahoo!ショッピングの商品URLの比較は提供していません。
+            </p>
+          </details>
+          <details>
+            <summary>100点の商品が一番おすすめですか？</summary>
+            <p>
+              点数は今回の候補の中で確認できた項目を整理する目安です。実測性能や満足度を示すものではありません。
+              <a href="/methodology/">採点の説明</a>と内訳をご覧ください。
+            </p>
+          </details>
+          <details>
+            <summary>価格が違ったり、「—」と表示されたりするのはなぜですか？</summary>
+            <p>
+              価格・在庫は変わります。「—」は確認できた情報がないことを表します。送料・ポイント・クーポンは含まないため、注文前に販売ページで条件を確かめてください。
+            </p>
+          </details>
+          <details>
+            <summary>購入や返品はここでできますか？</summary>
+            <p>
+              当サイトは情報を比較するサービスです。販売や注文受付は行いません。購入・配送・返品については、購入先の販売店へお問い合わせください。
+            </p>
+          </details>
+        </section>
+      </div>
+    </>
+  )}
+</ProductLayout>

@@ -1,0 +1,93 @@
+---
+import { serviceLinks } from "@app/site-config";
+import type { ServiceOrigins } from "@app/site-config";
+import Breadcrumbs from "../components/Breadcrumbs.astro";
+import { publisher } from "../content/publisher.js";
+import "@app/ui/base.css";
+import "../style.css";
+import "../editorial.css";
+
+type Props = Readonly<{
+  site: Readonly<{ siteOrigin: string; apiBase: string; serviceOrigins: ServiceOrigins }>;
+  title: string;
+  description: string;
+  route: string;
+  legacy?: boolean;
+  breadcrumbs?: ReadonlyArray<Readonly<{ name: string; route: string }>>;
+}>;
+const { site, title, description, route, legacy = false, breadcrumbs = [] } = Astro.props;
+const canonical = site.siteOrigin.length > 0 ? site.siteOrigin + route : null;
+---
+
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="api-base" content={site.apiBase} />
+    <meta name="service-products" content={site.serviceOrigins.products} />
+    <meta name="service-furusato" content={site.serviceOrigins.furusato} />
+    <meta name="service-securities" content={site.serviceOrigins.securities} />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta
+      name="robots"
+      content={canonical !== null && !legacy ? "index,follow" : "noindex,nofollow"}
+    />
+    {canonical !== null && <link rel="canonical" href={canonical} />}
+    {canonical !== null && breadcrumbs.length > 0 && (
+      <Breadcrumbs origin={site.siteOrigin} entries={breadcrumbs} />
+    )}
+  </head>
+  <body class="product-site">
+    <a class="skip-link" href="#main-content">
+      本文へ進む
+    </a>
+    {!legacy && (
+      <header class="product-header">
+        <div class="product-header-inner">
+          <a class="product-brand" href="/" aria-label="商品比較 トップ">
+            商品比較<span>選ぶ理由が、見つかる。</span>
+          </a>
+          <nav aria-label="商品サイト">
+            <a href="/#compare-tool">商品を比較</a>
+            <a href="/guides/" aria-current={route.startsWith("/guides/") ? "page" : undefined}>
+              選び方ガイド
+            </a>
+            <a href="/methodology/" aria-current={route === "/methodology/" ? "page" : undefined}>
+              比較のしくみ
+            </a>
+          </nav>
+        </div>
+      </header>
+    )}
+    <div id="public-content">
+      <slot />
+    </div>
+    <footer class="product-footer">
+      <div class="product-footer-inner">
+        <div>
+          <a class="product-brand" href="/">
+            商品比較
+          </a>
+          <p>用途と条件を揃えて、納得できる買い物へ。</p>
+        </div>
+        <nav aria-label="サイト情報">
+          <a href="/about/">このサイトについて</a>
+          <a href="/editorial-policy/">編集・広告掲載方針</a>
+          <a href="/privacy/">プライバシー</a>
+          <a href="/terms/">利用上の注意</a>
+          {publisher.contactUrl.length > 0 && <a href={publisher.contactUrl}>お問い合わせ</a>}
+        </nav>
+        <nav aria-label="関連する比較サービス">
+          {serviceLinks(site.serviceOrigins).map((service) => (
+            <a href={service.href}>{service.label}</a>
+          ))}
+        </nav>
+        <p class="footer-disclosure">
+          当サイトはアフィリエイト広告を利用しています。リンク先で購入すると、運営者に報酬が入る場合があります。比較結果は購入を保証するものではありません。
+        </p>
+      </div>
+    </footer>
+  </body>
+</html>
