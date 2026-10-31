@@ -1,0 +1,54 @@
+{
+  "checkedOn": "2026-10-31",
+  "checks": [
+    { "name": "product_search", "http": 200, "listings": 3 },
+    { "name": "product_detect", "http": 200, "status": "detected", "category": "laptop" },
+    { "name": "product_job_start", "http": 202, "state": "queued" },
+    {
+      "name": "product_job_result",
+      "http": 200,
+      "state": "succeeded",
+      "comparisonStatus": "ranked",
+      "products": 5,
+      "ranked": 5,
+      "aiCalls": { "openai": 0, "jev": 1 }
+    },
+    {
+      "name": "furusato_search",
+      "http": 200,
+      "listings": 6,
+      "categoriesKnown": 6,
+      "scoringReady": 0,
+      "unitDonationKnown": 0
+    },
+    { "name": "furusato_comparison", "http": 422, "error": "invalid_response" }
+  ],
+  "furusatoReproduction": [
+    {
+      "sample": 1,
+      "reference": "https://item.rakuten.co.jp/f152277-tainai/31-12/",
+      "lookup": "err",
+      "error": "lookup_incomplete",
+      "amountRange": true,
+      "fields": [
+        { "id": "deliveryMode", "status": "conflict" },
+        { "id": "perDeliveryGrams", "status": "conflict" },
+        { "id": "deliveryCount", "status": "conflict" },
+        { "id": "totalGrams", "status": "conflict" }
+      ]
+    },
+    {
+      "sample": 2,
+      "reference": "https://item.rakuten.co.jp/f082104-shimotsuma/13-m310-3/",
+      "lookup": "err",
+      "error": "lookup_incomplete",
+      "amountRange": true,
+      "fields": [
+        { "id": "deliveryMode", "status": "known" },
+        { "id": "perDeliveryGrams", "status": "conflict" },
+        { "id": "deliveryCount", "status": "conflict" },
+        { "id": "totalGrams", "status": "conflict" }
+      ]
+    }
+  ]
+}
