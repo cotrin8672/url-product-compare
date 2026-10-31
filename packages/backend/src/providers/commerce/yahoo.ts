@@ -35,9 +35,6 @@ export function createYahooShoppingCommerceProvider(
   return Object.freeze({
     source: "yahoo",
     async request(query, signal) {
-      if (rights.authorizedUntil <= clock()) {
-        return err({ code: "source_not_authorized" });
-      }
       let key = query.query;
       if (query.operation === "lookup" && key.startsWith("https:")) {
         const url = publicUrl(key, ["store.shopping.yahoo.co.jp"]);
@@ -63,9 +60,6 @@ export function createYahooShoppingCommerceProvider(
         return response;
       }
       const now = clock();
-      if (rights.authorizedUntil <= now) {
-        return err({ code: "source_not_authorized" });
-      }
       const listings: CommerceListing[] = [];
       for (const item of response.value.items) {
         const url = publicUrl(item.url, ["store.shopping.yahoo.co.jp"]);
@@ -99,9 +93,7 @@ export function createYahooShoppingCommerceProvider(
                   ? "excluded"
                   : "unknown",
             observedAt: now,
-            expiresAt: new Date(
-              Math.min(Date.parse(now) + 900000, Date.parse(rights.authorizedUntil)),
-            ).toISOString(),
+            expiresAt: new Date(Date.parse(now) + 900000).toISOString(),
             usage: { ai: rights.ai, priceComparison: true, store: false },
             notices: [
               "寄付商品・型番・容量・商品状態の一致や、配送先別の送料は別途確認が必要です。商品詳細APIで状態を確認できない場合は未確認として扱います。",

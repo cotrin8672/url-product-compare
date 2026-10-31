@@ -194,6 +194,10 @@ assert.deepEqual(JSON.parse(template.Resources.Cleanup.Properties.Events.Sweep.P
   kind: "cleanup",
 });
 assert.equal(template.Globals.Function.Environment.Variables.API_CONFIGURATION, undefined);
+assert.deepEqual(template.Globals.Function.Environment.Variables.APPLICATION_CONFIGURATION, {
+  Ref: "ApplicationConfiguration",
+});
+assert.equal(template.Parameters.ApplicationConfiguration.Type, "String");
 assert.equal(template.Resources.Cleanup.Properties.Environment, undefined);
 for (const name of ["Jobs", "Categories", "Limits"]) {
   assert.equal(template.Resources[name].Type, "AWS::DynamoDB::Table");

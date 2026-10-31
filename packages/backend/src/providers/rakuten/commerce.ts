@@ -1,6 +1,6 @@
 import { err, ok } from "../../comparison/algebra.js";
 import type { CommerceListing, CommerceProvider } from "../../comparison/commerce.js";
-import { permitted, valueOf } from "../../comparison/values.js";
+import { valueOf } from "../../comparison/values.js";
 import type { Instant } from "../../comparison/values.js";
 import {
   createRakutenLookup,
@@ -64,13 +64,6 @@ export function createRakutenCommerceProviders(
             return err({ code: "listing_not_found" });
           }
           const now = clock();
-          if (
-            !permitted(settings.rights.display, now) ||
-            !permitted(settings.rights.fetch, now) ||
-            !permitted(settings.rights.affiliate, now)
-          ) {
-            return err({ code: "source_not_authorized" });
-          }
           const listings = selected.map((listing): CommerceListing =>
             Object.freeze({
               source,
@@ -88,11 +81,7 @@ export function createRakutenCommerceProviders(
               tax: listing.tax,
               observedAt: listing.observedAt,
               expiresAt: listing.expiresAt,
-              usage: Object.freeze({
-                ai: permitted(settings.rights.ai, now),
-                priceComparison: true,
-                store: false,
-              }),
+              usage: Object.freeze({ ai: true, priceComparison: true, store: false }),
               notices: Object.freeze([
                 donation
                   ? "返礼品の寄付額です。内容量・配送条件・定期便の回数は説明文からの別途確認が必要です。"

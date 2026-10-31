@@ -1,4 +1,7 @@
-import { createLambdaWorker } from "../../../packages/backend/src/lambda-bootstrap.js";
+import {
+  combineLambdaConfiguration,
+  createLambdaWorker,
+} from "../../../packages/backend/src/lambda-bootstrap.js";
 
 let worker: ReturnType<typeof createLambdaWorker> | undefined;
 
@@ -6,7 +9,8 @@ export async function handler(event: unknown): Promise<void> {
   if (worker === undefined) {
     try {
       const raw: unknown = JSON.parse(process.env["API_CONFIGURATION"] ?? "null");
-      worker = createLambdaWorker(raw, {
+      const settings: unknown = JSON.parse(process.env["APPLICATION_CONFIGURATION"] ?? "null");
+      worker = createLambdaWorker(combineLambdaConfiguration(raw, settings), {
         jobs: process.env["COMPARISON_JOBS_TABLE"],
         categories: process.env["COMPARISON_CATEGORIES_TABLE"],
         limits: process.env["COMPARISON_LIMITS_TABLE"],

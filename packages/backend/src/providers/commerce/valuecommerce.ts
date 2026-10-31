@@ -17,13 +17,7 @@ import {
   vcLink,
 } from "./transport.js";
 
-type Configuration = Readonly<{
-  token: string;
-  siteId: string;
-  spaceId: string;
-  authorizedUntil: string;
-  ai: boolean;
-}>;
+type Configuration = Readonly<{ token: string; siteId: string; spaceId: string; ai: boolean }>;
 
 function configuration(input: unknown): Configuration {
   const rights = authorization(input);
@@ -114,9 +108,7 @@ function parseListing(
       shipping: "unknown",
       tax: source === "satofull" ? "included" : "unknown",
       observedAt: now,
-      expiresAt: new Date(
-        Math.min(Date.parse(now) + 900_000, Date.parse(settings.authorizedUntil)),
-      ).toISOString(),
+      expiresAt: new Date(Date.parse(now) + 900_000).toISOString(),
       usage: Object.freeze({ ai: settings.ai, priceComparison: true, store: false }),
       notices: Object.freeze([
         source === "satofull"
@@ -141,9 +133,6 @@ export function createValueCommerceProvider(
   return Object.freeze({
     source,
     async request(query, signal) {
-      if (settings.authorizedUntil <= clock()) {
-        return err({ code: "source_not_authorized" });
-      }
       if (
         query.query.length > (query.operation === "lookup" ? 300 : 256) ||
         (query.operation === "lookup" && /[\s/?#]/u.test(query.query))
@@ -165,9 +154,6 @@ export function createValueCommerceProvider(
       const { items, total } = result.value;
       const listings: CommerceListing[] = [];
       const now = clock();
-      if (settings.authorizedUntil <= now) {
-        return err({ code: "source_not_authorized" });
-      }
       const ids = new Set<string>();
       for (const item of items) {
         const parsed = parseListing(item, source, settings, now);

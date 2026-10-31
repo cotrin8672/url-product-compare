@@ -8,7 +8,7 @@ import type {
   ConsumerProvider,
   ConsumerProviderLookupError,
 } from "../../comparison/consumer-provider.js";
-import { httpsUrl, permitted, valueOf } from "../../comparison/values.js";
+import { httpsUrl, valueOf } from "../../comparison/values.js";
 import type { Instant } from "../../comparison/values.js";
 import {
   createRakutenEnricher,
@@ -72,17 +72,13 @@ export function createRakutenConsumerProvider(
     return listing;
   };
   const readPermissions: ConsumerProvider["permissions"] = (now: Instant) => {
-    const store = permitted(configuration.rights.store, now);
     return Object.freeze({
-      display: permitted(configuration.rights.display, now),
-      fetch: permitted(configuration.rights.fetch, now),
-      affiliate: permitted(configuration.rights.affiliate, now),
-      ai: permitted(configuration.rights.ai, now),
-      store,
-      storeExpiresAt:
-        store && configuration.rights.store.status === "granted"
-          ? valueOf(configuration.rights.store.expiresAt)
-          : null,
+      display: true,
+      fetch: true,
+      affiliate: true,
+      ai: true,
+      store: true,
+      storeExpiresAt: new Date(Date.parse(valueOf(now)) + 900_000).toISOString(),
     });
   };
   const provider: ConsumerProvider = {

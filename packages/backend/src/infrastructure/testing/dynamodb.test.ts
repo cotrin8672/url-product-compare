@@ -435,7 +435,6 @@ await test("Lambda wiring uses shared limits, rejects legacy PHP settings and is
       accessKey: "example-access-key-1234567890",
       affiliateId: "11111111.22222222.33333333.44444444",
       allowedOrigin: "https://consumer.example/",
-      authorizedUntil: new Date(Date.now() + 3_600_000).toISOString(),
     },
     openai: null,
     http: { accessToken: "t".repeat(36), allowedOrigin: "https://consumer.example" },

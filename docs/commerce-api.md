@@ -92,7 +92,7 @@ lookupのquery: 楽天は商品URL（APIのitemCodeとURL末尾のIDを同一視
 
 `mise exec -- pnpm build:api-libraries` で5つのJavaScriptと型宣言を生成する。`mise run verify`・型チェック・ローカルAPI起動・サイト生成・Firebaseパッケージ生成は必要なライブラリを先にビルドする。ブラウザーからライブラリへ直接アクセスしない。
 
-楽天は従来の `RAKUTEN_*` 設定を使用する。許諾確認期限が切れた場合は接続しない。新規3取得元はサーバー環境変数 `COMMERCE_CONFIGURATION` にJSONを設定する。使う取得元だけ指定する。サーバーからブラウザーに渡してはいけない。
+ローカルでは楽天は `RAKUTEN_*`、その他の取得元は `COMMERCE_CONFIGURATION` を使用する。Lambdaでは、APIキー・トークンを `API_CONFIGURATION` Secretへ、サイトID・広告スペースIDなどを通常の `APPLICATION_CONFIGURATION` へ分離する。[設定例](../infrastructure/lambda/README.md)を参照。独自の利用停止期限は不要で、取得情報の有効時間は15分とする。
 
 ```json
 {
@@ -100,26 +100,23 @@ lookupのquery: 楽天は商品URL（APIのitemCodeとURL末尾のIDを同一視
     "token": "VALUECOMMERCE_PRODUCT_API_TOKEN",
     "siteId": "1234567",
     "spaceId": "123456789",
-    "authorizedUntil": "2026-11-01T00:00:00.000Z",
     "aiAuthorized": false
   },
   "satofull": {
     "token": "VALUECOMMERCE_PRODUCT_API_TOKEN",
     "siteId": "1234567",
     "spaceId": "987654321",
-    "authorizedUntil": "2026-11-01T00:00:00.000Z",
     "aiAuthorized": false
   },
   "amazon": {
     "clientId": "CREATORS_API_CREDENTIAL_ID",
     "clientSecret": "CREATORS_API_CREDENTIAL_SECRET",
-    "partnerTag": "YOUR_TRACKING_ID-22",
-    "authorizedUntil": "2026-11-01T00:00:00.000Z"
+    "partnerTag": "YOUR_TRACKING_ID-22"
   }
 }
 ```
 
-上記はダミー値。期日は実際の取得・表示・リンク・AI利用条件を確認した上で決める内部停止期限。勝手に延長しない。VCのsiteId/spaceIdは取得元ごとの広告スペースの値（URLのsid/pidまたはvs/vp）。返された成果リンクのID・遷移先が一致することを検証する。AI送信の権利を確認していない場合はaiAuthorized=falseを維持する。
+上記はローカル設定用のダミー値。VCのsiteId/spaceIdは取得元ごとの広告スペースの値（URLのsid/pidまたはvs/vp）。返された成果リンクのID・遷移先が一致することを検証する。AI送信の権利を確認していない場合はaiAuthorized=falseを維持する。LambdaのSecretには `commerce.satofull.token` などの認証値だけを入れ、IDやAI設定は通常設定へ置く。
 
 AmazonはCreators API利用承認後の認証情報を設定する。`credentialVersion` は未指定3.3（日本）、3.1（米国）、3.2（英国）に対応し、認証情報の発行版に合わせてOAuth取得先を切り替える。取得対象は日本市場のまま。短命なアクセストークンのみメモリに保持し、商品データは保存しない。
 
@@ -130,7 +127,6 @@ Yahoo公式APIを使う場合は上の `yahoo` を次の設定へ置き換える
   "applicationId": "YAHOO_APPLICATION_ID",
   "siteId": "1234567",
   "spaceId": "123456789",
-  "authorizedUntil": "2026-11-01T00:00:00.000Z",
   "aiAuthorized": false
 }
 ```

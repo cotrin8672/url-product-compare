@@ -18,14 +18,17 @@ any deployment. The existing Amplify app is a separate hosting resource.
 
 ## Configuration
 
-Copy `api-configuration.example.json` to ignored `api-configuration.json`. Fill
-authorized provider settings using the examples in the parent infrastructure
-directory. Remove the old `storage` block: it is rejected rather than silently
-using the PHP bridge. DynamoDB table names come from the stack environment.
+Use two separate JSON objects. `api-configuration.example.json` is the Secrets
+Manager template: only API credentials, tokens and WSID belong there.
+`application-configuration.example.json` contains normal settings: origins,
+affiliate/site/advertising-space IDs, models and rate limits. Pass that JSON as
+the CloudFormation `ApplicationConfiguration` parameter; it becomes the normal
+`APPLICATION_CONFIGURATION` environment variable on API and worker. Unknown or
+misplaced fields are rejected. DynamoDB table names come from the stack.
 
-- `http.accessToken`: independent random base64url token, 32–256 characters.
-- `http.allowedOrigin`: exact public Xserver HTTPS origin without a trailing slash.
-- `http.globalPerMinute` / `http.globalPerDay`: default 60 / 1000 admitted requests.
+- Secret `http.accessToken`: independent random base64url token, 32–256 characters.
+- Normal `http.allowedOrigin`: exact public HTTPS origin without a trailing slash.
+- Normal `http.globalPerMinute` / `http.globalPerDay`: default 60 / 1000 admitted requests.
   The address limit is six requests per fixed minute. All three counters update
   atomically; a rejected request does not consume the other counters. Address
   identities are HMAC digests, not raw IP addresses. Origin checks and limits
@@ -41,8 +44,8 @@ durable results also require the current storage grant to cover their expiry.
 
 Provider credentials stay in AWS Secrets Manager as one JSON secret. The template
 resolves it into encrypted API/worker environment variables at deployment time;
-combined environment size must fit Lambda's 4 KB limit. Cleanup receives only table
-names and a configuration version, never provider keys. DynamoDB uses IAM roles
+combined environment size must fit Lambda's 4 KB limit. Cleanup receives normal
+settings and table names, never provider keys. DynamoDB uses IAM roles
 through the pinned official SDK; do not configure DynamoDB access keys in Xserver
 or the browser. Runtime secret loading can be added separately if size demands it.
 
@@ -51,11 +54,13 @@ refreshes the environment. Reconfigure working keys after migration and revoke
 any exposed values at the provider. Never put secrets in SITE_ORIGIN,
 PUBLIC_API_BASE, HTML, browser storage or logs. Existing token inputs remain masked.
 
-`rakuten` uses applicationId, accessKey, affiliateId, allowedOrigin and
-authorizedUntil. Set `resultStorageAuthorizedUntil` **only with actual provider
-storage permission**, no later than authorizedUntil. Without it, persistent jobs
-return `422 result_storage_denied`; synchronous `POST /api/compare` remains
-available without storing results. Moving storage does not grant permission.
+Secret `rakuten` contains applicationId and accessKey; normal `rakuten` contains
+affiliateId and allowedOrigin. Secret `commerce.satofull` contains only token;
+normal `commerce.satofull` contains siteId, spaceId and aiAuthorized.
+Provider credentials do not require manually maintained authorization or storage
+deadlines. Rakuten listing freshness and result storage are bounded to 15 minutes
+from observation; expired data is still withheld. These cache lifetimes belong
+in application policy, not Secrets Manager.
 AccessTrade credentials belong in the same secret as a top-level
 `"accesstrade": {"wsId": "YOUR_WS_ID"}` entry. The product Web Service uses WSID
 as its credential; do not add a separate invented API token. Leave this entry
@@ -63,11 +68,14 @@ as its credential; do not add a separate invented API token. Leave this entry
 the browser. Storing WSID does not enable a securities product feed or replace
 the separately approved `securitiesAffiliates` advertisement links.
 
-Jev uses the existing `{apiKey, model}` setting; unused AI/commerce entries stay
-null. The existing optional Amazon/Yahoo/satofull schemas remain supported.
+Jev's apiKey belongs in Secret `jev`; its model belongs in normal `jev`. Unused
+secret sections stay null. Existing optional providers remain supported.
 
 After packaging, validate an ignored real configuration without printing its
 contents or calling providers:
+
+Use local `api-configuration.json` for credentials and local
+`application-configuration.json` for normal settings when running this check.
 
 ```powershell
 rtk mise exec -- node tooling/check-lambda-configuration.mjs
@@ -142,7 +150,8 @@ For deployment, choose a private artifact bucket and a dedicated reviewed stack:
 rtk aws sts get-caller-identity --profile url-product-compare
 rtk aws cloudformation validate-template --template-body file://infrastructure/lambda/template.json --profile url-product-compare --region ap-northeast-1
 rtk aws cloudformation package --template-file infrastructure/lambda/template.json --s3-bucket YOUR_PRIVATE_ARTIFACT_BUCKET --output-template-file infrastructure/lambda/packaged-template.json --profile url-product-compare --region ap-northeast-1
-rtk aws cloudformation deploy --template-file infrastructure/lambda/packaged-template.json --stack-name YOUR_STACK --capabilities CAPABILITY_IAM --parameter-overrides ConfigurationSecretArn=YOUR_SECRET_ARN ConfigurationVersion=YOUR_ROTATION_ID ConcurrencyMode=shared --profile url-product-compare --region ap-northeast-1
+$applicationSettings = rtk proxy mise exec -- node -p "require('fs').readFileSync('infrastructure/lambda/application-configuration.json', 'utf8')"
+rtk aws cloudformation deploy --template-file infrastructure/lambda/packaged-template.json --stack-name YOUR_STACK --capabilities CAPABILITY_IAM --parameter-overrides ConfigurationSecretArn=YOUR_SECRET_ARN ConfigurationVersion=YOUR_ROTATION_ID ConcurrencyMode=shared "ApplicationConfiguration=$applicationSettings" --profile url-product-compare --region ap-northeast-1
 ```
 
 These commands create billable resources. Review an existing stack before update;

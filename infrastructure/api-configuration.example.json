@@ -4,8 +4,6 @@
     "accessKey": "YOUR_RAKUTEN_ACCESS_KEY",
     "affiliateId": "YOUR_RAKUTEN_AFFILIATE_ID",
     "allowedOrigin": "https://YOUR_FIREBASE_PROJECT_ID.web.app",
-    "authorizedUntil": "YOUR_REVIEW_DEADLINE_IN_UTC",
-    "resultStorageAuthorizedUntil": "YOUR_ACTUAL_STORAGE_GRANT_EXPIRY_IN_UTC",
     "accessToken": "YOUR_RANDOM_BASE64URL_TOKEN_AT_LEAST_32_CHARACTERS"
   },
   "openai": null,

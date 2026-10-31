@@ -26,14 +26,13 @@
 - `RAKUTEN_APPLICATION_ID`
 - `RAKUTEN_ACCESS_KEY`
 - `RAKUTEN_AFFILIATE_ID`
-- `RAKUTEN_DATA_AUTHORIZED_UNTIL`
 - `API_ACCESS_TOKEN`（ランダムなbase64url形式、32〜256文字）
 
 `RAKUTEN_ALLOWED_ORIGIN`と`API_ALLOWED_ORIGIN`は省略すると`RENDER_EXTERNAL_URL`を使います。独自ドメインへ変更するときは両方にそのHTTPSオリジンを設定します。
 
 楽天アプリのApplication URLには`https://url-product-compare.onrender.com`のようなHTTPS URLを、Allowed websitesには`url-product-compare.onrender.com`のようなスキームなしのホスト名を登録します。Allowed websitesに`https://`を含めると入力エラーになり保存できません。独自ドメインへ変更するときも、それぞれの形式で登録してください。
 
-`RAKUTEN_DATA_AUTHORIZED_UNTIL`はこのアプリの内部見直し期限です。確認した期限をUTCで指定します。例えば2026年11月10日23:59（日本時間）は`2026-11-10T14:59:59.000Z`です。変更後はRenderで再デプロイして反映します。未確認の保存許諾期限や旧診断用のOpenAIキーは不要です。
+独自の利用停止期限・保存許諾期限の入力は不要です。取得情報と比較結果の有効時間はアプリ側で管理します。
 
 ## 公開前の確認
 

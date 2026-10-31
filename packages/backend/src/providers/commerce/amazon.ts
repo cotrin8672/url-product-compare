@@ -3,13 +3,10 @@ import { createAmazonClient } from "@app/amazon-api";
 import { err, ok } from "../../comparison/algebra.js";
 import type { CommerceListing, CommerceProvider } from "../../comparison/commerce.js";
 import { record } from "../../comparison/values.js";
-import { authorization, publicUrl, stringValue } from "./transport.js";
+import { publicUrl, stringValue } from "./transport.js";
 
-type Configuration = Readonly<
-  Parameters<typeof createAmazonClient>[0] & { authorizedUntil: string }
->;
+type Configuration = Readonly<Parameters<typeof createAmazonClient>[0]>;
 function configuration(input: unknown): Configuration {
-  const rights = authorization(input);
   if (
     !record(input) ||
     typeof input["clientId"] !== "string" ||
@@ -31,7 +28,6 @@ function configuration(input: unknown): Configuration {
     clientId: input["clientId"],
     clientSecret: input["clientSecret"],
     partnerTag: input["partnerTag"],
-    authorizedUntil: rights.authorizedUntil,
     ...(input["credentialVersion"] === undefined
       ? {}
       : { credentialVersion: input["credentialVersion"] }),
@@ -56,9 +52,6 @@ export function createAmazonCommerceProvider(
   return Object.freeze({
     source: "amazon",
     async request(query, signal) {
-      if (settings.authorizedUntil <= clock()) {
-        return err({ code: "source_not_authorized" });
-      }
       const id = query.operation === "lookup" ? asin(query.query) : null;
       if (query.operation === "lookup" && id === null) {
         return err({ code: "invalid_request" });
@@ -77,9 +70,6 @@ export function createAmazonCommerceProvider(
         return result;
       }
       const now = clock();
-      if (settings.authorizedUntil <= now) {
-        return err({ code: "source_not_authorized" });
-      }
       const listings = result.value.items.map((item): CommerceListing => {
         const offer = item.offer;
         return Object.freeze<CommerceListing>({
@@ -111,9 +101,7 @@ export function createAmazonCommerceProvider(
           shipping: "unknown",
           tax: "unknown",
           observedAt: now,
-          expiresAt: new Date(
-            Math.min(Date.parse(now) + 900000, Date.parse(settings.authorizedUntil)),
-          ).toISOString(),
+          expiresAt: new Date(Date.parse(now) + 900000).toISOString(),
           usage: { ai: false, priceComparison: false, store: false },
           notices: [
             "おすすめ出品の価格であり、新品・中古の最低価格ではありません。他サイトとの価格比較・採点には使用しません。",

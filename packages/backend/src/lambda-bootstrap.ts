@@ -18,6 +18,99 @@ import { createDynamoComparisonJobStore } from "./infrastructure/dynamodb/jobs.j
 import { createDynamoRateLimiter } from "./infrastructure/dynamodb/limits.js";
 import type { ApiResponse } from "./infrastructure/http/request.js";
 
+function configurationObject(
+  input: unknown,
+  fields: readonly string[],
+): Readonly<Record<string, unknown>> {
+  if (!record(input) || Object.keys(input).some((key) => !fields.includes(key))) {
+    throw new Error("Invalid Lambda configuration fields");
+  }
+  return input;
+}
+
+export function combineLambdaConfiguration(
+  secretInput: unknown,
+  applicationInput: unknown,
+): Readonly<Record<string, unknown>> {
+  const secrets = configurationObject(secretInput, [
+    "http",
+    "rakuten",
+    "openai",
+    "jev",
+    "commerce",
+    "accesstrade",
+  ]);
+  const settings = configurationObject(applicationInput, [
+    "http",
+    "rakuten",
+    "openai",
+    "jev",
+    "commerce",
+    "securitiesAffiliates",
+  ]);
+  const section = (
+    secret: unknown,
+    configuration: unknown,
+    secretFields: readonly string[],
+    settingFields: readonly string[],
+  ): Readonly<Record<string, unknown>> | null => {
+    const publicValues =
+      configuration === undefined || configuration === null
+        ? {}
+        : configurationObject(configuration, settingFields);
+    if (secret === undefined || secret === null) {
+      return null;
+    }
+    return { ...publicValues, ...configurationObject(secret, secretFields) };
+  };
+  const commerceSecrets =
+    secrets["commerce"] === undefined || secrets["commerce"] === null
+      ? {}
+      : configurationObject(secrets["commerce"], ["satofull", "yahoo", "amazon"]);
+  const commerceSettings =
+    settings["commerce"] === undefined || settings["commerce"] === null
+      ? {}
+      : configurationObject(settings["commerce"], ["satofull", "yahoo", "amazon"]);
+  return {
+    http: section(
+      secrets["http"],
+      settings["http"],
+      ["accessToken"],
+      ["allowedOrigin", "globalPerMinute", "globalPerDay"],
+    ),
+    rakuten: section(
+      secrets["rakuten"],
+      settings["rakuten"],
+      ["applicationId", "accessKey"],
+      ["affiliateId", "allowedOrigin"],
+    ),
+    jev: section(secrets["jev"], settings["jev"], ["apiKey"], ["model"]),
+    openai: section(secrets["openai"], settings["openai"], ["apiKey"], ["model"]),
+    accesstrade: secrets["accesstrade"] ?? null,
+    securitiesAffiliates: settings["securitiesAffiliates"] ?? null,
+    commerce: {
+      satofull: section(
+        commerceSecrets["satofull"],
+        commerceSettings["satofull"],
+        ["token"],
+        ["siteId", "spaceId", "aiAuthorized"],
+      ),
+      yahoo: section(
+        commerceSecrets["yahoo"],
+        commerceSettings["yahoo"],
+        ["token", "applicationId"],
+        ["siteId", "spaceId", "affiliateId", "aiAuthorized"],
+      ),
+      amazon: section(
+        commerceSecrets["amazon"],
+        commerceSettings["amazon"],
+        ["clientId", "clientSecret"],
+        ["partnerTag", "credentialVersion"],
+      ),
+    },
+  };
+}
+
 function table(input: unknown): string {
   if (typeof input !== "string" || !/^[a-zA-Z0-9_.-]{3,255}$/.test(input)) {
     throw new Error("A fixed DynamoDB table name is required");

@@ -12,7 +12,7 @@ Firestoreの `investigation_runs` に保存するのは、従来のデモ商品�
 
 メイン比較は `POST /api/comparisons` でジョブを受け付け、`comparison_jobs` を作成します。HTTP処理は202を返し、`comparisonJobWorker` のFirestore作成トリガーが比較を実行します。トリガーには再試行を設定し、実行が中断したジョブは45秒のリース失効後に引き継げます。HTTPとワーカーの提供元登録は `bootstrap.ts` の `createConfiguredConsumerService` を共用しています。ローカルでは同じ状態遷移を使うメモリストアを利用します。
 
-永続ジョブには**実際の提供元の保存許諾が必要**です。任意項目 `rakuten.resultStorageAuthorizedUntil` はその許諾の終了時刻を記録するもので、設定しただけで許諾を取得したことにはなりません。許諾がなければ例のJSONからこの項目を削除してください。省略時は保存を拒否し、永続ジョブの受付は `422 result_storage_denied` で停止します。値は `authorizedUntil` 以下の将来UTC時刻に限定します。ローカルの一時比較と従来の同期 `POST /api/compare` は保存許諾なしでも利用できます。
+楽天の取得情報・比較結果は取得時点から15分の有効時間で扱います。独自の利用停止日・保存許諾日の入力は不要です。現在のLambda構成では、認証情報と通常設定を分離します。[Lambdaの設定手順](lambda/README.md)を参照してください。
 
 ジョブは入力URL・条件・操作のダイジェスト・状態を保存し、アクセス鍵はダイジェストだけを保存します。クライアントは操作ごとのランダムな `idempotencyKey` と `x-comparison-key` を最初のPOSTから送ります。同じキー・入力・アクセス鍵による再送は同一ジョブを返し、異なる入力は409、異なるアクセス鍵は403です。公開GETもこのアクセス鍵が必要です。旧取消APIはBearer認証とこの鍵を要求します。ブラウザーには結果本文を永続保存せず、セッション内にジョブID・鍵・期限・revisionを保持します。
 
@@ -85,7 +85,6 @@ rtk proxy pwsh -NoProfile -Command 'Copy-Item -LiteralPath infrastructure/api-co
 
 - `rakuten` の6項目はすべて必須です。既存の楽天アプリID・アクセスキー・Affiliate IDを使えます。
 - `accessToken` はサーバー内だけで使うランダムなbase64url形式の32〜256文字です。ブラウザーや公開HTMLには渡しません。作る場合は `rtk mise exec -- node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))"` を手元で実行し、出力を設定します。提供元から独立したHTTP設定が必要な場合は、任意の `http` に `{"accessToken":"YOUR_SERVER_TOKEN","allowedOrigin":"https://YOUR_SITE_HOST"}` を指定します。
-- `authorizedUntil` は取得・表示・成果リンクの利用を再確認する内部停止期限です。実際の許諾を満たす将来のUTC時刻（`YYYY-MM-DDTHH:mm:ss.sssZ`）を指定します。
 - OpenAIを使う場合は `openai` にキー・モデルを設定します。使わない場合は **`"openai": null`** にしてください。
 - メインの6カテゴリ比較はOpenAIを使いません。Jevの任意の抽出補助を使う場合だけ `jev` に `{"apiKey":"YOUR_JEV_API_KEY","model":"jev-1.13.0"}` を設定します。`jev` は省略または `null` でも比較できます。
 - 架空デモだけを先に公開する場合は、ファイル全体を **`{"rakuten":null,"openai":null}`** にします。設定の省略や不完全な設定ではエラーを返し、デモは明示的なnull設定に限ります。

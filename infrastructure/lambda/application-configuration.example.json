@@ -1,0 +1,19 @@
+{
+  "http": {
+    "allowedOrigin": "https://url-product-compare.pages.dev",
+    "globalPerMinute": 60,
+    "globalPerDay": 1000
+  },
+  "rakuten": {
+    "affiliateId": "YOUR_RAKUTEN_AFFILIATE_ID",
+    "allowedOrigin": "https://url-product-compare.pages.dev"
+  },
+  "jev": { "model": "jev-1.13.0" },
+  "commerce": {
+    "satofull": {
+      "siteId": "YOUR_VALUECOMMERCE_SITE_ID",
+      "spaceId": "YOUR_VALUECOMMERCE_SPACE_ID",
+      "aiAuthorized": false
+    }
+  }
+}

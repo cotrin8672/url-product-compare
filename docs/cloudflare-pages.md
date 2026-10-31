@@ -41,7 +41,7 @@ Pagesの`CF_PAGES=1`では、pnpm自身の実行パスを使うため、mise/rtk
 
 ## 公開前に行うこと
 
-Pagesのプロジェクトと公開URLが決まったら、AWSの設定にある`http.allowedOrigin`を同じオリジンに設定し、
+Pagesのプロジェクトと公開URLが決まったら、AWSの通常設定`APPLICATION_CONFIGURATION`にある`http.allowedOrigin`を同じオリジンに設定し、
 既存のLambda更新手順で反映する。CloudFormationの設定Secretを更新するだけでは、Lambda環境変数には反映されない。
 本番のサブドメインを追加する場合は、そのURLでPagesを再ビルドし、AWS側も合わせて更新する。
 PreviewのURLは本番Originに自動的に許可されないため、本番と同じAPIへの接続成功を期待しない。

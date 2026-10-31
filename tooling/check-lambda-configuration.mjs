@@ -8,13 +8,19 @@ try {
     "utf8",
   );
   const configuration = JSON.parse(source);
+  const applicationSource = await readFile(
+    new URL("../infrastructure/lambda/application-configuration.json", import.meta.url),
+    "utf8",
+  );
+  const application = JSON.parse(applicationSource);
   // Leave room for Lambda's other environment variable names and values.
-  assert.ok(Buffer.byteLength(source, "utf8") <= 3400);
-  const { createLambdaApi, createLambdaWorker } = await import(
+  assert.ok(Buffer.byteLength(source + applicationSource, "utf8") <= 3400);
+  const { combineLambdaConfiguration, createLambdaApi, createLambdaWorker } = await import(
     new URL("../apps/api/dist/lambda/packages/backend/src/lambda-bootstrap.js", import.meta.url)
   );
+  const combined = combineLambdaConfiguration(configuration, application);
   createLambdaApi(
-    configuration,
+    combined,
     "arn:aws:lambda:ap-northeast-1:123456789012:function:configuration-check",
     {
       jobs: "configuration-check-jobs",
@@ -22,7 +28,7 @@ try {
       limits: "configuration-check-limits",
     },
   );
-  createLambdaWorker(configuration, {
+  createLambdaWorker(combined, {
     jobs: "configuration-check-jobs",
     categories: "configuration-check-categories",
     limits: "configuration-check-limits",
@@ -32,7 +38,7 @@ try {
   );
 } catch {
   console.error(
-    "Invalid or missing infrastructure/lambda/api-configuration.json. Build lambda:package first; check provider fields, HTTPS origins, remove legacy storage/bridge secrets and use JSON <= 3400 UTF-8 bytes. Configuration values are never printed.",
+    "Invalid or missing Lambda secret/application configuration files. Build lambda:package first; separate credentials from non-secret settings and keep combined JSON <= 3400 UTF-8 bytes. Configuration values are never printed.",
   );
   process.exitCode = 1;
 }

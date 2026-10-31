@@ -38,19 +38,12 @@ const internal = createApiHandler(
     "RAKUTEN_ACCESS_KEY",
     "RAKUTEN_AFFILIATE_ID",
     "RAKUTEN_ALLOWED_ORIGIN",
-    "RAKUTEN_DATA_AUTHORIZED_UNTIL",
   ].some((name) => process.env[name] !== undefined)
     ? {
         applicationId: process.env["RAKUTEN_APPLICATION_ID"],
         accessKey: process.env["RAKUTEN_ACCESS_KEY"],
         affiliateId: process.env["RAKUTEN_AFFILIATE_ID"],
         allowedOrigin: process.env["RAKUTEN_ALLOWED_ORIGIN"] ?? process.env["RENDER_EXTERNAL_URL"],
-        authorizedUntil: process.env["RAKUTEN_DATA_AUTHORIZED_UNTIL"],
-        ...(process.env["RAKUTEN_RESULT_STORAGE_AUTHORIZED_UNTIL"] === undefined
-          ? {}
-          : {
-              resultStorageAuthorizedUntil: process.env["RAKUTEN_RESULT_STORAGE_AUTHORIZED_UNTIL"],
-            }),
         accessToken: process.env["API_ACCESS_TOKEN"],
       }
     : null,

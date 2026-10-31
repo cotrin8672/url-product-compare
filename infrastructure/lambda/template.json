@@ -11,6 +11,10 @@
       "Type": "String",
       "Description": "Change when rotating the secret to force environment refresh"
     },
+    "ApplicationConfiguration": {
+      "Type": "String",
+      "Description": "Non-secret JSON: origins, provider site IDs, affiliate IDs, models and limits"
+    },
     "ConcurrencyMode": {
       "Type": "String",
       "Default": "reserved",
@@ -31,6 +35,7 @@
       "Environment": {
         "Variables": {
           "CONFIGURATION_VERSION": { "Ref": "ConfigurationVersion" },
+          "APPLICATION_CONFIGURATION": { "Ref": "ApplicationConfiguration" },
           "COMPARISON_JOBS_TABLE": { "Ref": "Jobs" },
           "COMPARISON_CATEGORIES_TABLE": { "Ref": "Categories" },
           "COMPARISON_LIMITS_TABLE": { "Ref": "Limits" }

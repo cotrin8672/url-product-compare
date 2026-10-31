@@ -1,13 +1,11 @@
 {
-  "http": {
-    "accessToken": "REPLACE_WITH_RANDOM_32_TO_256_CHARACTER_BASE64URL_TOKEN",
-    "allowedOrigin": "https://compare.example.com",
-    "globalPerMinute": 60,
-    "globalPerDay": 1000
+  "http": { "accessToken": "REPLACE_WITH_RANDOM_32_TO_256_CHARACTER_BASE64URL_TOKEN" },
+  "rakuten": {
+    "applicationId": "YOUR_RAKUTEN_APPLICATION_ID",
+    "accessKey": "YOUR_RAKUTEN_ACCESS_KEY"
   },
-  "rakuten": null,
   "openai": null,
   "jev": null,
-  "commerce": null,
-  "accesstrade": null
+  "commerce": { "satofull": { "token": "YOUR_VALUECOMMERCE_PRODUCT_API_TOKEN" } },
+  "accesstrade": { "wsId": "YOUR_ACCESSTRADE_WS_ID" }
 }

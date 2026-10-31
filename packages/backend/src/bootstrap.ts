@@ -41,7 +41,6 @@ import type { SecuritiesBroker } from "./comparison/securities.js";
 import {
   instant,
   httpsUrl,
-  permitted,
   permissions,
   record,
   sameProductId,
@@ -688,16 +687,6 @@ export function createApiHandler(
         }
         if (search === null || rakuten?.tag !== "ok") {
           return apiResponse(503, err({ code: "provider_unavailable" }));
-        }
-        const now = systemTime();
-        if (
-          ![
-            rakuten.value.rights.fetch,
-            rakuten.value.rights.display,
-            rakuten.value.rights.affiliate,
-          ].every((permission) => permitted(permission, now))
-        ) {
-          return apiResponse(422, err({ code: "source_not_authorized" }));
         }
         if (requirements === null) {
           return apiResponse(400, err({ code: "invalid_request" }));

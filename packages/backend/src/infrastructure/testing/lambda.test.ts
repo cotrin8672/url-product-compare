@@ -4,7 +4,11 @@ import { test } from "node:test";
 import { createApiHandler, createPublicConsumerApi } from "../../bootstrap.js";
 import { createConsumerComparisonService } from "../../comparison/consumer-service.js";
 import { instant, record } from "../../comparison/values.js";
-import { createLambdaApi, createLambdaWorker } from "../../lambda-bootstrap.js";
+import {
+  combineLambdaConfiguration,
+  createLambdaApi,
+  createLambdaWorker,
+} from "../../lambda-bootstrap.js";
 import { createLambdaHttpHandler } from "../aws/http.js";
 import { createLambdaDispatcher } from "../aws/invoke.js";
 import { apiResponse } from "../http/request.js";
@@ -28,6 +32,74 @@ const tables = {
   categories: "comparison-categories",
   limits: "comparison-limits",
 };
+
+await test("Lambda combines credential-only secrets with normal settings and rejects misplaced fields without leaking values", async () => {
+  const secret = {
+    http: { accessToken: "t".repeat(36) },
+    rakuten: { applicationId: "example-app-1234", accessKey: "private-rakuten-key-123456" },
+    commerce: { satofull: { token: "private-vc-token" } },
+    accesstrade: { wsId: "private-at-wsid" },
+    jev: { apiKey: "private-jev-key" },
+  };
+  const normal = {
+    http: { allowedOrigin: "https://consumer.example" },
+    rakuten: {
+      affiliateId: "11111111.22222222.33333333.44444444",
+      allowedOrigin: "https://consumer.example",
+    },
+    commerce: { satofull: { siteId: "1234567", spaceId: "123456789", aiAuthorized: false } },
+    jev: { model: "jev-1.13.0" },
+  };
+  const configuration = combineLambdaConfiguration(secret, normal);
+  const api = createLambdaApi(
+    configuration,
+    "arn:aws:lambda:ap-northeast-1:123456789012:function:worker",
+    tables,
+  );
+  createLambdaWorker(configuration, tables);
+  const response = await api({
+    ...event,
+    rawPath: "/api/commerce/sources",
+    body: "",
+    requestContext: { http: { method: "GET", sourceIp: "192.0.2.1" } },
+  });
+  assert.equal(response.statusCode, 200, response.body);
+  assert.equal(
+    response.body.includes('"id":"satofull","label":"さとふる","configured":true'),
+    true,
+  );
+  for (const value of [
+    secret.rakuten.accessKey,
+    secret.commerce.satofull.token,
+    secret.accesstrade.wsId,
+    secret.jev.apiKey,
+  ]) {
+    assert.equal(response.body.includes(value), false);
+  }
+  for (const [credentials, settings] of [
+    [{ ...secret, http: { ...secret.http, allowedOrigin: "https://wrong.example" } }, normal],
+    [
+      { ...secret, rakuten: { ...secret.rakuten, affiliateId: normal.rakuten.affiliateId } },
+      normal,
+    ],
+    [
+      { ...secret, commerce: { satofull: { ...secret.commerce.satofull, siteId: "1234567" } } },
+      normal,
+    ],
+    [secret, { ...normal, jev: { ...normal.jev, apiKey: "private-key-in-wrong-place" } }],
+    [
+      secret,
+      {
+        ...normal,
+        commerce: { satofull: { ...normal.commerce.satofull, token: "private-vc-in-wrong-place" } },
+      },
+    ],
+  ]) {
+    assert.throws(() => combineLambdaConfiguration(credentials, settings), {
+      message: "Invalid Lambda configuration fields",
+    });
+  }
+});
 
 await test("securities public API works without provider keys and checks origin, body and shared admission", async () => {
   const clock = instant("2026-10-25T01:00:00.000Z");
@@ -191,7 +263,6 @@ await test("Lambda bootstrap runs the catalog without Firebase and rejects publi
       accessKey: "example-access-key-1234567890",
       affiliateId: "11111111.22222222.33333333.44444444",
       allowedOrigin: "https://consumer.example/",
-      authorizedUntil: new Date(Date.now() + 3_600_000).toISOString(),
       accessToken: "t".repeat(36),
     },
     openai: null,

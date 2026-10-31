@@ -21,6 +21,7 @@ import type {
   ComparisonJobStore,
   ConsumerComparisonRunner,
 } from "../../comparison/consumer-jobs.js";
+import type { ConsumerProvider } from "../../comparison/consumer-provider.js";
 import { createConsumerComparisonService } from "../../comparison/consumer-service.js";
 import { consumerCategories } from "../../comparison/consumer.js";
 import { instant, record } from "../../comparison/values.js";
@@ -143,9 +144,8 @@ const restorationConfiguration = {
   accessKey: "example-access-key-1234567890",
   affiliateId: "11111111.22222222.33333333.44444444",
   allowedOrigin: "https://review.example/",
-  authorizedUntil: "2026-10-06T13:00:00.000Z",
-  resultStorageAuthorizedUntil: "2026-10-06T12:30:00.000Z",
 } satisfies Readonly<Record<string, string>>;
+const restorationStorageExpiresAt = "2026-10-06T12:15:00.000Z";
 async function acceptedJob(
   store: ComparisonJobStore,
   clock: () => Instant,
@@ -173,52 +173,103 @@ await test("stored job results are withheld after provider removal, revocation o
     result: {
       source: { expiresAt: "2026-10-06T12:15:00.000Z" },
       products: ["stored-product-marker"],
-      storageExpiresAt: restorationConfiguration.resultStorageAuthorizedUntil,
+      storageExpiresAt: restorationStorageExpiresAt,
     },
     resultExpiresAt: "2026-10-06T12:15:00.000Z",
-    storageExpiresAt: restorationConfiguration.resultStorageAuthorizedUntil,
+    storageExpiresAt: restorationStorageExpiresAt,
   });
   assert.equal(finished.tag, "ok");
   assert.equal(finished.value.state, "succeeded");
   const token = "t".repeat(36);
   const headers = { authorization: `Bearer ${token}`, "x-comparison-key": jobKey };
   const request = { path: `/api/comparisons/${id}`, method: "GET", headers };
-  const handler = (configuration: unknown, jobStore = store): ReturnType<typeof createApiHandler> =>
-    createApiHandler(true, configuration, null, null, { jobStore, clock, apiAccessToken: token });
+  const handler = (
+    configuration: unknown,
+    jobStore = store,
+    policy?: ReturnType<ConsumerProvider["permissions"]>,
+  ): ReturnType<typeof createApiHandler> => {
+    const providers: ConsumerProvider[] = [];
+    if (configuration !== null) {
+      providers.push({
+        metadata: {
+          id: "rakuten",
+          label: "Restoration fixture",
+          urlHosts: ["item.rakuten.co.jp"],
+          affiliateHosts: ["hb.afl.rakuten.co.jp"],
+        },
+        acceptsUrl: (url) => new URL(url).hostname === "item.rakuten.co.jp",
+        lookup: () => {
+          throw new Error("Restoration must not fetch listings");
+        },
+        search: () => {
+          throw new Error("Restoration must not search listings");
+        },
+        resolveGenreLineage: () => Promise.resolve([]),
+        categoryMatchesLineage: () => false,
+        enrich: (listings) => Promise.resolve(listings),
+        attachConsumerInformation: () => {
+          throw new Error("Restoration must not rebuild listings");
+        },
+        permissions: () =>
+          policy ?? {
+            display: true,
+            fetch: true,
+            affiliate: true,
+            ai: true,
+            store: true,
+            storeExpiresAt: restorationStorageExpiresAt,
+          },
+      });
+    }
+    return createApiHandler(true, configuration, null, null, {
+      jobStore,
+      clock,
+      apiAccessToken: token,
+      consumerService: createConsumerComparisonService(providers, undefined, clock),
+    });
+  };
   const allowed = await handler(restorationConfiguration)(request);
   assert.equal(allowed.statusCode, 200, allowed.body);
   assert.equal(allowed.body.includes("stored-product-marker"), true);
-  const revoked: ReadonlyArray<Readonly<{ label: string; configuration: unknown }>> = [
+  const permissions = {
+    display: true,
+    fetch: true,
+    affiliate: true,
+    ai: true,
+    store: true,
+    storeExpiresAt: restorationStorageExpiresAt,
+  };
+  const revoked: ReadonlyArray<
+    Readonly<{
+      label: string;
+      configuration: unknown;
+      permissions?: ReturnType<ConsumerProvider["permissions"]>;
+    }>
+  > = [
     { label: "provider removed", configuration: null },
     {
       label: "storage revoked",
-      configuration: { ...restorationConfiguration, resultStorageAuthorizedUntil: undefined },
+      configuration: restorationConfiguration,
+      permissions: { ...permissions, store: false, storeExpiresAt: null },
     },
     {
       label: "storage expired",
-      configuration: {
-        ...restorationConfiguration,
-        resultStorageAuthorizedUntil: "2026-10-06T11:59:00.000Z",
-      },
+      configuration: restorationConfiguration,
+      permissions: { ...permissions, storeExpiresAt: "2026-10-06T11:59:00.000Z" },
     },
     {
       label: "storage shortened",
-      configuration: {
-        ...restorationConfiguration,
-        resultStorageAuthorizedUntil: "2026-10-06T12:05:00.000Z",
-      },
+      configuration: restorationConfiguration,
+      permissions: { ...permissions, storeExpiresAt: "2026-10-06T12:05:00.000Z" },
     },
     {
       label: "provider expired",
-      configuration: {
-        ...restorationConfiguration,
-        authorizedUntil: "2026-10-06T11:59:00.000Z",
-        resultStorageAuthorizedUntil: undefined,
-      },
+      configuration: restorationConfiguration,
+      permissions: { ...permissions, fetch: false, display: false },
     },
   ];
   for (const entry of revoked) {
-    const api = handler(entry.configuration);
+    const api = handler(entry.configuration, store, entry.permissions);
     for (const event of [request, { ...request, path: `${request.path}/cancel`, method: "POST" }]) {
       const rejected = await api(event);
       assert.equal(rejected.statusCode, 422, `${entry.label}: ${rejected.body}`);
@@ -234,10 +285,7 @@ await test("stored job results are withheld after provider removal, revocation o
     assert.ok(replay.statusCode >= 400, `${entry.label}: ${replay.body}`);
     assert.equal(replay.body.includes("stored-product-marker"), false);
   }
-  const local = handler(
-    { ...restorationConfiguration, resultStorageAuthorizedUntil: undefined },
-    memory,
-  );
+  const local = handler(restorationConfiguration, memory);
   assert.equal((await local(request)).statusCode, 200);
   const wrong = await handler(null)({
     ...request,
@@ -896,7 +944,6 @@ const liveSettings = {
   accessKey: "example-access-key-1234567890",
   affiliateId: "11111111.22222222.33333333.44444444",
   allowedOrigin: "https://example-compare.web.app/",
-  authorizedUntil: new Date(Date.now() + 3_600_000).toISOString(),
   accessToken: "example-test-token-12345678901234567890",
 } as const;
 const liveEvent = {
@@ -1237,7 +1284,7 @@ await test("main AI plans search from user input, then verified listings supply 
   assert.equal(response.headers["cache-control"], "no-store");
 });
 
-await test("candidate authentication, missing key, expiry and invalid input stop paid calls", async (context) => {
+await test("candidate authentication, missing key, disabled provider and invalid input stop paid calls", async (context) => {
   context.mock.method(globalThis, "fetch", () => {
     throw new Error("must not fetch");
   });
@@ -1255,13 +1302,11 @@ await test("candidate authentication, missing key, expiry and invalid input stop
   assert.match(unconfigured.body, /main_ai_not_configured/);
   assert.equal(
     (
-      await createApiHandler(
-        false,
-        { ...liveSettings, authorizedUntil: "2026-01-01T00:00:00.000Z" },
-        openaiSettings,
-      )(candidateEvent)
+      await createApiHandler(false, null, openaiSettings, null, {
+        apiAccessToken: liveSettings.accessToken,
+      })(candidateEvent)
     ).statusCode,
-    422,
+    503,
   );
   assert.throws(() =>
     createApiHandler(false, liveSettings, { ...openaiSettings, model: "bad/model" }),
@@ -1372,7 +1417,7 @@ await test("live lookup uses an exact URL, preserves SKU ranges and never invent
   assert.equal(response.headers["cache-control"], "no-store");
 });
 
-await test("live authorization, expiry and URL validation prevent external calls", async (context) => {
+await test("live authentication, disabled provider and URL validation prevent external calls", async (context) => {
   context.mock.method(globalThis, "fetch", () => {
     throw new Error("must not fetch");
   });
@@ -1418,13 +1463,12 @@ await test("live authorization, expiry and URL validation prevent external calls
     ).statusCode,
     400,
   );
-  const expired = createApiHandler(false, {
-    ...liveSettings,
-    authorizedUntil: "2026-01-01T00:00:00.000Z",
+  const disabled = createApiHandler(false, null, null, null, {
+    apiAccessToken: liveSettings.accessToken,
   });
-  const denied = await expired(liveEvent);
+  const denied = await disabled(liveEvent);
   assert.equal(denied.statusCode, 422);
-  assert.match(denied.body, /source_not_authorized/);
+  assert.equal(denied.body.includes(liveSettings.accessKey), false);
   assert.throws(() => createApiHandler(false, {}));
   assert.throws(() => createApiHandler(false, { ...liveSettings, accessToken: "short" }));
   assert.throws(() => createApiHandler(false, { ...liveSettings, affiliateId: undefined }));
@@ -1844,7 +1888,6 @@ const monitorSettings = {
   accessKey: "example-access-key-1234567890",
   affiliateId: "11111111.22222222.33333333.44444444",
   allowedOrigin: "https://example-compare.web.app/",
-  authorizedUntil: new Date(Date.now() + 3_600_000).toISOString(),
   accessToken: "example-test-token-12345678901234567890",
 };
 
@@ -2730,7 +2773,7 @@ await test("consumer Rakuten adapter preserves evidence through enrichment, uses
   const result = body["value"];
   const source = result["source"];
   assert.ok(record(source));
-  assert.equal(result["storageExpiresAt"], null);
+  assert.equal(result["storageExpiresAt"], "2026-10-06T12:15:00.000Z");
   assert.equal(source["condition"], "new");
   assert.equal(source["identityVerified"], true);
   assert.equal(source["gtin"], consumerGtin(0));
@@ -2770,33 +2813,35 @@ await test("consumer Rakuten adapter preserves evidence through enrichment, uses
   );
   assert.equal(candidateSearches, 1);
   assert.equal(response.body.includes(monitorSettings.accessKey), false);
-  const granted = await createApiHandler(
-    false,
-    { ...monitorSettings, resultStorageAuthorizedUntil: "2026-10-06T12:05:00.000Z" },
-    null,
-    null,
-    { clock },
-  )(consumerEvent("laptop"));
+  const granted = await createApiHandler(false, monitorSettings, null, null, { clock })(
+    consumerEvent("laptop"),
+  );
   assert.equal(granted.statusCode, 200, granted.body);
   const stored: unknown = JSON.parse(granted.body);
   assert.ok(record(stored) && record(stored["value"]));
-  assert.equal(stored["value"]["storageExpiresAt"], "2026-10-06T12:05:00.000Z");
+  assert.equal(stored["value"]["storageExpiresAt"], "2026-10-06T12:15:00.000Z");
   badSource = true;
   const invalid = await handler(consumerEvent("laptop"));
   assert.equal(invalid.statusCode, 422);
   assert.equal(invalid.body.includes("invalid_affiliate_url"), true);
 });
 
-await test("Rakuten storage grants reject invalid or overlong ISO authorization before any request", () => {
-  for (const resultStorageAuthorizedUntil of [
-    "2099-01-01T00:00:00.000Z",
-    "2026-10-06T12:05:00Z",
-    "invalid",
-    null,
+await test("Rakuten accepts credentials without manual deadlines but rejects malformed credentials before any request", () => {
+  const valid = {
+    applicationId: monitorSettings.applicationId,
+    accessKey: monitorSettings.accessKey,
+    affiliateId: monitorSettings.affiliateId,
+    allowedOrigin: monitorSettings.allowedOrigin,
+    accessToken: monitorSettings.accessToken,
+  };
+  assert.doesNotThrow(() => createApiHandler(false, valid));
+  for (const patch of [
+    { applicationId: "" },
+    { accessKey: "" },
+    { affiliateId: "invalid" },
+    { allowedOrigin: "http://insecure.example/" },
   ]) {
-    assert.throws(() =>
-      createApiHandler(false, { ...monitorSettings, resultStorageAuthorizedUntil }),
-    );
+    assert.throws(() => createApiHandler(false, { ...valid, ...patch }));
   }
 });
 
@@ -3116,7 +3161,6 @@ const discoverySettings = {
   accessKey: "example-access-key-1234567890",
   affiliateId: "11111111.22222222.33333333.44444444",
   allowedOrigin: "https://example-compare.web.app/",
-  authorizedUntil: new Date(discoveryNow + 3 * 86_400_000).toISOString(),
   accessToken: "example-test-token-12345678901234567890",
 };
 const discoveryJevSettings = { apiKey: "test-only-key", model: "jev-1.13.0" };
@@ -3747,12 +3791,7 @@ await test("Jev body deadlines cancel stalled reads; exact byte limits preserve 
 const commerceTestToken = "commerce-test-token-12345678901234567890";
 const commerceTestNow = "2026-10-15T00:00:00.000Z";
 const commerceTestExpiry = "2026-11-01T00:00:00.000Z";
-const commerceTestVc = {
-  token: "vc-test-only-token",
-  siteId: "1234567",
-  spaceId: "123456789",
-  authorizedUntil: commerceTestExpiry,
-};
+const commerceTestVc = { token: "vc-test-only-token", siteId: "1234567", spaceId: "123456789" };
 
 function commerceTestClock(): Instant {
   const parsed = instant(commerceTestNow);
@@ -4019,7 +4058,7 @@ await test("furusato Jev scoring is wired through the public comparison handler 
   assert.match(failed.body, /"score":null/);
 });
 
-await test("VC refuses wrong advertiser, tracking account, destination, malformed data and expired authorization", async () => {
+await test("VC refuses wrong advertiser, tracking account, destination, malformed data and disabled sources", async () => {
   for (const patch of [
     { ecCode: "jhwy8" },
     { price: -1 },
@@ -4049,18 +4088,16 @@ await test("VC refuses wrong advertiser, tracking account, destination, malforme
     assert.match(result.body, /invalid_response/);
   }
   let called = false;
-  const expired = createApiHandler(false, null, null, null, {
+  const disabled = createApiHandler(false, null, null, null, {
     apiAccessToken: commerceTestToken,
     clock: commerceTestClock,
-    commerceConfiguration: {
-      satofull: { ...commerceTestVc, authorizedUntil: "2026-10-01T00:00:00.000Z" },
-    },
+    commerceConfiguration: { satofull: null },
     commerceFetcher: () => {
       called = true;
       throw new Error("No request expected");
     },
   });
-  assert.match((await expired(commerceTestRequest("satofull"))).body, /source_not_authorized/);
+  assert.match((await disabled(commerceTestRequest("satofull"))).body, /not_configured/);
   assert.equal(called, false);
 });
 
@@ -4097,7 +4134,6 @@ await test("Amazon uses JP OAuth, suppresses descriptions/MAP prices and never l
     clientId: "test-client-id",
     clientSecret: "test-client-secret",
     partnerTag: "test-partner-22",
-    authorizedUntil: commerceTestExpiry,
   };
   const fetcher: typeof fetch = (input, init) => {
     const url = new URL(input instanceof Request ? input.url : input);
@@ -4183,7 +4219,7 @@ await test("Amazon uses JP OAuth, suppresses descriptions/MAP prices and never l
   assert.equal(seenBodies.length, 2);
 });
 
-await test("native Yahoo API shares the commerce contract, preserves search-only condition and verifies attribution and authorization", async () => {
+await test("native Yahoo API shares the commerce contract, verifies attribution and timestamps freshness after a slow fetch", async () => {
   const parsedExpiry = instant(new Date(Date.parse(commerceTestExpiry) + 1000).toISOString());
   assert.equal(parsedExpiry.tag, "ok");
   let wrongAccount = false,
@@ -4206,7 +4242,6 @@ await test("native Yahoo API shares the commerce contract, preserves search-only
         applicationId: "test-yahoo-app",
         siteId: commerceTestVc.siteId,
         spaceId: commerceTestVc.spaceId,
-        authorizedUntil: commerceTestExpiry,
       },
     },
     commerceFetcher: (input) => {
@@ -4286,15 +4321,20 @@ await test("native Yahoo API shares the commerce contract, preserves search-only
   wrongAccount = false;
   expireDuringFetch = true;
   const stale = await handler(commerceTestRequest("yahoo", "search", "ボトル"));
-  assert.equal(stale.statusCode, 422, stale.body);
-  assert.match(stale.body, /source_not_authorized/);
+  assert.equal(stale.statusCode, 200, stale.body);
+  const refreshed: unknown = JSON.parse(stale.body);
+  assert.ok(record(refreshed) && record(refreshed["value"]));
+  const listings = refreshed["value"]["listings"];
+  assert.ok(Array.isArray(listings) && record(listings[0]));
+  assert.equal(listings[0]["observedAt"], "2026-11-01T00:00:01.000Z");
+  assert.equal(listings[0]["expiresAt"], "2026-11-01T00:15:01.000Z");
 });
 
 await test("Rakuten commerce keeps donations separate without a new-product keyword or condition", async () => {
   const queries: URL[] = [];
   const handler = createApiHandler(
     false,
-    { ...liveSettings, authorizedUntil: commerceTestExpiry, accessToken: commerceTestToken },
+    { ...liveSettings, accessToken: commerceTestToken },
     null,
     null,
     {

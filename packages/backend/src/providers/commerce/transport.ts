@@ -76,18 +76,12 @@ export function cleanDescription(input: unknown, maximum = 65536): string | null
     .trim();
 }
 
-export function authorization(input: unknown): Readonly<{ authorizedUntil: string; ai: boolean }> {
+export function authorization(input: unknown): Readonly<{ ai: boolean }> {
   if (
     !record(input) ||
-    typeof input["authorizedUntil"] !== "string" ||
-    !Number.isFinite(Date.parse(input["authorizedUntil"])) ||
-    new Date(input["authorizedUntil"]).toISOString() !== input["authorizedUntil"] ||
     (input["aiAuthorized"] !== undefined && typeof input["aiAuthorized"] !== "boolean")
   ) {
     throw new Error("Invalid commerce authorization settings");
   }
-  return Object.freeze({
-    authorizedUntil: input["authorizedUntil"],
-    ai: input["aiAuthorized"] === true,
-  });
+  return Object.freeze({ ai: input["aiAuthorized"] === true });
 }

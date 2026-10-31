@@ -24,8 +24,8 @@ import type {
   SpecificationFact,
 } from "../../comparison/product-information.js";
 import { readReference } from "../../comparison/providers.js";
-import { httpsUrl, permitted, permissions, record, valueOf } from "../../comparison/values.js";
-import type { Instant, Permissions, Schema, SchemaError } from "../../comparison/values.js";
+import { httpsUrl, record, valueOf } from "../../comparison/values.js";
+import type { Instant, Schema, SchemaError } from "../../comparison/values.js";
 import { parseRakutenUrl } from "./index.js";
 
 type RakutenConfiguration = Readonly<{
@@ -33,7 +33,6 @@ type RakutenConfiguration = Readonly<{
   accessKey: string;
   affiliateId: string;
   allowedOrigin: string;
-  rights: Permissions;
 }>;
 
 export const rakutenConfigurationSchema: Schema<RakutenConfiguration> = Object.freeze({
@@ -59,37 +58,8 @@ export const rakutenConfigurationSchema: Schema<RakutenConfiguration> = Object.f
       if (url.pathname !== "/" || url.search !== "") {
         return err({ code: "invalid_data", field: "rakuten_origin" });
       }
-      const expiresAt = input["authorizedUntil"];
-      const storageExpiresAt = input["resultStorageAuthorizedUntil"];
-      return andThen(
-        permissions({
-          fetch: { status: "granted", expiresAt },
-          display: { status: "granted", expiresAt },
-          store:
-            storageExpiresAt === undefined
-              ? { status: "denied" }
-              : { status: "granted", expiresAt: storageExpiresAt },
-          ai: { status: "granted", expiresAt },
-          affiliate: { status: "granted", expiresAt },
-        }),
-        (rights) => {
-          if (
-            rights.store.status === "granted" &&
-            rights.display.status === "granted" &&
-            valueOf(rights.store.expiresAt) > valueOf(rights.display.expiresAt)
-          ) {
-            return err({ code: "invalid_data", field: "rakuten_result_storage_expiry" });
-          }
-          return ok(
-            Object.freeze({
-              applicationId,
-              accessKey,
-              affiliateId,
-              allowedOrigin: url.origin,
-              rights,
-            }),
-          );
-        },
+      return ok(
+        Object.freeze({ applicationId, accessKey, affiliateId, allowedOrigin: url.origin }),
       );
     });
   },
@@ -460,14 +430,6 @@ export function createRakutenSearch(
       ) {
         return err({ code: "invalid_keyword" });
       }
-      const startedAt = clock();
-      if (
-        !permitted(configuration.rights.fetch, startedAt) ||
-        !permitted(configuration.rights.display, startedAt) ||
-        !permitted(configuration.rights.affiliate, startedAt)
-      ) {
-        return err({ code: "source_not_authorized" });
-      }
       // Search hints are never product identity; lookup still verifies the returned URL.
       const response = await client.searchItems(
         {
@@ -522,15 +484,6 @@ export function createRakutenSearch(
       }
       options.signal?.throwIfAborted();
       const now = clock();
-      if (
-        !permitted(configuration.rights.fetch, now) ||
-        !permitted(configuration.rights.display, now) ||
-        !permitted(configuration.rights.affiliate, now) ||
-        configuration.rights.display.status !== "granted"
-      ) {
-        return err({ code: "source_not_authorized" });
-      }
-      const displayExpiry = configuration.rights.display.expiresAt;
       const listings = decoded.value.map((item): RakutenListing => {
         const listing: RakutenListing = Object.freeze({
           mode: "live",
@@ -544,9 +497,7 @@ export function createRakutenSearch(
           affiliateUrl: item.affiliateUrl,
           matchMethod: null,
           observedAt: valueOf(now),
-          expiresAt: new Date(
-            Math.min(Date.parse(valueOf(now)) + 900_000, Date.parse(valueOf(displayExpiry))),
-          ).toISOString(),
+          expiresAt: new Date(Date.parse(valueOf(now)) + 900_000).toISOString(),
           shopName: item.shopName,
           price: Object.freeze({ minimum: item.minimum, maximum: item.maximum, currency: "JPY" }),
           tax: item.taxFlag === 0 ? "included" : "excluded",
@@ -711,13 +662,7 @@ export function createRakutenGenreResolver(
   const client = createRakutenClient(configuration, fetcher);
   const cache = new Map<string, Readonly<{ genre: RakutenGenre; expires: number }>>();
   return async (genreId, options) => {
-    if (
-      genreId === null ||
-      genreId === undefined ||
-      !/^\d{1,6}$/.test(genreId) ||
-      !permitted(configuration.rights.fetch, clock()) ||
-      !permitted(configuration.rights.display, clock())
-    ) {
+    if (genreId === null || genreId === undefined || !/^\d{1,6}$/.test(genreId)) {
       return null;
     }
     const cached = cache.get(genreId);
@@ -752,9 +697,6 @@ export function createRakutenGenreResolver(
         ].filter((entry, index, values) => values.indexOf(entry) === index),
       );
       options?.signal?.throwIfAborted();
-      if (!permitted(configuration.rights.display, clock())) {
-        return null;
-      }
       const name = body["genre"]["nameJa"];
       const genre: RakutenGenre = Object.freeze({
         id: genreId,
@@ -1027,8 +969,6 @@ export function createRakutenEnricher(
   const client = createRakutenClient(configuration, fetcher);
   const cache = new Map<string, Readonly<{ until: number; listings: readonly RakutenListing[] }>>();
   const inflight = new Map<string, Promise<readonly RakutenListing[]>>();
-  const authorized = (now: Instant): boolean =>
-    permitted(configuration.rights.fetch, now) && permitted(configuration.rights.display, now);
 
   const enrich = async (
     listings: readonly RakutenListing[],
@@ -1044,7 +984,6 @@ export function createRakutenEnricher(
       let metadata: ProductMetadata | null = null;
       if (
         (hints.gtin !== null || hints.model !== null) &&
-        authorized(clock()) &&
         Date.now() < deadline &&
         Date.parse(listing.expiresAt) > Date.parse(valueOf(clock()))
       ) {
@@ -1077,7 +1016,7 @@ export function createRakutenEnricher(
         cacheable = false;
       }
       options?.signal?.throwIfAborted();
-      if (!authorized(clock()) || Date.parse(listing.expiresAt) <= Date.parse(valueOf(clock()))) {
+      if (Date.parse(listing.expiresAt) <= Date.parse(valueOf(clock()))) {
         enriched.push(listing);
         cacheable = false;
         continue;
@@ -1126,8 +1065,6 @@ export function createRakutenEnricher(
       );
       enriched.push(output);
     }
-    const aiAllowed = (): boolean =>
-      authorized(clock()) && permitted(configuration.rights.ai, clock());
     const inputs: readonly SpecificationExtractionInput[] = enriched.flatMap((listing) => {
       const original = descriptions.get(listing) ?? "";
       const missingFields = numericSpecificationFields.filter(
@@ -1146,14 +1083,14 @@ export function createRakutenEnricher(
             }),
           ];
     });
-    if (extractor === undefined || inputs.length === 0 || !aiAllowed()) {
+    if (extractor === undefined || inputs.length === 0) {
       return Object.freeze({ listings: Object.freeze(enriched), cacheable });
     }
     try {
       options?.signal?.throwIfAborted();
       const result = await extractor(inputs);
       options?.signal?.throwIfAborted();
-      if (result.tag === "err" || !aiAllowed()) {
+      if (result.tag === "err") {
         return Object.freeze({ listings: Object.freeze(enriched), cacheable: false });
       }
       return Object.freeze({
@@ -1200,7 +1137,6 @@ export function createRakutenEnricher(
     if (
       listings.length === 0 ||
       listings.length > 6 ||
-      !authorized(clock()) ||
       listings.some((listing) => Date.parse(listing.expiresAt) <= now)
     ) {
       return listings;
@@ -1208,7 +1144,6 @@ export function createRakutenEnricher(
     const key = JSON.stringify({
       policy: "rakuten-specifications-v1",
       extractor: extractor?.scope ?? null,
-      ai: permitted(configuration.rights.ai, clock()),
       listings: listings.map((listing) => ({
         id: listing.listingId,
         title: listing.title,
@@ -1233,7 +1168,7 @@ export function createRakutenEnricher(
       return listings;
     }
     const operation = enrich(listings, options).then((output) => {
-      if (authorized(clock()) && output.cacheable) {
+      if (output.cacheable) {
         const until = Math.min(
           now + 900_000,
           ...listings.map((listing) => Date.parse(listing.expiresAt)),
