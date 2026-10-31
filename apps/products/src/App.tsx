@@ -20,8 +20,6 @@ import type {
 } from "@app/api-client";
 
 import { ConsumerApp } from "./ConsumerApp.js";
-import { FurusatoApp } from "./FurusatoApp.js";
-import { SecuritiesApp } from "./SecuritiesApp.js";
 
 type ComparisonMode = "price" | "performance" | "ai";
 type ViewResult<T> = Readonly<{ tag: "ok"; value: T }> | Readonly<{ tag: "err"; message: string }>;
@@ -1166,11 +1164,7 @@ function MonitorApp(): JSX.Element {
 }
 
 export function App(): JSX.Element {
-  return /^\/securities\/?$/.test(window.location.pathname) ? (
-    <SecuritiesApp />
-  ) : /^\/furusato\/?$/.test(window.location.pathname) ? (
-    <FurusatoApp />
-  ) : window.location.pathname === "/compare/charger/" ? (
+  return window.location.pathname === "/compare/charger/" ? (
     <ChargerDiagnostic />
   ) : window.location.pathname === "/compare/monitor/" ? (
     <MonitorApp />

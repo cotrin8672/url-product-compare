@@ -34,8 +34,7 @@ import type {
   DetectResult,
   StoredComparisonSession,
 } from "@app/api-client";
-
-import { ServiceHeader } from "./components/ServiceHeader.js";
+import { ServiceHeader } from "@app/ui";
 
 type DisplayResult = Readonly<{ data: ConsumerComparison; expiresAt: string }>;
 type PendingOperation = Readonly<{

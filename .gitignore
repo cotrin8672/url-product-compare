@@ -1,7 +1,7 @@
 node_modules/
 .next/
 .astro/
-apps/web/.generated/
+apps/*/.generated/
 dist/
 coverage/
 playwright-report/

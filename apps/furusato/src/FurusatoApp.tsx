@@ -14,8 +14,7 @@ import type {
   FurusatoComparison,
   FurusatoField,
 } from "@app/api-client";
-
-import { ServiceHeader } from "./components/ServiceHeader.js";
+import { ServiceHeader } from "@app/ui";
 
 type Source = "rakuten_furusato" | "satofull";
 type Entry = Readonly<{ source: Source; data: CommercePage | null; error: string | null }>;

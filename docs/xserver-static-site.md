@@ -2,7 +2,7 @@
 
 API・比較ワーカーをLambda、永続データをDynamoDBに置く構成の手順は [Xserver＋Lambda](../infrastructure/lambda/README.md) を参照してください。Xserverには静的ファイルだけを配置します。
 
-AstroのSSGで公開HTML・CSS・ブラウザー用JavaScriptを `apps/web/dist/` に生成します。比較画面は既存のSolid/TypeScriptをそのまま起動し、比較データの取得は既存APIクライアントへ委譲します。Xserver側でPHP、Node.js、Astroの実行環境は不要です。ふるさと納税の画面・ロジックは今回の移植対象外として既存の入口を維持しています。この作業ではデプロイを行っていません。
+AstroのSSGで公開HTML・CSS・ブラウザー用JavaScriptを `apps/products/dist/` に生成します。比較画面は既存のSolid/TypeScriptをそのまま起動し、比較データの取得は既存APIクライアントへ委譲します。Xserver側でPHP、Node.js、Astroの実行環境は不要です。ふるさと納税の画面・ロジックは今回の移植対象外として既存の入口を維持しています。この作業ではデプロイを行っていません。
 
 ## 生成と接続先
 
@@ -44,7 +44,7 @@ rtk mise run xserver:static
 
 この成果物にAPIやDBは含まれません。Lambdaの本番URL・許可オリジン・プロバイダー設定とDynamoDBの3テーブルを別途用意する必要があります。`xserver:package` もPHP不要の静的成果物を `dist/xserver/public_html/` へ生成します。カテゴリ定義はDynamoDBで共有し、比較ジョブとリクエスト制限もAWS内で完結します。本番デプロイは別途必要です。
 
-`apps/web/dist/` を公開ルートへ配置し、各ディレクトリの `index.html` を表示させます。既存の `.htaccess` を保持し、必要に応じて `DirectoryIndex index.html` とHTTPSを確認します。静的サイトにAPIの秘密情報やNodeワーカーを置きません。
+`apps/products/dist/` を公開ルートへ配置し、各ディレクトリの `index.html` を表示させます。既存の `.htaccess` を保持し、必要に応じて `DirectoryIndex index.html` とHTTPSを確認します。静的サイトにAPIの秘密情報やNodeワーカーを置きません。
 
 バックエンドには保存許諾、TTL、公開ゲートウェイと許可オリジンを設定します。許諾未設定の永続比較は `result_storage_denied` です。URL送信、曖昧なカテゴリ選択、再読み込み、期限切れ、POST制限を実接続先で確認してから公開します。Lambdaの取消は比較ごとのアクセスキーで保護し、既存診断はサーバートークンを必要とします。
 

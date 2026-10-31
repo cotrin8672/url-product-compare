@@ -5,11 +5,13 @@ import path from "node:path";
 import { workspacePnpm } from "./workspace-pnpm.mjs";
 
 const root = path.resolve(import.meta.dirname, "..");
-workspacePnpm("--filter", "@app/web", "build");
-const { siteOrigin, apiBase, pages } = JSON.parse(
-  readFileSync(path.join(root, "apps/web/.generated/site.json"), "utf8"),
+const target = process.argv[2] ?? "products";
+assert.ok(["products", "furusato", "securities"].includes(target), "Unknown site target");
+workspacePnpm("--filter", "@app/" + target, "build");
+const { siteOrigin, apiBase, serviceOrigins, pages } = JSON.parse(
+  readFileSync(path.join(root, "apps/" + target + "/.generated/site.json"), "utf8"),
 );
-const webDist = path.join(root, "apps/web/dist");
+const webDist = path.join(root, "apps/" + target + "/dist");
 const titles = new Set();
 const escapeHtml = (value) =>
   value
@@ -17,11 +19,15 @@ const escapeHtml = (value) =>
     .replaceAll('"', "&quot;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;");
-const publicPages = pages.filter((page) => page.kind !== "legacy");
+const publicPages = pages.filter((page) => page.kind !== "legacy" && page.kind !== "securities");
 assert.equal(new Set(pages.map((page) => page.route)).size, pages.length, "Duplicate public route");
 assert.equal(
   publicPages.length,
-  3 + pages.filter((page) => page.kind === "category").length * 4,
+  target === "products"
+    ? 2 + pages.filter((page) => page.kind === "category").length * 4
+    : target === "furusato"
+      ? 1
+      : 0,
   "Missing public route",
 );
 for (const page of pages) {
@@ -32,6 +38,16 @@ for (const page of pages) {
   titles.add(title);
   assert.equal((html.match(/<h1[ >]/g) ?? []).length, 1, "Missing no-JS heading: " + page.route);
   assert.ok(html.includes('id="public-content"') && html.includes("<p>"));
+  for (const [service, origin] of Object.entries(serviceOrigins)) {
+    assert.ok(
+      html.includes('name="service-' + service + '" content="' + escapeHtml(origin) + '"'),
+      "Missing service configuration: " + service,
+    );
+    assert.ok(
+      html.includes('href="' + escapeHtml(origin) + '/"'),
+      "Missing crawlable service link: " + service,
+    );
+  }
   const apiMeta = html.match(/<meta name="api-base" content(?:="([^"]*)")?>/);
   assert.notEqual(apiMeta, null, "Missing API configuration: " + page.route);
   assert.equal(
@@ -41,7 +57,7 @@ for (const page of pages) {
   );
   assert.equal((html.match(/<link rel="canonical"/g) ?? []).length, siteOrigin.length > 0 ? 1 : 0);
   if (siteOrigin.length > 0) assert.ok(html.includes('href="' + siteOrigin + page.route + '"'));
-  if (siteOrigin.length === 0 || page.kind === "legacy")
+  if (siteOrigin.length === 0 || page.kind === "legacy" || page.kind === "securities")
     assert.ok(html.includes('content="noindex,nofollow"'));
   for (const label of page.labels)
     assert.ok(html.includes(escapeHtml(label)), "Score label missing: " + label);
@@ -64,6 +80,24 @@ for (const page of pages) {
     );
   }
 }
+if (target === "products") {
+  assert.equal(
+    existsSync(path.join(webDist, "furusato/index.html")),
+    false,
+    "Furusato must deploy independently",
+  );
+  assert.equal(
+    existsSync(path.join(webDist, "securities/index.html")),
+    false,
+    "Securities must deploy independently",
+  );
+} else {
+  assert.equal(
+    existsSync(path.join(webDist, "category")),
+    false,
+    "Product routes leaked into a service site",
+  );
+}
 const robots = readFileSync(path.join(webDist, "robots.txt"), "utf8");
 const sitemap = readFileSync(path.join(webDist, "sitemap.xml"), "utf8");
 assert.ok(!/\/jobs\/|\/results\/|\/api\//.test(sitemap), "Private route in sitemap");
@@ -71,7 +105,7 @@ assert.equal(
   (sitemap.match(/<loc>/g) ?? []).length,
   siteOrigin.length > 0 ? publicPages.length : 0,
 );
-if (siteOrigin.length > 0) {
+if (siteOrigin.length > 0 && target !== "securities") {
   assert.ok(robots.includes("Sitemap: " + siteOrigin + "/sitemap.xml"));
   for (const page of publicPages) {
     assert.ok(sitemap.includes("<loc>" + siteOrigin + page.route + "</loc>"));

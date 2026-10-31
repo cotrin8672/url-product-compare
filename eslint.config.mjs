@@ -8,7 +8,7 @@ import { defineConfig, globalIgnores } from "eslint/config";
 import tseslint from "typescript-eslint";
 
 const root = process.cwd();
-const tsFiles = ["**/*.{ts,tsx,mts,cts}", "apps/web/src/**/*.astro"];
+const tsFiles = ["**/*.{ts,tsx,mts,cts}", "apps/{products,furusato,securities}/src/**/*.astro"];
 const sourceFiles = [
   "apps/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs,astro}",
   "packages/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}",
@@ -184,12 +184,16 @@ export default defineConfig(
         "packages/jev-api/dist/**",
         "packages/amazon-api/dist/**",
         "packages/yahoo-shopping-api/dist/**",
-        "apps/web/.generated/site.json",
-        "apps/web/src/*.css",
+        "apps/{products,furusato,securities}/.generated/site.json",
+        "apps/{products,furusato,securities}/src/*.css",
+        "packages/ui/src/*.css",
       ],
       "boundaries/files": [
-        { pattern: "apps/web/astro.config.mjs", category: "web-config" },
-        { pattern: "apps/web/.generated/site.json", category: "web-site-data" },
+        { pattern: "apps/{products,furusato,securities}/astro.config.mjs", category: "web-config" },
+        {
+          pattern: "apps/{products,furusato,securities}/.generated/site.json",
+          category: "web-site-data",
+        },
         {
           pattern: "packages/backend/src/{bootstrap,firebase-bootstrap,lambda-bootstrap}.ts",
           category: "bootstrap",
@@ -206,7 +210,9 @@ export default defineConfig(
         { type: "jev-sdk", pattern: "packages/jev-api/{src,dist}" },
         { type: "amazon-sdk", pattern: "packages/amazon-api/{src,dist}" },
         { type: "yahoo-sdk", pattern: "packages/yahoo-shopping-api/{src,dist}" },
-        { type: "web", pattern: "apps/web/src" },
+        { type: "web", pattern: "apps/{products,furusato,securities}/src" },
+        { type: "ui", pattern: "packages/ui/src" },
+        { type: "site-config", pattern: "packages/site-config/src" },
         // Owned build-time catalog metadata is generated from backend, never fetched by the UI.
         { type: "api", pattern: "apps/api/src" },
         { type: "worker", pattern: "apps/worker/src" },
@@ -230,14 +236,25 @@ export default defineConfig(
               from: { element: { type: "web" } },
               allow: [
                 local("client"),
+                local("ui"),
+                local("site-config"),
                 external(["solid-js", "solid-js/*"]),
                 external(["react", "react-dom", "next", "next/*", "react/*"]),
               ],
             },
             // Only prerendered Astro pages/endpoints consume generated public metadata and Astro types.
             {
-              from: { file: { path: "apps/web/src/pages/*" } },
+              from: { file: { path: "apps/{products,furusato,securities}/src/pages/*" } },
               allow: [{ to: { file: { categories: "web-site-data" } } }, external("astro")],
+            },
+            // Shared UI can consume public site settings and Solid only; it cannot access backend or API data.
+            {
+              from: { element: { type: "ui" } },
+              allow: [local("site-config"), external(["solid-js", "solid-js/*"])],
+            },
+            {
+              from: { file: { path: "packages/site-config/src/index.test.ts" } },
+              allow: external(["node:assert", "node:test"]),
             },
             { from: { element: { type: "client" } }, allow: [external("openapi-fetch")] },
             // The API client parser uses Node's built-in test runner.
@@ -423,9 +440,12 @@ export default defineConfig(
     },
   },
   {
-    files: ["apps/web/**/*.{ts,tsx,mts,cts,astro}"],
+    files: [
+      "apps/{products,furusato,securities}/**/*.{ts,tsx,mts,cts,astro}",
+      "packages/ui/src/**/*.{ts,tsx}",
+    ],
     plugins: { "react-hooks": reactHooks, "@next/next": next },
-    settings: { next: { rootDir: "apps/web/" } },
+    settings: { next: { rootDir: "apps/products/" } },
     rules: {
       ...reactHooks.configs.recommended.rules,
       ...next.configs.recommended.rules,
@@ -448,7 +468,7 @@ export default defineConfig(
   // These files require default exports in their framework/tool contract.
   {
     files: [
-      "apps/web/src/app/**/{page,layout,loading,error,not-found,template,default,global-error}.tsx",
+      "apps/products/src/app/**/{page,layout,loading,error,not-found,template,default,global-error}.tsx",
       "*.config.ts",
       "packages/backend/drizzle.config.ts",
     ],
@@ -469,7 +489,7 @@ export default defineConfig(
   },
   // Declaration merging and negative type tests have narrowly scoped exceptions.
   {
-    files: ["apps/web/src/components/SecuritiesAdImpression.tsx"],
+    files: ["apps/securities/src/components/SecuritiesAdImpression.tsx"],
     // ASP impression tags must be rendered as supplied, without image optimization or caching.
     rules: { "@next/next/no-img-element": "off" },
   },
@@ -490,12 +510,16 @@ export default defineConfig(
   },
   ...astro.configs.recommended,
   {
-    files: ["apps/web/src/**/*.astro"],
+    files: ["apps/{products,furusato,securities}/src/**/*.astro"],
     languageOptions: {
       parserOptions: {
         parser: tseslint.parser,
         projectService: false,
-        project: "./apps/web/tsconfig.json",
+        project: [
+          "./apps/products/tsconfig.json",
+          "./apps/furusato/tsconfig.json",
+          "./apps/securities/tsconfig.json",
+        ],
         extraFileExtensions: [".astro"],
         tsconfigRootDir: root,
       },
@@ -503,17 +527,17 @@ export default defineConfig(
     rules: { "astro/no-set-html-directive": "error" },
   },
   {
-    files: ["apps/web/src/**/*.astro"],
+    files: ["apps/{products,furusato,securities}/src/**/*.astro"],
     // Astro owns the document shell; Next head/script rules apply only to Next pages.
     rules: { "@next/next/no-head-element": "off", "@next/next/no-sync-scripts": "off" },
   },
   {
-    files: ["apps/web/astro.config.mjs"],
+    files: ["apps/{products,furusato,securities}/astro.config.mjs"],
     // Astro's build configuration is an ESM framework entry, not browser application code.
     rules: { "no-restricted-syntax": "off" },
   },
   {
-    files: ["apps/web/src/components/Breadcrumbs.astro"],
+    files: ["apps/products/src/components/Breadcrumbs.astro"],
     // Owned JSON-LD only; JSON.stringify plus escaping '<' prevents script termination.
     rules: { "astro/no-set-html-directive": "off" },
   },

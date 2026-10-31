@@ -47,7 +47,9 @@ assert.equal(await realpath(output), output);
 assert.ok(output.startsWith(`${path.join(root, "dist")}${path.sep}`));
 await rm(output, { recursive: true });
 await mkdir(output, { recursive: true });
-await cp(path.join(root, "apps/web/dist"), path.join(output, "public_html"), { recursive: true });
+await cp(path.join(root, "apps/products/dist"), path.join(output, "public_html"), {
+  recursive: true,
+});
 const headers = (
   await readFile(path.join(root, "infrastructure/lambda/xserver.htaccess.example"), "utf8")
 )

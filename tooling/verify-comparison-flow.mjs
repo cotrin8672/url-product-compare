@@ -559,7 +559,7 @@ async function serveFixture() {
       `PC sample validated: 4 products, 6 primary axes, ${layout.detailAxes.length} extra axes, ${layout.specificationFields.length} specification rows`,
     );
   }
-  const webRoot = resolve(root, "apps/web/dist");
+  const webRoot = resolve(root, "apps/products/dist");
   const tasks = new Set();
   const handle = async (request, response) => {
     const url = new URL(request.url ?? "/", "http://127.0.0.1:3001");

@@ -21,13 +21,30 @@ assert.ok(
     !/(?:^|\.)(?:localhost|local|internal)$/u.test(api.hostname),
   "PUBLIC_API_BASE must be a public HTTPS origin without credentials or a path",
 );
-const build = spawnSync(process.execPath, ["tooling/build-site.mjs"], {
+const target = process.argv[2] ?? "products";
+assert.ok(["products", "furusato", "securities"].includes(target), "Unknown site target");
+const build = spawnSync(process.execPath, ["tooling/build-site.mjs", target], {
   cwd: root,
   stdio: "inherit",
 });
 assert.equal(build.error, undefined);
 assert.equal(build.status, 0, "Pages static build failed");
-const output = path.join(root, "apps/web/dist");
+const output = path.join(root, "apps/" + target + "/dist");
+if (target === "products") {
+  const { serviceOrigins } = JSON.parse(
+    await readFile(path.join(root, "apps/products/.generated/site.json"), "utf8"),
+  );
+  await writeFile(
+    path.join(output, "_redirects"),
+    [
+      "/furusato " + serviceOrigins.furusato + "/ 301",
+      "/furusato/ " + serviceOrigins.furusato + "/ 301",
+      "/securities " + serviceOrigins.securities + "/ 301",
+      "/securities/ " + serviceOrigins.securities + "/ 301",
+      "",
+    ].join("\n"),
+  );
+}
 const headers = [
   "/*",
   "  X-Content-Type-Options: nosniff",

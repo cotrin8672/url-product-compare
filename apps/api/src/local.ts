@@ -31,7 +31,7 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
   }
   if (route.pathname !== "/api" && !route.pathname.startsWith("/api/")) {
     const asset = await readPublicAsset(
-      `${process.cwd()}/apps/web/dist`,
+      `${process.cwd()}/apps/products/dist`,
       route.pathname,
       request.method ?? "GET",
     );

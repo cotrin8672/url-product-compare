@@ -1,0 +1,16 @@
+{
+  "name": "@app/ui",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./base.css": "./src/base.css"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@app/site-config": "workspace:*",
+    "solid-js": "1.9.15"
+  }
+}

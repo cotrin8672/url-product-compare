@@ -17,6 +17,7 @@ import type { DynamoDatabase } from "./infrastructure/dynamodb/database.js";
 import { createDynamoComparisonJobStore } from "./infrastructure/dynamodb/jobs.js";
 import { createDynamoRateLimiter } from "./infrastructure/dynamodb/limits.js";
 import type { ApiResponse } from "./infrastructure/http/request.js";
+import { consumerOriginsSchema } from "./infrastructure/http/request.js";
 
 function configurationObject(
   input: unknown,
@@ -76,7 +77,7 @@ export function combineLambdaConfiguration(
       secrets["http"],
       settings["http"],
       ["accessToken"],
-      ["allowedOrigin", "globalPerMinute", "globalPerDay"],
+      ["allowedOrigin", "allowedOrigins", "globalPerMinute", "globalPerDay"],
     ),
     rakuten: section(
       secrets["rakuten"],
@@ -144,6 +145,7 @@ function configuration(
   securitiesAffiliates: unknown;
   accessToken: string;
   allowedOrigin: string;
+  allowedOrigins: readonly string[];
   globalPerMinute: number;
   globalPerDay: number;
 }> {
@@ -162,6 +164,13 @@ function configuration(
   const origin = new URL(input["http"]["allowedOrigin"]);
   if (origin.protocol !== "https:" || origin.origin !== input["http"]["allowedOrigin"]) {
     throw new Error("A production HTTPS origin is required");
+  }
+  const allowedOrigins =
+    input["http"]["allowedOrigins"] === undefined
+      ? [origin.origin]
+      : consumerOriginsSchema.parse(input["http"]["allowedOrigins"]);
+  if (allowedOrigins.some((value) => !value.startsWith("https://"))) {
+    throw new Error("Production consumer origins must use HTTPS");
   }
   const accesstrade = input["accesstrade"];
   if (
@@ -200,6 +209,7 @@ function configuration(
     securitiesAffiliates: input["securitiesAffiliates"] ?? null,
     accessToken: input["http"]["accessToken"],
     allowedOrigin: origin.origin,
+    allowedOrigins,
     globalPerMinute,
     globalPerDay,
   };
@@ -246,11 +256,12 @@ export function createLambdaApi(
     createPublicConsumerApi(internal, {
       accessToken: settings.accessToken,
       allowedOrigin: settings.allowedOrigin,
+      allowedOrigins: settings.allowedOrigins,
       allowCapabilityCancellation: true,
       consumeRateLimit: async (address) =>
         await consume(createHmac("sha256", settings.accessToken).update(address).digest("hex")),
     }),
-    { allowedOrigin: settings.allowedOrigin },
+    { allowedOrigin: settings.allowedOrigin, allowedOrigins: settings.allowedOrigins },
   );
 }
 

@@ -533,11 +533,34 @@ function consumerOrigin(input: string): string {
   }
   return url.origin;
 }
+export const consumerOriginsSchema = {
+  parse(input: unknown): readonly string[] {
+    if (!Array.isArray(input) || input.length === 0 || input.length > 16) {
+      throw new Error("Expected between one and sixteen public consumer origins");
+    }
+    const origins = input.map((value: unknown) => {
+      if (typeof value !== "string") {
+        throw new Error("Expected a public consumer origin string");
+      }
+      const origin = consumerOrigin(value);
+      if (origin !== value) {
+        throw new Error("Expected an exact public consumer origin without a trailing slash");
+      }
+      return origin;
+    });
+    if (new Set(origins).size !== origins.length) {
+      throw new Error("Duplicate public consumer origins");
+    }
+    return origins;
+  },
+};
+
 export function createPublicConsumerGateway(
   internal: (event: unknown) => Promise<ApiResponse>,
   settings: Readonly<{
     accessToken: string | null;
     allowedOrigin?: string;
+    allowedOrigins?: readonly string[];
     clock?: () => number;
     consumeRateLimit?: (address: string) => Promise<boolean>;
     allowCapabilityCancellation?: boolean;
@@ -548,6 +571,12 @@ export function createPublicConsumerGateway(
   }
   const configuredOrigin =
     settings.allowedOrigin === undefined ? null : consumerOrigin(settings.allowedOrigin);
+  const configuredOrigins = new Set([
+    ...(configuredOrigin === null ? [] : [configuredOrigin]),
+    ...(settings.allowedOrigins === undefined
+      ? []
+      : consumerOriginsSchema.parse(settings.allowedOrigins)),
+  ]);
   const clock = settings.clock ?? Date.now;
   const buckets = new Map<string, Readonly<{ count: number; resetAt: number }>>();
   return async (event, clientAddress, serverOrigin) => {
@@ -576,7 +605,12 @@ export function createPublicConsumerGateway(
       return apiResponse(400, err({ code: "invalid_request" }));
     }
     const expectedOrigin =
-      configuredOrigin ?? (serverOrigin === undefined ? null : consumerOrigin(serverOrigin));
+      typeof origin === "string" && configuredOrigins.has(origin)
+        ? origin
+        : (configuredOrigin ??
+          (configuredOrigins.size > 0 || serverOrigin === undefined
+            ? null
+            : consumerOrigin(serverOrigin)));
     if (origin !== null && origin !== expectedOrigin) {
       return apiResponse(403, err({ code: "origin_forbidden" }));
     }

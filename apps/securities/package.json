@@ -1,15 +1,17 @@
 {
-  "name": "@app/web",
+  "name": "@app/securities",
   "private": true,
   "type": "module",
   "scripts": {
-    "prepare:site": "node ../../tooling/prepare-site.mjs",
+    "prepare:site": "node ../../tooling/prepare-site.mjs securities",
     "typecheck": "pnpm prepare:site && tsc --noEmit && astro check",
     "dev": "pnpm prepare:site && astro dev",
     "build": "pnpm prepare:site && astro build"
   },
   "dependencies": {
     "@app/api-client": "workspace:*",
+    "@app/site-config": "workspace:*",
+    "@app/ui": "workspace:*",
     "solid-js": "1.9.15"
   },
   "devDependencies": {

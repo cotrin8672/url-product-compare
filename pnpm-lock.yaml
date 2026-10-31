@@ -59,11 +59,73 @@ importers:
 
   apps/api: {}
 
-  apps/web:
+  apps/furusato:
     dependencies:
       '@app/api-client':
         specifier: workspace:*
         version: link:../../packages/api-client
+      '@app/site-config':
+        specifier: workspace:*
+        version: link:../../packages/site-config
+      '@app/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
+      solid-js:
+        specifier: 1.9.15
+        version: 1.9.15
+    devDependencies:
+      '@astrojs/check':
+        specifier: 0.9.12
+        version: 0.9.12(@emnapi/runtime@1.11.3)(prettier-plugin-astro@1.1.1(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(prettier@3.9.10))(prettier@3.9.10)(typescript@5.9.3)
+      '@astrojs/solid-js':
+        specifier: 7.1.1
+        version: 7.1.1(@types/node@24.10.13)(jiti@2.7.0)(solid-js@1.9.15)(yaml@2.9.1)
+      astro:
+        specifier: 7.4.2
+        version: 7.4.2(@types/node@24.10.13)(jiti@2.7.0)(yaml@2.9.1)
+      vite:
+        specifier: 8.3.4
+        version: 8.3.4(@types/node@24.10.13)(jiti@2.7.0)(yaml@2.9.1)
+
+  apps/securities:
+    dependencies:
+      '@app/api-client':
+        specifier: workspace:*
+        version: link:../../packages/api-client
+      '@app/site-config':
+        specifier: workspace:*
+        version: link:../../packages/site-config
+      '@app/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
+      solid-js:
+        specifier: 1.9.15
+        version: 1.9.15
+    devDependencies:
+      '@astrojs/check':
+        specifier: 0.9.12
+        version: 0.9.12(@emnapi/runtime@1.11.3)(prettier-plugin-astro@1.1.1(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(prettier@3.9.10))(prettier@3.9.10)(typescript@5.9.3)
+      '@astrojs/solid-js':
+        specifier: 7.1.1
+        version: 7.1.1(@types/node@24.10.13)(jiti@2.7.0)(solid-js@1.9.15)(yaml@2.9.1)
+      astro:
+        specifier: 7.4.2
+        version: 7.4.2(@types/node@24.10.13)(jiti@2.7.0)(yaml@2.9.1)
+      vite:
+        specifier: 8.3.4
+        version: 8.3.4(@types/node@24.10.13)(jiti@2.7.0)(yaml@2.9.1)
+
+  apps/products:
+    dependencies:
+      '@app/api-client':
+        specifier: workspace:*
+        version: link:../../packages/api-client
+      '@app/site-config':
+        specifier: workspace:*
+        version: link:../../packages/site-config
+      '@app/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       solid-js:
         specifier: 1.9.15
         version: 1.9.15
@@ -121,6 +183,17 @@ importers:
   packages/jev-api: {}
 
   packages/rakuten-api: {}
+
+  packages/site-config: {}
+
+  packages/ui:
+    dependencies:
+      '@app/site-config':
+        specifier: workspace:*
+        version: link:../site-config
+      solid-js:
+        specifier: 1.9.15
+        version: 1.9.15
 
   packages/valuecommerce-api: {}
 

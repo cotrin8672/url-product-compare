@@ -16,7 +16,7 @@ const checker = new ESLint({
     languageOptions: { parserOptions: { tsconfigRootDir: sandbox } },
     settings: {
       "boundaries/root-path": sandbox,
-      next: { rootDir: path.join(sandbox, "apps/web/") },
+      next: { rootDir: path.join(sandbox, "apps/products/") },
       "import/resolver": { typescript: { project: path.join(sandbox, "tsconfig.json") } },
     },
   },
@@ -73,14 +73,18 @@ try {
   });
   for (const directory of [
     "apps/api/src",
-    "apps/web/src",
+    "apps/products/src",
+    "apps/furusato/src",
+    "apps/securities/src",
+    "packages/ui/src",
+    "packages/site-config/src",
     "packages/contracts/src",
     "packages/backend/src",
     "packages/api-client/src",
   ]) {
     await put(`${directory}/tsconfig.json`, tsconfig);
   }
-  await mkdir(path.join(sandbox, "apps/web/src/app"), { recursive: true });
+  await mkdir(path.join(sandbox, "apps/products/src/app"), { recursive: true });
   await check("export const price = 0;");
   await check("export const state = { status: 'ok' } as const;");
   await check("export const value: any = 1;", ["@typescript-eslint/no-explicit-any"]);
@@ -184,9 +188,9 @@ try {
   await check("export interface Product { readonly price: number; }", [
     "@typescript-eslint/consistent-type-definitions",
   ]);
-  await check("export const value = 1;", ["no-restricted-syntax"], "apps/web/src/probe.js");
+  await check("export const value = 1;", ["no-restricted-syntax"], "apps/products/src/probe.js");
   await put(
-    "apps/web/tsconfig.json",
+    "apps/products/tsconfig.json",
     JSON.stringify({
       extends: "../../tsconfig.base.json",
       compilerOptions: { module: "NodeNext", moduleResolution: "NodeNext", noEmit: true },
@@ -196,32 +200,32 @@ try {
   await check(
     "export const value = 1;",
     ["boundaries/no-unknown-files"],
-    "apps/web/unclassified.ts",
+    "apps/products/unclassified.ts",
   );
   await check(
     "fetch('/comparison').catch((error: unknown) => { throw error; });",
     ["no-restricted-globals"],
-    "apps/web/src/probe.ts",
+    "apps/products/src/probe.ts",
   );
   await check(
     "globalThis.fetch('/comparison').catch((error: unknown) => { throw error; });",
     ["no-restricted-properties"],
-    "apps/web/src/probe.ts",
+    "apps/products/src/probe.ts",
   );
   await check(
     "import { useState } from 'react'; export function Component(): null { if (Math.random() > 0.5) { useState(0); } return null; }",
     ["react-hooks/rules-of-hooks"],
-    "apps/web/src/hooks.ts",
+    "apps/products/src/hooks.ts",
   );
   await check(
     "import { useEffect } from 'react'; export function Component(input: Readonly<{ value: string }>): null { useEffect(() => { if (input.value === '') { throw new Error('empty'); } }, []); return null; }",
     ["react-hooks/exhaustive-deps"],
-    "apps/web/src/hooks.ts",
+    "apps/products/src/hooks.ts",
   );
   await check(
     "export function Picture(): unknown { return <img src='/photo.png' alt='Photo' />; }",
     ["@next/next/no-img-element"],
-    "apps/web/src/picture.tsx",
+    "apps/products/src/picture.tsx",
   );
   await put("packages/backend/src/bootstrap.ts", "export const backend = 1;");
   await check(
@@ -230,14 +234,32 @@ try {
   await check(
     "import { backend } from '../../../packages/backend/src/bootstrap.js'; export const value = backend;",
     ["boundaries/dependencies"],
-    "apps/web/src/probe.ts",
+    "apps/products/src/probe.ts",
   );
-  await check("import 'pg'; export {};", ["boundaries/dependencies"], "apps/web/src/probe.ts");
+  await check("import 'pg'; export {};", ["boundaries/dependencies"], "apps/products/src/probe.ts");
+  // Independently deployed sites and shared presentation code keep the same data boundary.
+  for (const file of [
+    "apps/furusato/src/probe.ts",
+    "apps/securities/src/probe.ts",
+    "packages/ui/src/probe.ts",
+  ]) {
+    await check(
+      "fetch('/comparison').catch((error: unknown) => { throw error; });",
+      ["no-restricted-globals"],
+      file,
+    );
+    await check("import 'pg'; export {};", ["boundaries/dependencies"], file);
+    await check(
+      "import { backend } from '../../../packages/backend/src/bootstrap.js'; export const value = backend;",
+      ["boundaries/dependencies"],
+      file,
+    );
+  }
   await put("tooling/ignored.mjs", "export const ignored = 1;");
   await check(
     "import '../../../tooling/ignored.mjs'; export {};",
     ["boundaries/no-ignored-dependencies"],
-    "apps/web/src/App.tsx",
+    "apps/products/src/App.tsx",
   );
   await put("packages/contracts/src/private.ts", "export const privateValue = 1;");
   await check(
@@ -256,11 +278,11 @@ try {
   );
   // Firebase SDK access remains confined to bootstrap and the storage adapter.
   for (const [file, dependency] of [
-    ["apps/web/src/probe.ts", "firebase-admin/app"],
+    ["apps/products/src/probe.ts", "firebase-admin/app"],
     ["apps/api/src/probe.ts", "firebase-functions/v2/https"],
     ["packages/backend/src/comparison/probe.ts", "firebase-admin/firestore"],
     ["packages/backend/src/infrastructure/http/probe.ts", "firebase-admin/firestore"],
-    ["apps/web/src/probe.ts", "@aws-sdk/client-dynamodb"],
+    ["apps/products/src/probe.ts", "@aws-sdk/client-dynamodb"],
     ["packages/backend/src/comparison/probe.ts", "@aws-sdk/client-dynamodb"],
     ["packages/backend/src/bootstrap.ts", "@aws-sdk/client-dynamodb"],
   ]) {

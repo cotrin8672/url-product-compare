@@ -7,7 +7,11 @@ import type { ApiResponse } from "../http/request.js";
 
 export function createLambdaHttpHandler(
   handle: (event: unknown, clientAddress: string) => Promise<ApiResponse>,
-  options: Readonly<{ clock?: () => number; allowedOrigin?: string }> = {},
+  options: Readonly<{
+    clock?: () => number;
+    allowedOrigin?: string;
+    allowedOrigins?: readonly string[];
+  }> = {},
 ): (event: unknown) => Promise<ApiResponse> {
   // Reject bursts before DynamoDB access. This budget is per warm environment,
   // not a substitute for edge admission or an account-wide billing cap.
@@ -72,7 +76,10 @@ export function createLambdaHttpHandler(
           apiResponse(429, err({ code: "consumer_rate_limited" }), {
             "retry-after": String(Math.max(1, 60 - (Math.floor(clock() / 1000) % 60))),
           }),
-          options.allowedOrigin ?? null,
+          typeof event["headers"]["origin"] === "string" &&
+            (options.allowedOrigins ?? []).includes(event["headers"]["origin"])
+            ? event["headers"]["origin"]
+            : (options.allowedOrigin ?? null),
         );
       }
       readAddresses.set(address, addressReads + 1);

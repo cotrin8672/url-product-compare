@@ -7,9 +7,9 @@
     "predeploy": ["rtk mise run verify", "rtk mise run firebase:package"]
   },
   "hosting": {
-    "public": "apps/web/dist",
+    "public": "apps/products/dist",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
-    "predeploy": ["rtk mise exec -- pnpm --filter @app/web build"],
+    "predeploy": ["rtk mise exec -- pnpm --filter @app/products build"],
     "rewrites": [
       {
         "source": "/api{,/**}",

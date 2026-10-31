@@ -15,9 +15,9 @@ import type {
   SecuritiesFormIssue,
   SecuritiesSubmission,
 } from "@app/api-client";
+import { ServiceHeader } from "@app/ui";
 
 import { SecuritiesAdImpression } from "./components/SecuritiesAdImpression.js";
-import { ServiceHeader } from "./components/ServiceHeader.js";
 
 import "./securities.css";
 

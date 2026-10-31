@@ -159,6 +159,7 @@ export function createPublicConsumerApi(
   settings: Readonly<{
     accessToken: string | null;
     allowedOrigin?: string;
+    allowedOrigins?: readonly string[];
     clock?: () => number;
     consumeRateLimit?: (address: string) => Promise<boolean>;
     allowCapabilityCancellation?: boolean;

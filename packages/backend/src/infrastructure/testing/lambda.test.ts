@@ -33,6 +33,51 @@ const tables = {
   limits: "comparison-limits",
 };
 
+await test("multiple site origins pass CORS independently while unlisted origins remain forbidden", async () => {
+  const origins = [
+    "https://products.example",
+    "https://furusato.example",
+    "https://securities.example",
+  ];
+  const api = createPublicConsumerApi(() => Promise.resolve(apiResponse(200, { tag: "ok" })), {
+    accessToken: "t".repeat(36),
+    allowedOrigin: "https://products.example",
+    allowedOrigins: origins,
+  });
+  for (const origin of origins) {
+    for (const method of ["GET", "OPTIONS"]) {
+      const response = await api(
+        { path: "/api/catalog", method, headers: { origin, "sec-fetch-site": "cross-site" } },
+        "192.0.2.1",
+      );
+      assert.equal(response.statusCode, method === "OPTIONS" ? 204 : 200);
+      assert.equal(response.headers["access-control-allow-origin"], origin);
+      assert.equal(response.headers["vary"]?.includes("Origin"), true);
+    }
+  }
+  for (const origin of ["https://evil.example", "https://products.example.evil", "null"]) {
+    const response = await api(
+      { path: "/api/catalog", method: "OPTIONS", headers: { origin } },
+      "192.0.2.1",
+    );
+    assert.equal(response.statusCode, 403);
+    assert.equal(response.headers["access-control-allow-origin"], undefined);
+  }
+  for (const allowedOrigins of [
+    [],
+    ["*"],
+    ["https://products.example/path"],
+    ["https://products.example", "https://products.example"],
+  ]) {
+    assert.throws(() =>
+      createPublicConsumerApi(() => Promise.resolve(apiResponse(200, {})), {
+        accessToken: null,
+        allowedOrigins,
+      }),
+    );
+  }
+});
+
 await test("Lambda combines credential-only secrets with normal settings and rejects misplaced fields without leaking values", async () => {
   const secret = {
     http: { accessToken: "t".repeat(36) },

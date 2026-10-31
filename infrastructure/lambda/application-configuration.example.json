@@ -1,6 +1,11 @@
 {
   "http": {
     "allowedOrigin": "https://url-product-compare.pages.dev",
+    "allowedOrigins": [
+      "https://url-product-compare.pages.dev",
+      "https://YOUR_FURUSATO_PROJECT.pages.dev",
+      "https://YOUR_SECURITIES_PROJECT.pages.dev"
+    ],
     "globalPerMinute": 60,
     "globalPerDay": 1000
   },

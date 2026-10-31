@@ -1,0 +1,23 @@
+{
+  "name": "@app/products",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "prepare:site": "node ../../tooling/prepare-site.mjs",
+    "typecheck": "pnpm prepare:site && tsc --noEmit && astro check",
+    "dev": "pnpm prepare:site && astro dev",
+    "build": "pnpm prepare:site && astro build"
+  },
+  "dependencies": {
+    "@app/api-client": "workspace:*",
+    "@app/site-config": "workspace:*",
+    "@app/ui": "workspace:*",
+    "solid-js": "1.9.15"
+  },
+  "devDependencies": {
+    "@astrojs/check": "0.9.12",
+    "@astrojs/solid-js": "7.1.1",
+    "astro": "7.4.2",
+    "vite": "8.3.4"
+  }
+}

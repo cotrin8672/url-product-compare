@@ -2,17 +2,21 @@
 import { For } from "solid-js";
 import type { JSX } from "solid-js";
 
-import "../service-header.css";
+import "./service-header.css";
 
-const services = [
-  { id: "products", href: "/", label: "商品" },
-  { id: "furusato", href: "/furusato/", label: "ふるさと納税" },
-  { id: "securities", href: "/securities/", label: "証券会社" },
-] satisfies ReadonlyArray<Readonly<{ id: string; href: string; label: string }>>;
+import { serviceOriginsSchema, serviceLinks } from "@app/site-config";
+import type { ServiceId } from "@app/site-config";
 
-export function ServiceHeader(
-  props: Readonly<{ current: "products" | "furusato" | "securities" }>,
-): JSX.Element {
+export function ServiceHeader(props: Readonly<{ current: ServiceId }>): JSX.Element {
+  const origins = serviceOriginsSchema.parse(
+    Object.fromEntries(
+      ["products", "furusato", "securities"].map((id) => [
+        id,
+        document.querySelector<HTMLMetaElement>('meta[name="service-' + id + '"]')?.content,
+      ]),
+    ),
+  );
+  const services = serviceLinks(origins);
   return (
     <header class="top site-header">
       <div class="top-inner">

@@ -65,4 +65,9 @@ const internal = createApiHandler(
 export const handler = createPublicConsumerApi(internal, {
   accessToken: process.env["API_ACCESS_TOKEN"] ?? null,
   allowedOrigin: allowedOrigin ?? "http://127.0.0.1:5173",
+  ...(allowedOrigin === undefined
+    ? {
+        allowedOrigins: ["http://127.0.0.1:5173", "http://127.0.0.1:5174", "http://127.0.0.1:5175"],
+      }
+    : {}),
 });

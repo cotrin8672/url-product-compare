@@ -54,7 +54,7 @@ rtk proxy mise exec -- node apps/api/dist/firebase/apps/api/src/local.js
 別ターミナルでWebを起動し、公式URL取得→端末とケーブル能力入力→確認→比較を行う。
 
 ```powershell
-rtk proxy mise exec -- pnpm --filter @app/web dev --host 127.0.0.1
+rtk proxy mise exec -- pnpm --filter @app/products dev --host 127.0.0.1
 ```
 
 再評価はビルド済みモジュールを使う。現在は比較対象4型番の公式ページを取得し、従来3型番の96判定を検証する。AI課金なし。

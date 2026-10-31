@@ -1,5 +1,12 @@
 # Cloudflare Pages + AWS
 
+## カテゴリ別サイトへの分割（未デプロイ）
+
+コードは商品 `apps/products`・ふるさと納税 `apps/furusato`・証券 `apps/securities` の独立した静的サイトに分割した。
+以下の公開済み状態は分割前の履歴。次回の配信では3つのPagesプロジェクトと、全サイトの公開URL設定が必要。
+新しいビルドコマンド・環境変数・APIの複数Origin設定は [カテゴリ別サイトの手順](multi-site.md) を参照する。
+ハブは後回しで、既存Cloudflare/AWS設定は変更していない。
+
 画面をPages、API/workerとDBを既存Lambda/DynamoDBへ配置する。
 Workersの新規作成画面ではなく、PagesのGit接続を選ぶ。
 
@@ -18,9 +25,9 @@ Workersの新規作成画面ではなく、PagesのGit接続を選ぶ。
 
 | 設定              | 値                                                                          |
 | ----------------- | --------------------------------------------------------------------------- |
-| リポジトリルート  | `/`（apps/webに変更しない）                                                 |
+| リポジトリルート  | `/`（apps/productsに変更しない）                                            |
 | ビルドコマンド    | `pnpm run build:pages`                                                      |
-| 出力先            | `apps/web/dist`                                                             |
+| 出力先            | `apps/products/dist`                                                        |
 | `NODE_VERSION`    | `24.22.1`                                                                   |
 | `PNPM_VERSION`    | `10.34.5`                                                                   |
 | `PUBLIC_API_BASE` | `https://bjbiijxxbjkhgk6w3xr2mrneky0xftnb.lambda-url.ap-northeast-1.on.aws` |

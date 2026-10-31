@@ -1,5 +1,10 @@
 # url-product-compare
 
+画面は商品 `apps/products`、ふるさと納税 `apps/furusato`、証券 `apps/securities` の独立したAstro静的サイトです。
+共通UIは `packages/ui`、サービス名・公開URL・相互リンクは `packages/site-config`、API通信は既存 `packages/api-client` に集約しています。
+ハブは後回しです。[複数サイトの開発・Cloudflare公開手順](docs/multi-site.md)を参照してください。
+3サイトの静的ビルド検証は `rtk mise exec -- pnpm build:sites`、受入チェックは `rtk mise run verify` です。
+
 公開構成はCloudflare Pagesの静的画面＋AWS Lambda/DynamoDBです。[Pagesの設定・公開手順](docs/cloudflare-pages.md)を参照してください。Pages用ビルドは `rtk proxy mise exec -- pnpm run build:pages`（`PUBLIC_API_BASE` が必要）です。AWSスタックは配置済みですが、Pagesの作成・公開URLに合わせた接続許可の更新と、最新コードの反映は別途必要です。
 
 既存のSolid/TypeScript製商品比較UIを維持しています。従来のXserver用成果物も `rtk mise run xserver:static` で生成できます（`SITE_ORIGIN`・`PUBLIC_API_BASE` が必要）。[静的ホスティング手順](docs/xserver-static-site.md)を参照してください。
@@ -37,7 +42,7 @@ rtk mise exec -- node --env-file=.env apps/api/dist/firebase/apps/api/src/local.
 別のターミナルで画面を起動します。
 
 ```powershell
-rtk mise exec -- pnpm --filter @app/web dev --host 127.0.0.1
+rtk mise exec -- pnpm --filter @app/products dev --host 127.0.0.1
 ```
 
 `http://127.0.0.1:5173/` を開き、楽天の商品URLを入力して比較します。カテゴリは自動判定し、曖昧な場合だけ利用者が選択します。ブラウザーにトークンや楽天キーを入力する必要はありません。APIサーバーの公開入口が比較用の経路だけにサーバー内の認証を渡します。ローカルでは画面のオリジンを `http://127.0.0.1:5173` に限定します。配置先が異なる場合はサーバーの `API_ALLOWED_ORIGIN` を指定します。
@@ -85,7 +90,7 @@ Jevの比較項目選定・抽出補助・採点には `JEV_API_KEY`（または
 多項目のPC画面を確認する4商品のサンプルは、外部API・キーなしで起動できます。実商品の情報ではありません。
 
 ```powershell
-rtk mise exec -- pnpm --filter @app/web build
+rtk mise exec -- pnpm --filter @app/products build
 rtk mise exec -- node tooling/verify-comparison-flow.mjs --serve --pc
 ```
 

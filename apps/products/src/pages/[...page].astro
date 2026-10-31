@@ -1,8 +1,9 @@
 ---
 import site from "../../.generated/site.json";
+import { serviceLinks } from "@app/site-config";
 import Breadcrumbs from "../components/Breadcrumbs.astro";
+import "@app/ui/base.css";
 import "../style.css";
-import "../furusato.css";
 
 export const getStaticPaths = (): ReadonlyArray<
   Readonly<{ params: Readonly<{ page: string | undefined }>; props: Props }>
@@ -25,6 +26,9 @@ const robots =
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="api-base" content={site.apiBase} />
+    <meta name="service-products" content={site.serviceOrigins.products} />
+    <meta name="service-furusato" content={site.serviceOrigins.furusato} />
+    <meta name="service-securities" content={site.serviceOrigins.securities} />
     <title>{page.title}</title>
     <meta name="description" content={page.description} />
     <meta name="robots" content={robots} />
@@ -37,6 +41,9 @@ const robots =
     <header class="public-site-nav">
       <nav aria-label="サイト">
         <a href="/">商品比較</a> · <a href="#public-content">比較ページ</a>
+        {serviceLinks(site.serviceOrigins).map((service) => (
+          <a href={service.href}>{service.label}</a>
+        ))}
       </nav>
     </header>
     <section id="public-content" class="public-content" aria-label="商品比較">
