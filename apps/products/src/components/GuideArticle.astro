@@ -1,12 +1,10 @@
 ---
-import GuideCards from "./GuideCards.astro";
+import GuideList from "./GuideList.astro";
 import { editorialDate, guides } from "../content/editorial.js";
 import type { Guide } from "../content/editorial.js";
 type Props = Readonly<{ guide: Guide }>;
 const { guide } = Astro.props;
-const related = guides
-  .filter((entry) => entry.slug !== guide.slug && entry.category === null)
-  .slice(0, 3);
+const related = guides.filter((entry) => entry.slug !== guide.slug);
 ---
 
 <main id="main-content" class="editorial-wrap">
@@ -15,11 +13,11 @@ const related = guides
     <span>/</span>
     <a href="/guides/">選び方ガイド</a>
     <span>/</span>
-    <span>{guide.categoryLabel}</span>
+    <span>{guide.topicLabel}</span>
   </nav>
   <article class="editorial-article">
     <header>
-      <p class="eyebrow">{guide.categoryLabel}</p>
+      <p class="eyebrow">{guide.topicLabel}</p>
       <h1>{guide.title}</h1>
       <p class="article-meta">
         公開・更新：<time datetime={editorialDate}>2026年10月31日</time> ·
@@ -73,22 +71,14 @@ const related = guides
       </section>
     )}
     <aside class="editorial-callout">
-      <strong>条件を整理したら、候補を比較</strong>
-      <p>
-        現在は楽天市場の新品商品URLに対応しています。送料・ポイント・クーポンは価格に含みません。
-      </p>
-      <a
-        class="editorial-button"
-        href={
-          guide.category === null ? "/#compare-tool" : `/category/${guide.category}/#compare-tool`
-        }
-      >
-        商品URLから比較する →
+      <p>楽天市場の新品商品URLから、類似商品の価格と仕様を比較できます。</p>
+      <a class="editorial-button" href="/">
+        商品URLを入力する
       </a>
     </aside>
   </article>
-  <section>
-    <h2>あわせて読みたい</h2>
-    <GuideCards entries={related} />
+  <section class="related-guides" aria-labelledby="related-heading">
+    <h2 id="related-heading">ほかのガイド</h2>
+    <GuideList entries={related} />
   </section>
 </main>

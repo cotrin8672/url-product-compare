@@ -34,14 +34,13 @@ function publicUrl(value, name, originOnly) {
 const target = process.argv[2] ?? "products";
 assert.ok(["products", "furusato", "securities"].includes(target), "Unknown site target");
 const currentService = target;
-let categories = [];
 if (target === "products") {
   workspacePnpm("build:api-libraries");
   workspacePnpm("--filter", "@app/backend", "exec", "tsc", "--noEmit", "false", "--outDir", "dist");
   const { publicConsumerCatalog } = await import(
     pathToFileURL(path.join(root, "packages/backend/dist/comparison/consumer-catalog.js")).href
   );
-  categories = publicConsumerCatalog();
+  const categories = publicConsumerCatalog();
   assert.ok(Array.isArray(categories) && categories.length > 0);
   assert.ok(categories.every((category) => /^[a-z][a-z0-9_-]{0,63}$/.test(category.id)));
 }
@@ -70,11 +69,6 @@ if (siteOrigin.length > 0) {
     "Production service origins must use HTTPS",
   );
 }
-const modes = [
-  { id: "price", label: "価格比較", heading: "類似商品の価格比較" },
-  { id: "recommendation", label: "おすすめ比較", heading: "類似商品のおすすめランキング" },
-  { id: "specifications", label: "項目別比較", heading: "類似商品のスコア比較" },
-];
 const pages = [];
 function page(
   route,
@@ -91,12 +85,11 @@ function page(
 }
 page(
   "/",
-  "家電・PCの商品比較",
-  "商品URLから、新品の価格と100点の比較スコアを確認できます。",
-  "家電・PCの商品比較",
+  "商品比較｜楽天市場の商品URLから類似商品の価格・仕様を比較",
+  "気になる楽天市場の商品URLを入力すると、商品の種類を自動判定し、類似候補の価格と確認できた仕様を比較できます。カテゴリ選択は不要です。",
+  "商品URLから類似商品を比較",
   "商品URLから、入力商品と最大5候補を比較できます。",
   "home",
-  categories.map((category) => ({ href: "/category/" + category.id + "/", label: category.label })),
 );
 // Keep the existing entry point; furusato UI and business logic are outside this migration.
 page(
@@ -109,59 +102,6 @@ page(
   [],
   [{ name: "ふるさと納税", route: "/furusato/" }],
 );
-page(
-  "/methodology/",
-  "比較の考え方",
-  "価格は円、確認済み数値の比較スコアは100点で表示します。",
-  "比較の考え方",
-  "新品の価格は円、確認済み数値の相対スコアは100点で表示します。未確認の値は「—」です。",
-  "methodology",
-  [],
-  [{ name: "比較の考え方", route: "/methodology/" }],
-);
-for (const category of categories) {
-  const route = "/category/" + category.id + "/";
-  const labels = [
-    "価格（円）",
-    "総合（100点）",
-    ...category.axes
-      .filter((axis) => axis.id !== "price")
-      .map((axis) => {
-        assert.ok(category.fields.some((field) => field.id === axis.id && field.kind === "number"));
-        return axis.label + "（100点）";
-      }),
-  ];
-  const links = modes.map((mode) => ({
-    href: "/compare/" + category.id + "/" + mode.id + "/",
-    label: mode.label,
-  }));
-  const breadcrumbs = [{ name: category.label, route }];
-  page(
-    route,
-    category.label + "の比較",
-    category.label + "の新品を、価格と100点の比較スコアで比べられます。",
-    category.label + "の比較",
-    labels.join("・"),
-    "category",
-    links,
-    breadcrumbs,
-    labels,
-  );
-  for (const mode of modes) {
-    const compareRoute = "/compare/" + category.id + "/" + mode.id + "/";
-    page(
-      compareRoute,
-      category.label + " · " + mode.label,
-      category.label + "の" + mode.label + "。価格は円、比較スコアは100点で表示します。",
-      mode.heading + "（" + category.label + "）",
-      labels.join("・"),
-      "comparison",
-      [{ href: route, label: category.label }, ...links],
-      [...breadcrumbs, { name: mode.label, route: compareRoute }],
-      labels,
-    );
-  }
-}
 // Previously these routes relied on a SPA fallback. Export real files for Apache hosting.
 for (const [id, label] of [
   ["charger", "充電器比較"],

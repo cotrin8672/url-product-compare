@@ -3,7 +3,6 @@ import { serviceLinks } from "@app/site-config";
 import type { ServiceOrigins } from "@app/site-config";
 import Breadcrumbs from "../components/Breadcrumbs.astro";
 import { publisher } from "../content/publisher.js";
-import CategorySidebar from "../components/CategorySidebar.astro";
 import "@app/ui/base.css";
 import "../style.css";
 import "../editorial.css";
@@ -18,8 +17,6 @@ type Props = Readonly<{
 }>;
 const { site, title, description, route, legacy = false, breadcrumbs = [] } = Astro.props;
 const canonical = site.siteOrigin.length > 0 ? site.siteOrigin + route : null;
-const showSidebar =
-  !legacy && !["/privacy/", "/terms/", "/about/", "/editorial-policy/"].includes(route);
 ---
 
 <!doctype html>
@@ -31,6 +28,7 @@ const showSidebar =
     <meta name="service-products" content={site.serviceOrigins.products} />
     <meta name="service-furusato" content={site.serviceOrigins.furusato} />
     <meta name="service-securities" content={site.serviceOrigins.securities} />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <title>{title}</title>
     <meta name="description" content={description} />
     <meta
@@ -48,9 +46,23 @@ const showSidebar =
     </a>
     {!legacy && (
       <header class="product-header">
-        <div class="service-strip">
-          <nav aria-label="比較サービス">
-            <span>比較サービス</span>
+        <div class="product-header-inner">
+          <a class="product-brand" href="/" aria-label="商品比較 トップ">
+            <svg class="product-brand-mark" viewBox="0 0 28 28" aria-hidden="true">
+              <rect x="2" y="7" width="10" height="17" rx="2" />
+              <rect x="16" y="3" width="10" height="21" rx="2" />
+            </svg>
+            商品比較
+          </a>
+          <nav class="product-nav" aria-label="商品サイト">
+            <a href="/" aria-current={route === "/" ? "page" : undefined}>
+              URLで比較
+            </a>
+            <a href="/guides/" aria-current={route.startsWith("/guides/") ? "page" : undefined}>
+              選び方ガイド
+            </a>
+          </nav>
+          <nav class="service-switch" aria-label="比較サービス">
             {serviceLinks(site.serviceOrigins).map((service) => (
               <a href={service.href} aria-current={service.id === "products" ? "true" : undefined}>
                 {service.label}
@@ -58,48 +70,13 @@ const showSidebar =
             ))}
           </nav>
         </div>
-        <div class="product-header-inner">
-          <a class="product-brand" href="/" aria-label="商品比較 トップ">
-            商品比較<span>家電・PCの価格とスペックを比較</span>
-          </a>
-          <nav aria-label="商品サイト">
-            <a
-              href="/#compare-tool"
-              aria-current={
-                route === "/" || route.startsWith("/category/") || route.startsWith("/compare/")
-                  ? "page"
-                  : undefined
-              }
-            >
-              商品を比較
-            </a>
-            <a href="/guides/" aria-current={route.startsWith("/guides/") ? "page" : undefined}>
-              選び方ガイド
-            </a>
-            <a href="/methodology/" aria-current={route === "/methodology/" ? "page" : undefined}>
-              比較のしくみ
-            </a>
-          </nav>
-        </div>
       </header>
     )}
-    <div
-      id="public-content"
-      class:list={["site-workspace", { "site-workspace--document": !showSidebar }]}
-    >
-      {showSidebar && <CategorySidebar />}
-      <div class="workspace-body">
-        <slot />
-      </div>
+    <div id="public-content" class="site-workspace">
+      <slot />
     </div>
     <footer class="product-footer">
       <div class="product-footer-inner">
-        <div>
-          <a class="product-brand" href="/">
-            商品比較
-          </a>
-          <p>用途と条件を揃えて、納得できる買い物へ。</p>
-        </div>
         <nav aria-label="サイト情報">
           <a href="/about/">このサイトについて</a>
           <a href="/editorial-policy/">編集・広告掲載方針</a>
@@ -107,11 +84,13 @@ const showSidebar =
           <a href="/terms/">利用上の注意</a>
           {publisher.contactUrl.length > 0 && <a href={publisher.contactUrl}>お問い合わせ</a>}
         </nav>
-        <nav aria-label="関連する比較サービス">
-          {serviceLinks(site.serviceOrigins).map((service) => (
-            <a href={service.href}>{service.label}</a>
-          ))}
-        </nav>
+        {legacy && (
+          <nav aria-label="関連する比較サービス">
+            {serviceLinks(site.serviceOrigins).map((service) => (
+              <a href={service.href}>{service.label}</a>
+            ))}
+          </nav>
+        )}
         <p class="footer-disclosure">
           当サイトはアフィリエイト広告を利用しています。リンク先で購入すると、運営者に報酬が入る場合があります。比較結果は購入を保証するものではありません。
         </p>

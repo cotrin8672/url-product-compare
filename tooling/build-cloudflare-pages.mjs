@@ -41,6 +41,21 @@ if (target === "products") {
       "/furusato/ " + serviceOrigins.furusato + "/ 301",
       "/securities " + serviceOrigins.securities + "/ 301",
       "/securities/ " + serviceOrigins.securities + "/ 301",
+      // Category, mode and methodology pages were removed; comparison starts from any product URL.
+      "/methodology/ / 301",
+      "/category/* / 301",
+      ...["price", "recommendation", "specifications"].map(
+        (mode) => "/compare/:category/" + mode + "/ / 301",
+      ),
+      ...[
+        "laptop",
+        "desktop",
+        "tablet",
+        "smartphone",
+        "monitor",
+        "television",
+        "comparison-scores",
+      ].map((slug) => "/guides/" + slug + "/ /guides/ 301"),
       "",
     ].join("\n"),
   );

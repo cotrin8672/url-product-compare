@@ -47,16 +47,12 @@ assert.equal(
   "Editorial route collision",
 );
 if (target === "products") {
-  assert.equal(guides.length, 10, "Missing buying guides");
+  assert.equal(guides.length, 3, "Missing buying guides");
   assert.equal(informationPages.length, 4, "Missing permanent information pages");
 }
 assert.equal(
   publicPages.length,
-  target === "products"
-    ? 2 + pages.filter((page) => page.kind === "category").length * 4
-    : target === "furusato"
-      ? 1
-      : 0,
+  target === "products" ? 1 : target === "furusato" ? 1 : 0,
   "Missing public route",
 );
 for (const page of allPages) {
@@ -93,12 +89,12 @@ for (const page of allPages) {
   // A static host must not need inline bootstrap code or a Node/Astro runtime.
   const scripts = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)];
   // Comparison routes retain the browser entry. Editorial-only pages must remain readable without it.
-  if (page.kind !== "editorial" && page.kind !== "methodology")
+  if (page.kind !== "editorial")
     assert.ok(
       scripts.some((script) => /type="module"/.test(script[1]) && /src="/.test(script[1])),
       "Missing browser entry",
     );
-  if (page.kind === "editorial" || page.kind === "methodology") {
+  if (page.kind === "editorial") {
     assert.ok(html.includes("編集・広告掲載方針"), "Missing policy navigation");
     assert.ok(html.includes('id="main-content"'), "Missing editorial content");
     assert.equal(

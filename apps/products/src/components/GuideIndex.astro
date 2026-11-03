@@ -1,22 +1,16 @@
 ---
-import GuideCards from "./GuideCards.astro";
+import GuideList from "./GuideList.astro";
 import { guides } from "../content/editorial.js";
 ---
 
 <main id="main-content" class="editorial-wrap">
   <header class="page-heading">
-    <div>
-      <h1>選び方ガイド</h1>
-      <p>用途に合う条件と、購入前の確認ポイント。</p>
-    </div>
-    <span class="page-count">10記事</span>
+    <h1>選び方ガイド</h1>
+    <p>比較結果を購入判断に使うときに、確認しておきたいことをまとめています。</p>
   </header>
-  <h2 class="section-title">カテゴリ別ガイド</h2>
-  <GuideCards entries={guides.filter((guide) => guide.category !== null)} />
-  <h2 class="section-title">価格・スペックの基礎知識</h2>
-  <GuideCards entries={guides.filter((guide) => guide.category === null)} />
-  <aside class="editorial-callout">
-    各ガイドは公開情報をもとにした選び方の解説です。実機を使用したレビューや性能試験ではありません。出典と情報の扱いは、各記事と
-    <a href="/editorial-policy/">編集方針</a>で確認できます。
-  </aside>
+  <GuideList entries={guides} />
+  <p class="page-note">
+    公開情報をもとにした解説で、実機を使ったレビューや性能試験ではありません。情報の扱いは
+    <a href="/editorial-policy/">編集・広告掲載方針</a>をご覧ください。
+  </p>
 </main>

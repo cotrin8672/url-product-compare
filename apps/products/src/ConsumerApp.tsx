@@ -1,5 +1,14 @@
 /** @jsxImportSource solid-js */
-import { batch, createEffect, createResource, createSignal, For, onCleanup, Show } from "solid-js";
+import {
+  batch,
+  createEffect,
+  createMemo,
+  createResource,
+  createSignal,
+  For,
+  onCleanup,
+  Show,
+} from "solid-js";
 import type { JSX } from "solid-js";
 
 import {
@@ -97,12 +106,12 @@ function CriteriaChart(
   return (
     <div class="criteria-chart">
       <For each={props.axes}>
-        {(axis, index) => {
+        {(axis) => {
           const score = props.product.axes.find((entry) => entry.id === axis.id)?.score ?? null;
           const value = props.product.consumerInformation.specs[axis.id];
           const unit = props.fields.find((field) => field.id === axis.id)?.unit ?? "";
           return (
-            <div classList={{ criterion: true, "consumer-criterion-teal": index() >= 2 }}>
+            <div class="criterion">
               <span>
                 {fieldLabels[axis.label] ?? axis.label}
                 <Show when={typeof value === "number" ? { value } : undefined}>
@@ -138,10 +147,6 @@ function CriteriaChart(
           );
         }}
       </For>
-      <div class="chart-scale">
-        <span>0</span>
-        <span>100</span>
-      </div>
     </div>
   );
 }
@@ -197,6 +202,82 @@ function SpecificationRows(
   );
 }
 
+const observedTime = new Intl.DateTimeFormat("ja-JP", {
+  timeZone: "Asia/Tokyo",
+  month: "numeric",
+  day: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
+const previewColumns = ["入力した商品", "候補1", "候補2", "候補3", "候補4", "候補5"];
+const previewRows = [
+  { label: "商品", kind: "image" },
+  { label: "価格", kind: "price" },
+  { label: "おすすめ度", kind: "score" },
+  { label: "仕様", kind: "specs" },
+] as const;
+
+function ResultPreview(props: Readonly<{ loading: boolean }>): JSX.Element {
+  return (
+    <section
+      classList={{ "result-preview": true, "is-loading": props.loading }}
+      aria-labelledby="result-preview-heading"
+    >
+      <div class="results-title">
+        <h2 id="result-preview-heading">比較結果</h2>
+        <p role={props.loading ? "status" : undefined}>
+          {props.loading
+            ? "商品情報と類似候補を取得しています…"
+            : "入力した商品と類似候補（最大5件）をこの表に並べます。商品情報や候補を取得できない場合は比較できないことがあります。"}
+        </p>
+      </div>
+      <div class="result-preview-grid" aria-hidden="true">
+        <span class="preview-corner" />
+        <For each={previewColumns}>
+          {(column, index) => (
+            <span classList={{ "preview-column": true, "is-source": index() === 0 }}>{column}</span>
+          )}
+        </For>
+        <For each={previewRows}>
+          {(row) => (
+            <>
+              <span class="preview-label">{row.label}</span>
+              <For each={previewColumns}>
+                {() => (
+                  <span class={"preview-cell preview-" + row.kind}>
+                    <i />
+                  </span>
+                )}
+              </For>
+            </>
+          )}
+        </For>
+      </div>
+    </section>
+  );
+}
+
+function priceDifference(
+  product: ConsumerComparison["products"][number],
+  source: ConsumerComparison["products"][number] | undefined,
+): string | null {
+  // Price ranges depend on the selected configuration, so only exact prices get a difference.
+  if (
+    source === undefined ||
+    product.price.minimum !== product.price.maximum ||
+    source.price.minimum !== source.price.maximum
+  ) {
+    return null;
+  }
+  const difference = product.price.minimum - source.price.minimum;
+  return difference === 0
+    ? "入力商品と同額"
+    : "入力商品より¥" +
+        Math.abs(difference).toLocaleString("ja-JP") +
+        (difference < 0 ? "安い" : "高い");
+}
+
 function ConsumerResults(
   props: Readonly<{ result: DisplayResult; onExpire: () => void }>,
 ): JSX.Element {
@@ -212,47 +293,65 @@ function ConsumerResults(
   const data = props.result.data;
   const layout = comparisonDetailLayout(data.categoryDefinition, data.products);
   const primarySpecifications =
-    data.categorySelectionStatus === undefined ? [] : layout.specificationFields.slice(0, 6);
+    data.categorySelectionStatus === undefined && layout.primaryAxes.length > 0
+      ? []
+      : layout.specificationFields.slice(0, 6);
   const detailSpecifications = layout.specificationFields.slice(primarySpecifications.length);
   const [detailsOpen, setDetailsOpen] = createSignal(false);
   const hasDetails = layout.detailAxes.length > 0 || detailSpecifications.length > 0;
   const emphasized = (product: ConsumerComparison["products"][number]): boolean =>
     product.rank === 1;
+  const isSource = (product: ConsumerComparison["products"][number]): boolean =>
+    product.provider === data.source.provider && product.listingId === data.source.listingId;
+  const source = data.products.find(isSource);
+  const hasRanking = data.products.some((product) => product.rank !== null);
+  const [priceOrder, setPriceOrder] = createSignal(data.sort === "price");
+  // The input product stays in the first column; ordering only changes the candidate columns.
+  const products = createMemo(() => {
+    const candidates = data.products.filter((product) => !isSource(product));
+    return [
+      ...data.products.filter(isSource),
+      ...(priceOrder()
+        ? candidates.toSorted((left, right) => left.price.minimum - right.price.minimum)
+        : candidates),
+    ];
+  });
   return (
-    <section class="consumer-results" aria-label="比較結果">
-      <div class="bar consumer-result-heading">
-        <h2>
-          {data.status === "ranked"
-            ? data.sort === "price"
-              ? "価格順"
-              : "おすすめ順"
-            : "商品比較"}
-        </h2>
-        <span class="consumer-category-label">
-          {data.categoryDefinition.label} · 新品 {data.products.length}件
-        </span>
-      </div>
+    <section class="consumer-results" aria-labelledby="consumer-results-heading">
+      <header class="results-head">
+        <div class="results-title">
+          <h2 id="consumer-results-heading">比較結果</h2>
+          <p>
+            {data.categoryDefinition.label}・新品 {data.products.length}件
+          </p>
+        </div>
+        <Show when={data.products.length > 2}>
+          <div class="results-order" role="group" aria-label="候補の並び順">
+            <button type="button" aria-pressed={!priceOrder()} onClick={() => setPriceOrder(false)}>
+              {hasRanking ? "おすすめ順" : "標準"}
+            </button>
+            <button type="button" aria-pressed={priceOrder()} onClick={() => setPriceOrder(true)}>
+              価格の安い順
+            </button>
+          </div>
+        </Show>
+      </header>
       <Show when={data.status === "no_match"}>
-        <p class="consumer-result-status" role="status">
-          新品の候補なし
+        <p class="results-status" role="status">
+          新品の類似候補が見つかりませんでした。別の商品URLでお試しください。
         </p>
       </Show>
       <Show when={data.status === "needs_information" && data.sort === "recommendation"}>
-        <span class="consumer-result-status" title="共通の仕様情報が不足しています" role="status">
-          順位保留
-        </span>
+        <p class="results-status" role="status">
+          共通して確認できた仕様が足りないため、順位を保留しています。
+        </p>
       </Show>
       <Show when={data.status !== "no_match" && data.products.length === 1}>
-        <span class="consumer-result-status" role="status">
-          入力商品のみ
-        </span>
+        <p class="results-status" role="status">
+          比較できる類似候補が見つからず、入力した商品のみを表示しています。
+        </p>
       </Show>
-      <p class="consumer-price-context">
-        情報元：楽天市場。価格・仕様の確認日時は各商品の欄に表示しています。
-        送料・ポイント・クーポンは含みません。購入前に販売ページで型番と条件をご確認ください。
-        <a href="/methodology/">比較スコアの見方</a>
-      </p>
-      <div class="table-wrap" tabindex="0" role="region" aria-label="商品比較表">
+      <div class="table-wrap results-table-wrap" tabindex="0" role="region" aria-label="商品比較表">
         <table
           class="comparison-table consumer-comparison-table"
           style={{ "--product-count": String(data.products.length) }}
@@ -261,51 +360,38 @@ function ConsumerResults(
           <thead>
             <tr>
               <th class="row-label" scope="col">
-                <span class="sr-only">商品</span>
+                商品
               </th>
-              <For each={data.products}>
+              <For each={products()}>
                 {(product) => (
                   <th
-                    classList={{ "product-heading": true, "best-product": emphasized(product) }}
+                    classList={{
+                      "product-heading": true,
+                      "best-product": emphasized(product),
+                      "source-product": isSource(product),
+                    }}
                     scope="col"
                   >
-                    <p class="consumer-price-context">
-                      確認：
-                      <time dateTime={product.observedAt}>
-                        {new Intl.DateTimeFormat("ja-JP", {
-                          timeZone: "Asia/Tokyo",
-                          dateStyle: "short",
-                          timeStyle: "short",
-                        }).format(new Date(product.observedAt))}
-                      </time>
-                    </p>
                     <div class="rank-line">
                       <Show when={product.rank}>
                         {(rank) => (
-                          <>
+                          <span class="rank-badge">
                             <span class={`medal medal-${rank() <= 3 ? rank() : "other"}`}>
                               {rank()}
                             </span>
-                            <span>
-                              {data.products.filter((other) => other.rank === rank()).length > 1
-                                ? "同率"
-                                : ""}
-                              {rank()}位
-                            </span>
-                          </>
+                            {data.products.filter((other) => other.rank === rank()).length > 1
+                              ? "同率"
+                              : ""}
+                            {rank()}位
+                          </span>
                         )}
                       </Show>
-                      <Show
-                        when={
-                          product.provider === data.source.provider &&
-                          product.listingId === data.source.listingId
-                        }
-                      >
-                        <span class="source-tag">入力商品</span>
+                      <Show when={isSource(product)}>
+                        <span class="source-tag">入力した商品</span>
                       </Show>
                     </div>
                     <div
-                      class="product-image"
+                      classList={{ "product-image": true, "no-image": product.imageUrl === null }}
                       role="img"
                       aria-label={
                         product.title +
@@ -317,37 +403,7 @@ function ConsumerResults(
                           : { "background-image": "url(" + JSON.stringify(product.imageUrl) + ")" }
                       }
                     >
-                      <Show
-                        when={
-                          product.imageUrl === null &&
-                          (data.category === "laptop" || data.category === "desktop")
-                        }
-                      >
-                        <svg
-                          class="consumer-image-placeholder"
-                          viewBox="0 0 160 112"
-                          fill="none"
-                          aria-hidden="true"
-                        >
-                          <rect
-                            x="25"
-                            y="18"
-                            width="110"
-                            height="70"
-                            rx="5"
-                            fill="#e8edf2"
-                            stroke="currentColor"
-                            stroke-width="2"
-                          />
-                          <rect x="32" y="25" width="96" height="56" rx="2" fill="#f7f9fb" />
-                          <path
-                            d="M25 88 12 97v3h136v-3l-13-9M66 96h28"
-                            stroke="currentColor"
-                            stroke-width="2"
-                            stroke-linejoin="round"
-                          />
-                        </svg>
-                      </Show>
+                      <Show when={product.imageUrl === null}>画像なし</Show>
                     </div>
                     <details class="consumer-product-title">
                       <summary>
@@ -356,9 +412,37 @@ function ConsumerResults(
                       <p>{product.title}</p>
                     </details>
                     <span class="consumer-shop-tag">{product.shopName}</span>
-                    <Show when={product.availability === "unavailable"}>
-                      <span class="consumer-stock-status">売り切れ</span>
+                    <div class="consumer-price">
+                      <span class="consumer-price-value">
+                        ¥{product.price.minimum.toLocaleString("ja-JP")}
+                      </span>
+                      <Show when={product.price.maximum !== product.price.minimum}>
+                        <span class="consumer-price-range">
+                          〜¥{product.price.maximum.toLocaleString("ja-JP")}
+                        </span>
+                      </Show>
+                    </div>
+                    <Show when={isSource(product) ? null : priceDifference(product, source)}>
+                      {(difference) => <p class="consumer-price-difference">{difference()}</p>}
                     </Show>
+                    <p class="consumer-observed">
+                      <time dateTime={product.observedAt}>
+                        {observedTime.format(new Date(product.observedAt))}
+                      </time>
+                      時点
+                      <Show when={product.availability === "unavailable"}>
+                        <span class="consumer-stock-status">売り切れ</span>
+                      </Show>
+                    </p>
+                    <a
+                      class="purchase-button"
+                      href={product.affiliateUrl}
+                      target="_blank"
+                      rel="sponsored nofollow noopener noreferrer"
+                    >
+                      商品を見る
+                      <span class="sr-only">（楽天市場・新しいタブで開く）</span>
+                    </a>
                   </th>
                 )}
               </For>
@@ -368,9 +452,9 @@ function ConsumerResults(
             <Show when={data.products.some((product) => product.recommendationPercent !== null)}>
               <tr class="recommendation-row">
                 <th class="row-label" scope="row">
-                  おすすめ度<small>総合評価 / 100</small>
+                  おすすめ度<small>100点満点</small>
                 </th>
-                <For each={data.products}>
+                <For each={products()}>
                   {(product) => (
                     <td classList={{ "best-product": emphasized(product) }}>
                       <Score
@@ -382,33 +466,12 @@ function ConsumerResults(
                 </For>
               </tr>
             </Show>
-            <tr class="consumer-spec-row">
-              <th class="row-label" scope="row">
-                税込価格
-              </th>
-              <For each={data.products}>
-                {(product) => (
-                  <td classList={{ "best-product": emphasized(product) }}>
-                    <div class="consumer-price">
-                      <span class="consumer-price-value">
-                        ¥{product.price.minimum.toLocaleString("ja-JP")}
-                      </span>
-                      <Show when={product.price.maximum !== product.price.minimum}>
-                        <span class="consumer-price-range">
-                          〜¥{product.price.maximum.toLocaleString("ja-JP")}
-                        </span>
-                      </Show>
-                    </div>
-                  </td>
-                )}
-              </For>
-            </tr>
             <Show when={layout.primaryAxes.length > 0}>
               <tr class="criteria-row">
                 <th class="row-label" scope="row">
                   評価の内訳<small>100点満点</small>
                 </th>
-                <For each={data.products}>
+                <For each={products()}>
                   {(product) => (
                     <td classList={{ "best-product": emphasized(product) }}>
                       <CriteriaChart
@@ -421,7 +484,7 @@ function ConsumerResults(
                 </For>
               </tr>
             </Show>
-            <SpecificationRows fields={primarySpecifications} products={data.products} />
+            <SpecificationRows fields={primarySpecifications} products={products()} />
           </tbody>
           <Show when={hasDetails}>
             <tbody id="consumer-comparison-details" hidden={!detailsOpen()}>
@@ -430,7 +493,7 @@ function ConsumerResults(
                   <th class="row-label" scope="row">
                     詳細評価<small>100点満点</small>
                   </th>
-                  <For each={data.products}>
+                  <For each={products()}>
                     {(product) => (
                       <td classList={{ "best-product": emphasized(product) }}>
                         <CriteriaChart
@@ -443,30 +506,9 @@ function ConsumerResults(
                   </For>
                 </tr>
               </Show>
-              <SpecificationRows fields={detailSpecifications} products={data.products} />
+              <SpecificationRows fields={detailSpecifications} products={products()} />
             </tbody>
           </Show>
-          <tbody>
-            <tr class="purchase-row">
-              <th class="row-label" scope="row">
-                <span class="sr-only">購入</span>
-              </th>
-              <For each={data.products}>
-                {(product) => (
-                  <td classList={{ "best-product": emphasized(product) }}>
-                    <a
-                      class="purchase-button"
-                      href={product.affiliateUrl}
-                      target="_blank"
-                      rel="sponsored nofollow noopener noreferrer"
-                    >
-                      商品を見る <span aria-hidden="true">↗</span>
-                    </a>
-                  </td>
-                )}
-              </For>
-            </tr>
-          </tbody>
         </table>
       </div>
       <Show when={hasDetails}>
@@ -477,32 +519,41 @@ function ConsumerResults(
           aria-controls="consumer-comparison-details"
           onClick={() => setDetailsOpen((open) => !open)}
         >
-          <span>
-            {detailsOpen()
-              ? "詳細項目を閉じる"
-              : `詳細項目を表示（${layout.detailAxes.length + detailSpecifications.length}項目）`}
-          </span>
-          <span
-            classList={{ "consumer-details-chevron": true, "is-open": detailsOpen() }}
-            aria-hidden="true"
-          >
-            ▽
-          </span>
+          {detailsOpen()
+            ? "詳細項目を閉じる"
+            : `詳細項目を表示（${layout.detailAxes.length + detailSpecifications.length}項目）`}
         </button>
       </Show>
+      <p class="results-source">
+        情報元：楽天市場。価格は確認時点の掲載価格で、送料・ポイント・クーポンを含みません。「商品を見る」は広告リンクです。
+      </p>
       <details class="consumer-method">
-        <summary>比較条件</summary>
-        <p>送料・ポイント・クーポンは含みません。「—」は未確認です。</p>
-        <p>商品リンクにはアフィリエイト広告を含みます。</p>
-        <Show when={data.scoreBasis !== undefined && data.scoreBasis.length > 0}>
-          <p>
-            採点項目：
-            {data.categoryDefinition.axes
-              .filter((axis) => data.scoreBasis?.includes(axis.id) === true)
-              .map((axis) => axis.label)
-              .join("・")}
-          </p>
-        </Show>
+        <summary>比較条件と点数の見方</summary>
+        <ul>
+          <li>
+            候補は、入力した商品の情報をもとに楽天市場の新品から探した類似商品です。容量・構成・セット内容が入力した商品と同じとは限りません。
+          </li>
+          <li>価格は確認時点の掲載価格です。送料・ポイント・クーポンは含みません。</li>
+          <li>
+            おすすめ度と評価の内訳は、今回の候補で確認できた値を相対的に点数化した目安です。候補が変われば点数も変わり、実測の性能や満足度を示すものではありません。
+          </li>
+          <Show when={data.scoreBasis !== undefined && data.scoreBasis.length > 0}>
+            <li>
+              採点項目：
+              {data.categoryDefinition.axes
+                .filter((axis) => data.scoreBasis?.includes(axis.id) === true)
+                .map((axis) => axis.label)
+                .join("・")}
+            </li>
+          </Show>
+          <li>「—」は値を確認できなかった項目です。0点や機能なしを意味しません。</li>
+          <li>
+            商品情報の整理に自動抽出やAIの補助を使う場合があります。購入前に販売ページで型番と仕様を確認してください。
+          </li>
+          <li>
+            「商品を見る」はアフィリエイト広告のリンクです。報酬を点数や順位の計算に使うことはありません。
+          </li>
+        </ul>
       </details>
     </section>
   );
@@ -668,7 +719,7 @@ export function ConsumerApp(): JSX.Element {
           throw new Error(
             detected.source !== null && detected.source.condition !== "new"
               ? comparisonErrorMessage("listing_not_eligible")
-              : "この商品のカテゴリには対応していません。別の商品URLをお試しください。",
+              : "この商品は比較に対応していません。別の商品URLをお試しください。",
             {
               cause: {
                 code:
@@ -789,7 +840,7 @@ export function ConsumerApp(): JSX.Element {
 
   return (
     <>
-      <main class="consumer-main" classList={{ "consumer-home": result() === undefined }}>
+      <div class="consumer-main">
         <form
           id="consumer-form"
           class="url-panel"
@@ -805,10 +856,6 @@ export function ConsumerApp(): JSX.Element {
             }
           }}
         >
-          <label for="consumer-url">商品URLを貼り付けて比較</label>
-          <p class="consumer-price-context">
-            楽天市場の商品ページURLを入力してください。注文履歴など個人情報を含むURLは入力しないでください。
-          </p>
           <div class="search">
             <div class="url-input-wrap">
               <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -828,7 +875,7 @@ export function ConsumerApp(): JSX.Element {
                 autocapitalize="off"
                 spellcheck={false}
                 required
-                aria-label="商品URL"
+                aria-label="楽天市場の商品URL"
                 aria-invalid={recovery() === "edit"}
                 aria-describedby={error().length > 0 ? "consumer-error" : undefined}
                 maxLength={2048}
@@ -875,6 +922,11 @@ export function ConsumerApp(): JSX.Element {
                     : "比較する"}
             </button>
           </div>
+          <ul class="url-input-notes">
+            <li>楽天市場の新品商品に対応（Amazon・Yahoo!ショッピングは未対応）</li>
+            <li>注文履歴など個人情報を含むURLは入力不可</li>
+            <li>比較結果の商品リンクは広告です</li>
+          </ul>
           <Show when={keywordVisible()}>
             <div class="consumer-recovery-field">
               <label for="consumer-keyword">商品名</label>
@@ -894,7 +946,8 @@ export function ConsumerApp(): JSX.Element {
         </form>
         <Show when={detection()?.status === "needs_confirmation" ? detection() : undefined}>
           {(detected) => (
-            <div class="consumer-category-choice" role="group" aria-label="商品のカテゴリ">
+            <div class="consumer-category-choice" role="group" aria-labelledby="category-choice">
+              <p id="category-choice">商品の種類を選んでください</p>
               <For each={detected().categories}>
                 {(id) => (
                   <button
@@ -919,10 +972,7 @@ export function ConsumerApp(): JSX.Element {
             {error()}
           </p>
         </Show>
-        <Show when={busy()}>
-          <div class="consumer-spinner" role="status" aria-label="比較中" />
-        </Show>
-        <Show when={result()}>
+        <Show when={result()} fallback={<ResultPreview loading={busy()} />}>
           {(display) => (
             <ConsumerResults
               result={display()}
@@ -941,7 +991,7 @@ export function ConsumerApp(): JSX.Element {
             />
           )}
         </Show>
-      </main>
+      </div>
     </>
   );
 }

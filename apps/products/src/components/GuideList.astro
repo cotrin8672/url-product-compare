@@ -1,0 +1,16 @@
+---
+import type { Guide } from "../content/editorial.js";
+type Props = Readonly<{ entries: readonly Guide[] }>;
+const { entries } = Astro.props;
+---
+
+<ul class="guide-list">
+  {entries.map((guide) => (
+    <li>
+      <a href={`/guides/${guide.slug}/`}>
+        <span class="guide-list-label">{guide.topicLabel}</span>
+        <span class="guide-list-title">{guide.title}</span>
+      </a>
+    </li>
+  ))}
+</ul>
