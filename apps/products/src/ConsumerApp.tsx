@@ -991,6 +991,7 @@ export function ConsumerApp(): JSX.Element {
                 aria-invalid={recovery() === "edit"}
                 aria-describedby={error().length > 0 ? "consumer-error" : undefined}
                 maxLength={2048}
+                placeholder="比較したい商品のURLを貼り付けてください"
                 value={url()}
                 disabled={busy()}
                 onInput={(event) => {

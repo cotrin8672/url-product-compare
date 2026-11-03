@@ -92,11 +92,108 @@
 /* Secondary content under the comparison tool. */
 .home-info {
   display: grid;
-  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
   margin-top: 20px;
   padding: 24px var(--page-inset) 32px;
   background: #f5f8fc;
+}
+.compare-page:not(:has(.consumer-results)) .compare-tool {
+  display: grid;
+  align-items: center;
+  min-height: 240px;
+  border-bottom: 1px solid #edf0f3;
+}
+.compare-page:not(:has(.consumer-results)) .url-panel {
+  width: calc(100% - 48px);
+  max-width: 960px;
+  margin: 0 auto;
+}
+.home-features {
+  max-width: 1120px;
+  margin: 24px auto 32px;
+}
+.home-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.home-section-head h2 {
+  margin: 0;
+  font-size: 18px;
+}
+.home-section-head > a {
+  color: #2466a7;
+  font-size: 13px;
+  text-decoration: none;
+}
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 22px;
+}
+.feature-card {
+  overflow: hidden;
+  border: 1px solid #e0e6eb;
+  border-radius: 9px;
+  color: #243a54;
+  text-decoration: none;
+}
+.feature-card:hover {
+  border-color: #7e9fbd;
+}
+.feature-art {
+  height: 128px;
+  background: #eaf1fc;
+}
+.feature-card--total-cost .feature-art {
+  background: #faf1df;
+}
+.feature-card--before-purchase .feature-art {
+  background: #e7f2ed;
+}
+.feature-art .guide-artwork {
+  width: 100%;
+  height: 100%;
+}
+.feature-copy {
+  position: relative;
+  padding: 16px 36px 18px 18px;
+}
+.feature-copy > span:first-child {
+  color: #62778a;
+  font-size: 11px;
+}
+.feature-copy h3 {
+  margin: 6px 0 0;
+  font-size: 16px;
+  line-height: 1.5;
+}
+.feature-arrow {
+  position: absolute;
+  right: 16px;
+  top: 34px;
+}
+.compare-page:has(.consumer-results) .home-features {
+  display: none;
+}
+.home-faq {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 28px;
+  max-width: 1120px;
+  width: 100%;
+  margin: auto;
+}
+.home-faq h2 {
+  grid-column: 1 / -1;
+}
+@media (max-width: 1180px) {
+  .home-features {
+    margin-left: 24px;
+    margin-right: 24px;
+  }
 }
 .home-faq,
 .home-guides {
@@ -297,6 +394,35 @@
 }
 
 @media (max-width: 700px) {
+  .compare-page:not(:has(.consumer-results)) .compare-tool {
+    min-height: 200px;
+  }
+  .compare-page:not(:has(.consumer-results)) .url-panel {
+    width: calc(100% - 24px);
+    margin: 0 auto;
+  }
+  .home-features {
+    margin: 24px 12px;
+  }
+  .feature-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+  .feature-card {
+    display: grid;
+    grid-template-columns: 110px minmax(0, 1fr);
+    align-items: stretch;
+  }
+  .feature-art {
+    height: 100%;
+    min-height: 100px;
+  }
+  .feature-copy h3 {
+    font-size: 14px;
+  }
+  .home-faq {
+    grid-template-columns: minmax(0, 1fr);
+  }
   .product-header-inner {
     padding: 6px 14px;
     gap: 2px 16px;

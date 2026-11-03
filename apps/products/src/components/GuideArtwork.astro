@@ -1,0 +1,79 @@
+---
+type Props = Readonly<{ topic: string }>;
+const { topic } = Astro.props;
+---
+
+<svg viewBox="0 0 320 160" fill="none" aria-hidden="true" class="guide-artwork">
+  {topic === "memory-storage" ? (
+    <>
+      <circle cx="243" cy="35" r="68" fill="#cbdcf9" />
+      <rect x="51" y="40" width="141" height="81" rx="10" fill="#244a7c" />
+      <rect x="62" y="51" width="119" height="57" rx="3" fill="#f7fbff" />
+      <path d="M39 129h164l-12-14H51l-12 14Z" fill="#789ac7" />
+      <rect x="130" y="63" width="122" height="38" rx="5" fill="#5c978a" />
+      {[145, 173, 201, 229].map((x) => (
+        <rect x={x} y="72" width="16" height="17" rx="2" fill="#e3f5e9" />
+      ))}
+      <path
+        d="M144 101v9m14-9v9m14-9v9m14-9v9m14-9v9m14-9v9m14-9v9m14-9v9"
+        stroke="#c99e4e"
+        stroke-width="5"
+      />
+      <rect
+        x="207"
+        y="104"
+        width="66"
+        height="37"
+        rx="6"
+        fill="#fcfdff"
+        stroke="#789ac7"
+        stroke-width="2"
+      />
+      <circle cx="258" cy="123" r="5" fill="#6c91bd" />
+    </>
+  ) : topic === "total-cost" ? (
+    <>
+      <circle cx="247" cy="48" r="70" fill="#f0dfb5" />
+      <path
+        d="M79 25h91v118l-8-5-8 5-8-5-8 5-8-5-8 5-8-5-8 5-8-5-8 5-11-5V25Z"
+        fill="#fffdf7"
+        stroke="#bd9b62"
+        stroke-width="2"
+      />
+      <path
+        d="M96 46h56M96 60h39M96 85h56M96 99h32M96 121h56"
+        stroke="#bd9b62"
+        stroke-width="5"
+        stroke-linecap="round"
+      />
+      <path d="m183 87 38-23 49 24v43l-38 20-49-22V87Z" fill="#d9b37b" />
+      <path d="m183 87 49 23 38-22m-38 22v41m-28-77 48 24" stroke="#fff1d7" stroke-width="3" />
+      <circle cx="222" cy="42" r="23" fill="#244a7c" />
+      <path d="m212 30 10 12 10-12m-10 12v15m-11-13h22m-22 6h22" stroke="white" stroke-width="3" />
+    </>
+  ) : (
+    <>
+      <circle cx="240" cy="41" r="72" fill="#cce6dd" />
+      <rect
+        x="89"
+        y="28"
+        width="109"
+        height="115"
+        rx="8"
+        fill="#fbfefd"
+        stroke="#75a697"
+        stroke-width="2"
+      />
+      <rect x="117" y="19" width="55" height="19" rx="6" fill="#244a7c" />
+      {[58, 87, 116].map((y) => (
+        <>
+          <rect x="105" y={y - 7} width="15" height="15" rx="3" fill="#d2eadf" />
+          <path d={`m108 ${y} 4 4 6-9`} stroke="#447d68" stroke-width="2" />
+          <path d={`M132 ${y}h46`} stroke="#8cb6a7" stroke-width="5" stroke-linecap="round" />
+        </>
+      ))}
+      <circle cx="221" cy="106" r="28" fill="#e8f3ef" stroke="#244a7c" stroke-width="7" />
+      <path d="m241 127 25 24" stroke="#244a7c" stroke-width="10" stroke-linecap="round" />
+    </>
+  )}
+</svg>
