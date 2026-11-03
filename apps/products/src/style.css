@@ -35,7 +35,7 @@
   border-radius: 0 0 6px 6px;
 }
 .product-site #app:empty {
-  min-height: 112px;
+  min-height: 180px;
   margin: 0 var(--page-inset);
   border-top: 0;
   border-radius: 0 0 6px 6px;
@@ -137,10 +137,62 @@
   font-size: 13px;
 }
 
-/* Results and the placeholder share the same frame. */
-.result-preview,
+/* Until a comparison starts, the URL form is the main element of the first view. */
+.compare-page:not(:has(.consumer-results, .result-loading)) {
+  --form-pad: clamp(20px, 5vw, 64px);
+}
+.compare-page:not(:has(.consumer-results, .result-loading)) .compare-band {
+  margin-top: 28px;
+  padding: 36px var(--form-pad) 0;
+}
+.compare-page:not(:has(.consumer-results, .result-loading)) .compare-band h1 {
+  font-size: clamp(22px, 3vw, 30px);
+}
+.product-site .compare-page:not(:has(.consumer-results, .result-loading)) .url-panel {
+  padding: 16px var(--form-pad) 36px;
+}
+.product-site .compare-page:not(:has(.consumer-results, .result-loading)) .url-input-wrap {
+  border-width: 3px;
+}
+.product-site .compare-page:not(:has(.consumer-results, .result-loading)) .url-input-wrap input {
+  height: 68px;
+  font-size: 20px;
+}
+.product-site .compare-page:not(:has(.consumer-results, .result-loading)) .compare-button {
+  min-height: 68px;
+  font-size: 22px;
+}
+.compare-page:not(:has(.consumer-results, .result-loading)) .url-input-notes {
+  margin-top: 14px;
+  font-size: 13px;
+}
+
+/* The running state and results share the same frame. */
 .consumer-results {
   padding: 16px var(--page-inset) 0;
+}
+.result-loading {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 18px var(--page-inset);
+  font-size: 14px;
+}
+.result-loading progress {
+  width: 64px;
+  height: 6px;
+  flex-shrink: 0;
+}
+.result-loading p {
+  margin: 6px 0 0;
+  color: #52668e;
+  font-size: 13px;
+}
+.url-field-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 600;
 }
 .results-head {
   display: flex;
@@ -198,78 +250,6 @@
   color: #52668e;
   font-size: 12px;
   line-height: 1.7;
-}
-
-/* Empty state: outlined frame. Loading state: the same frame filled and pulsing. */
-.result-preview-grid {
-  display: grid;
-  grid-template-columns: 148px repeat(6, minmax(150px, 1fr));
-  margin-top: 10px;
-  overflow: hidden;
-  border: 1px solid #dbe4ee;
-  border-radius: 5px;
-}
-.result-preview-grid > span {
-  border-right: 1px solid #e0e7ef;
-  border-bottom: 1px solid #e0e7ef;
-}
-.preview-corner,
-.preview-label {
-  padding: 10px 14px;
-  background: #eef3f6;
-  color: #41567f;
-  font-size: 13px;
-  font-weight: 650;
-}
-.preview-column {
-  padding: 10px 8px;
-  color: #41567f;
-  font-size: 13px;
-  font-weight: 650;
-  text-align: center;
-}
-.preview-cell {
-  display: grid;
-  place-items: center;
-  padding: 10px 14px;
-}
-.preview-cell i {
-  display: block;
-  width: 100%;
-  height: 10px;
-  border: 1px dashed #c5d3e0;
-  border-radius: 3px;
-}
-.preview-image i {
-  width: 84px;
-  height: 84px;
-}
-.preview-price i {
-  width: 60%;
-  height: 14px;
-}
-.preview-specs i,
-.preview-criteria i {
-  height: 26px;
-}
-.is-loading .preview-cell i {
-  border: 0;
-  background: #e0ecf8;
-  animation: preview-pulse 1.2s ease-in-out infinite;
-}
-.is-loading .results-title p {
-  color: #0869d6;
-  font-weight: 700;
-}
-@keyframes preview-pulse {
-  50% {
-    background: #c7dcf3;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .is-loading .preview-cell i {
-    animation: none;
-  }
 }
 
 .consumer-results .table-wrap {
@@ -347,7 +327,7 @@
   white-space: nowrap;
 }
 .consumer-comparison-table .product-image {
-  height: 112px;
+  height: 84px;
   margin: 6px auto;
 }
 .consumer-product-title summary {
@@ -358,14 +338,14 @@
   display: none;
 }
 .consumer-comparison-table .product-heading h3 {
-  min-height: 63px;
+  min-height: 42px;
   margin: 0;
   color: #102043;
   font-size: 14px;
   font-weight: 650;
   line-height: 1.5;
   text-align: center;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
 }
 .consumer-product-title p {
   margin: 4px 0;
@@ -611,14 +591,6 @@
   .results-title h2 {
     font-size: 17px;
   }
-  .result-preview-grid {
-    grid-template-columns: 72px repeat(6, 148px);
-  }
-  .preview-corner,
-  .preview-label {
-    padding: 8px 6px;
-    font-size: 11px;
-  }
   .consumer-comparison-table {
     min-width: calc(72px + var(--product-count) * 148px);
     font-size: 13px;
@@ -647,7 +619,7 @@
     font-size: 14px;
   }
   .consumer-comparison-table .product-image {
-    height: 92px;
+    height: 72px;
   }
   .consumer-comparison-table .product-heading h3 {
     font-size: 13px;
@@ -665,5 +637,25 @@
   }
   .consumer-method summary {
     margin-left: 0;
+  }
+}
+@media (max-width: 700px) {
+  .compare-page:not(:has(.consumer-results, .result-loading)) .compare-band {
+    margin-top: 14px;
+    padding-top: 20px;
+  }
+  .product-site .compare-page:not(:has(.consumer-results, .result-loading)) .url-panel {
+    padding-bottom: 20px;
+  }
+  .product-site .compare-page:not(:has(.consumer-results, .result-loading)) .url-input-wrap input {
+    height: 56px;
+    font-size: 16px;
+  }
+  .product-site .compare-page:not(:has(.consumer-results, .result-loading)) .compare-button {
+    min-height: 56px;
+    font-size: 18px;
+  }
+  .compare-page:not(:has(.consumer-results, .result-loading)) .url-input-notes {
+    font-size: 12px;
   }
 }

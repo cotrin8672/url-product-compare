@@ -84,7 +84,7 @@ function Score(
   return (
     <Show
       when={props.value === null ? undefined : { value: props.value }}
-      fallback={<span>—</span>}
+      fallback={<span class="unknown">未確認</span>}
     >
       {(score) => (
         <div class="consumer-score">
@@ -131,8 +131,7 @@ function CriteriaChart(
                 when={score === null ? undefined : { value: score }}
                 fallback={
                   <>
-                    <span class="empty-track" />
-                    <span class="unknown">—</span>
+                    <span class="unknown">未確認</span>
                   </>
                 }
               >
@@ -170,7 +169,7 @@ function specificationText(product: ConsumerComparison["products"][number], id: 
       ? "あり"
       : value === false
         ? "なし"
-        : "—";
+        : "未確認";
 }
 
 function SpecificationRows(
@@ -219,48 +218,15 @@ const observedTime = new Intl.DateTimeFormat("ja-JP", {
   minute: "2-digit",
 });
 
-const previewColumns = ["入力した商品", "候補1", "候補2", "候補3", "候補4", "候補5"];
-const previewRows = [
-  { label: "商品", kind: "image" },
-  { label: "おすすめ度", kind: "score" },
-  { label: "掲載価格", kind: "price" },
-  { label: "仕様", kind: "specs" },
-  { label: "評価の内訳", kind: "criteria" },
-] as const;
-
-function ResultPreview(props: Readonly<{ loading: boolean }>): JSX.Element {
+function ResultLoading(props: Readonly<{ message: string; delayed: boolean }>): JSX.Element {
   return (
-    <section
-      classList={{ "result-preview": true, "is-loading": props.loading }}
-      aria-labelledby="result-preview-heading"
-    >
-      <div class="results-title">
-        <h2 id="result-preview-heading">
-          {props.loading ? "比較しています" : "比較結果はここに表示されます"}
-        </h2>
-        <p role={props.loading ? "status" : undefined}>
-          {props.loading
-            ? "商品情報と類似候補を取得しています…"
-            : "入力した商品と類似候補（最大5件）を並べます。商品情報や候補を取得できない場合は比較できないことがあります。"}
-        </p>
-      </div>
-      <div class="result-preview-grid" aria-hidden="true">
-        <span class="preview-corner" />
-        <For each={previewColumns}>{(column) => <span class="preview-column">{column}</span>}</For>
-        <For each={previewRows}>
-          {(row) => (
-            <>
-              <span class="preview-label">{row.label}</span>
-              <For each={previewColumns}>
-                {() => (
-                  <span class={"preview-cell preview-" + row.kind}>
-                    <i />
-                  </span>
-                )}
-              </For>
-            </>
-          )}
-        </For>
+    <section class="result-loading" role="status" aria-live="polite">
+      <progress aria-label="比較処理中" />
+      <div>
+        <strong>{props.message}</strong>
+        <Show when={props.delayed}>
+          <p>処理に時間がかかっています。このままお待ちください。</p>
+        </Show>
       </div>
     </section>
   );
@@ -300,15 +266,41 @@ function ConsumerResults(
   });
   const data = props.result.data;
   const layout = comparisonDetailLayout(data.categoryDefinition, data.products);
-  const primarySpecifications = layout.specificationFields.slice(0, 6);
-  const detailSpecifications = layout.specificationFields.slice(primarySpecifications.length);
+  const primaryIds = new Set([
+    ...data.categoryDefinition.mainFields,
+    ...layout.specificationFields.slice(0, 3).map((field) => field.id),
+    "screenInches",
+  ]);
+  const primarySpecifications = data.categoryDefinition.fields.filter((field) =>
+    primaryIds.has(field.id),
+  );
+  const detailSpecifications = data.categoryDefinition.fields.filter(
+    (field) =>
+      !primaryIds.has(field.id) &&
+      data.products.some((product) => {
+        const value = product.consumerInformation.specs[field.id];
+        return value !== null && value !== undefined;
+      }),
+  );
   const [detailsOpen, setDetailsOpen] = createSignal(false);
-  const hasDetails = layout.detailAxes.length > 0 || detailSpecifications.length > 0;
   const isSource = (product: Product): boolean =>
     product.provider === data.source.provider && product.listingId === data.source.listingId;
   const source = data.products.find(isSource);
   const hasRanking = data.products.some((product) => product.rank !== null);
   const scoredAxes = [...layout.primaryAxes, ...layout.detailAxes];
+  const hasDetails = scoredAxes.length > 0 || detailSpecifications.length > 0;
+  const eligible = data.products.filter((product) => product.status === "eligible");
+  const scoreBasis =
+    data.scoreBasis ??
+    data.categoryDefinition.axes
+      .filter(
+        (axis) =>
+          eligible.length >= 2 &&
+          eligible.every((product) =>
+            product.axes.some((entry) => entry.id === axis.id && entry.score !== null),
+          ),
+      )
+      .map((axis) => axis.id);
   const [priceOrder, setPriceOrder] = createSignal(data.sort === "price");
   const priceRank = (product: Product): number =>
     1 + data.products.filter((other) => other.price.minimum < product.price.minimum).length;
@@ -331,20 +323,18 @@ function ConsumerResults(
     const confirmed = scoredAxes.filter((axis) =>
       product.axes.some((entry) => entry.id === axis.id && entry.score !== null),
     ).length;
-    return `確認 ${confirmed}/${scoredAxes.length}項目`;
+    return `内訳の評価可能項目 ${confirmed}/${scoredAxes.length}`;
   };
   return (
     <section class="consumer-results" aria-labelledby="consumer-results-heading">
       <header class="results-head">
         <div class="results-title">
-          <h2 id="consumer-results-heading">
-            {hasRanking ? "類似商品のおすすめランキング" : "類似商品の比較"}
-          </h2>
+          <h2 id="consumer-results-heading">比較結果</h2>
           <p>
             {data.categoryDefinition.label}・新品 {data.products.length}件
           </p>
         </div>
-        <Show when={data.products.length > 2}>
+        <Show when={data.products.length > 1}>
           <select
             class="results-order"
             aria-label="商品の並び順"
@@ -444,7 +434,7 @@ function ConsumerResults(
             <Show when={data.products.some((product) => product.recommendationPercent !== null)}>
               <tr class="recommendation-row">
                 <th class="row-label" scope="row">
-                  おすすめ度<small>今回の候補内の相対評価</small>
+                  おすすめ度<small>共通{scoreBasis.length}項目の相対評価</small>
                 </th>
                 <For each={products()}>
                   {(product) => (
@@ -503,38 +493,20 @@ function ConsumerResults(
               products={products()}
               emphasized={emphasized}
             />
-            <Show when={layout.primaryAxes.length > 0}>
-              <tr class="criteria-row">
-                <th class="row-label" scope="row">
-                  評価の内訳<small>今回の候補内の相対評価</small>
-                </th>
-                <For each={products()}>
-                  {(product) => (
-                    <td classList={{ "best-product": emphasized(product) }}>
-                      <CriteriaChart
-                        product={product}
-                        axes={layout.primaryAxes}
-                        fields={data.categoryDefinition.fields}
-                      />
-                    </td>
-                  )}
-                </For>
-              </tr>
-            </Show>
           </tbody>
           <Show when={hasDetails}>
             <tbody id="consumer-comparison-details" hidden={!detailsOpen()}>
-              <Show when={layout.detailAxes.length > 0}>
+              <Show when={scoredAxes.length > 0}>
                 <tr class="criteria-row consumer-detail-criteria">
                   <th class="row-label" scope="row">
-                    詳細評価<small>今回の候補内の相対評価</small>
+                    評価の内訳<small>今回の候補内の相対評価</small>
                   </th>
                   <For each={products()}>
                     {(product) => (
                       <td classList={{ "best-product": emphasized(product) }}>
                         <CriteriaChart
                           product={product}
-                          axes={layout.detailAxes}
+                          axes={scoredAxes}
                           fields={data.categoryDefinition.fields}
                         />
                       </td>
@@ -584,12 +556,15 @@ function ConsumerResults(
           aria-controls="consumer-comparison-details"
           onClick={() => setDetailsOpen((open) => !open)}
         >
-          {detailsOpen()
-            ? "詳細項目を閉じる"
-            : `詳細項目を表示（${layout.detailAxes.length + detailSpecifications.length}項目）`}
+          {detailsOpen() ? "詳細仕様・評価の内訳を閉じる" : "詳細仕様・評価の内訳を表示"}
         </button>
       </Show>
       <div class="results-foot">
+        <Show when={data.products.some((product) => product.recommendationPercent !== null)}>
+          <p class="results-source">
+            総合点は候補間で共通して比較できた項目だけで計算します。未確認項目は0点にせず、総合点の対象から外します。
+          </p>
+        </Show>
         <p class="results-source">
           情報元：楽天市場。価格は確認時点の掲載価格で、送料・ポイント・クーポンを含みません。「商品を見る」は広告リンクです。
         </p>
@@ -603,16 +578,18 @@ function ConsumerResults(
             <li>
               おすすめ度と評価の内訳は、今回の候補で確認できた値を相対的に点数化した目安です。候補が変われば点数も変わり、実測の性能や満足度を示すものではありません。
             </li>
-            <Show when={data.scoreBasis !== undefined && data.scoreBasis.length > 0}>
+            <Show when={scoreBasis.length > 0}>
               <li>
                 採点項目：
                 {data.categoryDefinition.axes
-                  .filter((axis) => data.scoreBasis?.includes(axis.id) === true)
+                  .filter((axis) => scoreBasis.includes(axis.id))
                   .map((axis) => axis.label)
                   .join("・")}
               </li>
             </Show>
-            <li>「—」は値を確認できなかった項目です。0点や機能なしを意味しません。</li>
+            <li>
+              「未確認」は仕様を確認できなかった項目です。0点や機能なしを意味しません。商品名の記載と仕様の照合ができない場合も未確認と表示します。
+            </li>
             <li>
               商品情報の整理に自動抽出やAIの補助を使う場合があります。購入前に販売ページで型番と仕様を確認してください。
             </li>
@@ -632,6 +609,18 @@ export function ConsumerApp(): JSX.Element {
   const catalogController = new AbortController();
   const [url, setUrl] = createSignal("");
   const [busy, setBusy] = createSignal(false);
+  const [progressMessage, setProgressMessage] = createSignal("商品情報を確認しています…");
+  const [delayed, setDelayed] = createSignal(false);
+  createEffect(() => {
+    setDelayed(false);
+    if (!busy()) {
+      return;
+    }
+    const timer = setTimeout(() => setDelayed(true), 20000);
+    onCleanup(() => {
+      clearTimeout(timer);
+    });
+  });
   const [error, setError] = createSignal("");
   const [recovery, setRecovery] = createSignal<ReturnType<typeof comparisonRecoveryAction>>(null);
   const [keyword, setKeyword] = createSignal("");
@@ -669,6 +658,13 @@ export function ConsumerApp(): JSX.Element {
   const acceptJob = (job: ComparisonJob, request: ComparisonRequest): void => {
     if (!request.isCurrent()) {
       return;
+    }
+    if (job.state === "queued" || job.state === "running") {
+      setProgressMessage(
+        job.state === "queued"
+          ? "比較処理の開始を待っています…"
+          : "類似商品の検索・比較を進めています…",
+      );
     }
     const previous = session();
     if (previous?.jobId === job.id && job.revision < previous.revision) {
@@ -756,6 +752,7 @@ export function ConsumerApp(): JSX.Element {
     let sourceUrl = url().trim();
     batch(() => {
       setBusy(true);
+      setProgressMessage("入力した商品の情報を確認しています…");
       setError("");
       setRecovery(null);
       setDetection(undefined);
@@ -823,6 +820,7 @@ export function ConsumerApp(): JSX.Element {
         setSession(null);
         setPending(next);
       });
+      setProgressMessage("比較処理を開始しています…");
       const job = await startConsumerComparisonJob(
         {
           url: sourceUrl,
@@ -847,6 +845,7 @@ export function ConsumerApp(): JSX.Element {
   const restore = async (saved: StoredComparisonSession): Promise<void> => {
     const request = scope.begin();
     setBusy(true);
+    setProgressMessage("前回の比較結果を確認しています…");
     try {
       await followJob(
         await pollConsumerComparisonJob(saved.jobId, {
@@ -923,6 +922,9 @@ export function ConsumerApp(): JSX.Element {
             }
           }}
         >
+          <label class="url-field-label" for="consumer-url">
+            楽天市場の商品URL
+          </label>
           <div class="search">
             <div class="url-input-wrap">
               <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -946,7 +948,6 @@ export function ConsumerApp(): JSX.Element {
                 aria-invalid={recovery() === "edit"}
                 aria-describedby={error().length > 0 ? "consumer-error" : undefined}
                 maxLength={2048}
-                placeholder="https://item.rakuten.co.jp/..."
                 value={url()}
                 disabled={busy()}
                 onInput={(event) => {
@@ -993,6 +994,7 @@ export function ConsumerApp(): JSX.Element {
             <li>楽天市場の新品商品に対応（Amazon・Yahoo!ショッピングは未対応）</li>
             <li>注文履歴など個人情報を含むURLは入力不可</li>
             <li>比較結果の商品リンクは広告です</li>
+            <li>商品によっては比較できない場合があります</li>
           </ul>
           <Show when={keywordVisible()}>
             <div class="consumer-recovery-field">
@@ -1039,7 +1041,10 @@ export function ConsumerApp(): JSX.Element {
             {error()}
           </p>
         </Show>
-        <Show when={result()} fallback={<ResultPreview loading={busy()} />}>
+        <Show when={busy()}>
+          <ResultLoading message={progressMessage()} delayed={delayed()} />
+        </Show>
+        <Show when={result()}>
           {(display) => (
             <ConsumerResults
               result={display()}
