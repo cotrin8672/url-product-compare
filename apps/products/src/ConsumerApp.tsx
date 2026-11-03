@@ -219,14 +219,57 @@ const observedTime = new Intl.DateTimeFormat("ja-JP", {
 });
 
 function ResultLoading(props: Readonly<{ message: string; delayed: boolean }>): JSX.Element {
+  const columns = ["入力した商品", "候補1", "候補2", "候補3", "候補4", "候補5"];
   return (
-    <section class="result-loading" role="status" aria-live="polite">
-      <progress aria-label="比較処理中" />
-      <div>
-        <strong>{props.message}</strong>
-        <Show when={props.delayed}>
-          <p>処理に時間がかかっています。このままお待ちください。</p>
-        </Show>
+    <section class="consumer-results result-loading" aria-labelledby="loading-heading">
+      <div class="loading-status" role="status" aria-live="polite">
+        <span class="loading-spinner" aria-hidden="true" />
+        <div>
+          <h2 id="loading-heading">比較しています</h2>
+          <p>{props.message}</p>
+          <Show when={props.delayed}>
+            <p>処理に時間がかかっています。このままお待ちください。</p>
+          </Show>
+        </div>
+      </div>
+      <div class="table-wrap" aria-hidden="true" aria-busy="true">
+        <table
+          class="comparison-table consumer-comparison-table loading-table"
+          style={{ "--product-count": "6" }}
+        >
+          <thead>
+            <tr>
+              <th class="row-label">商品</th>
+              <For each={columns}>
+                {(column) => (
+                  <th class="product-heading">
+                    <span class="loading-column-label">{column}</span>
+                    <span class="skeleton skeleton-image" />
+                    <span class="skeleton skeleton-line" />
+                    <span class="skeleton skeleton-line skeleton-short" />
+                  </th>
+                )}
+              </For>
+            </tr>
+          </thead>
+          <tbody>
+            <For each={["おすすめ度", "掲載価格", "主な仕様"]}>
+              {(label) => (
+                <tr>
+                  <th class="row-label">{label}</th>
+                  <For each={columns}>
+                    {() => (
+                      <td>
+                        <span class="skeleton skeleton-line" />
+                        <span class="skeleton skeleton-line skeleton-short" />
+                      </td>
+                    )}
+                  </For>
+                </tr>
+              )}
+            </For>
+          </tbody>
+        </table>
       </div>
     </section>
   );
