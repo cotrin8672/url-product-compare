@@ -48,26 +48,16 @@ const canonical = site.siteOrigin.length > 0 ? site.siteOrigin + route : null;
       <header class="product-header">
         <div class="product-header-inner">
           <a class="product-brand" href="/" aria-label="商品比較 トップ">
-            <svg class="product-brand-mark" viewBox="0 0 28 28" aria-hidden="true">
-              <rect x="2" y="7" width="10" height="17" rx="2" />
-              <rect x="16" y="3" width="10" height="21" rx="2" />
+            <svg class="product-brand-mark" viewBox="0 0 32 28" aria-hidden="true">
+              <path d="M16 3v21M9 25h14M6 7h20M6 7l-4 10h8zM26 7l-4 10h8z" />
             </svg>
             商品比較
           </a>
           <nav class="product-nav" aria-label="商品サイト">
-            <a href="/" aria-current={route === "/" ? "page" : undefined}>
-              URLで比較
-            </a>
             <a href="/guides/" aria-current={route.startsWith("/guides/") ? "page" : undefined}>
               選び方ガイド
             </a>
-          </nav>
-          <nav class="service-switch" aria-label="比較サービス">
-            {serviceLinks(site.serviceOrigins).map((service) => (
-              <a href={service.href} aria-current={service.id === "products" ? "true" : undefined}>
-                {service.label}
-              </a>
-            ))}
+            <a href="/#faq">使い方</a>
           </nav>
         </div>
       </header>
@@ -84,13 +74,13 @@ const canonical = site.siteOrigin.length > 0 ? site.siteOrigin + route : null;
           <a href="/terms/">利用上の注意</a>
           {publisher.contactUrl.length > 0 && <a href={publisher.contactUrl}>お問い合わせ</a>}
         </nav>
-        {legacy && (
-          <nav aria-label="関連する比較サービス">
-            {serviceLinks(site.serviceOrigins).map((service) => (
-              <a href={service.href}>{service.label}</a>
-            ))}
-          </nav>
-        )}
+        <nav aria-label="関連する比較サービス">
+          {serviceLinks(site.serviceOrigins).map((service) => (
+            <a href={service.href} aria-current={service.id === "products" ? "true" : undefined}>
+              {service.label}
+            </a>
+          ))}
+        </nav>
         <p class="footer-disclosure">
           当サイトはアフィリエイト広告を利用しています。リンク先で購入すると、運営者に報酬が入る場合があります。比較結果は購入を保証するものではありません。
         </p>

@@ -44,6 +44,7 @@ import type {
   StoredComparisonSession,
 } from "@app/api-client";
 
+type Product = ConsumerComparison["products"][number];
 type DisplayResult = Readonly<{ data: ConsumerComparison; expiresAt: string }>;
 type PendingOperation = Readonly<{
   url: string;
@@ -77,7 +78,9 @@ function productDisplayTitle(title: string): string {
   return name.length === 0 ? title : name;
 }
 
-function Score(props: Readonly<{ value: number | null; label: string }>): JSX.Element {
+function Score(
+  props: Readonly<{ value: number | null; label: string; confirmed: string }>,
+): JSX.Element {
   return (
     <Show
       when={props.value === null ? undefined : { value: props.value }}
@@ -90,6 +93,7 @@ function Score(props: Readonly<{ value: number | null; label: string }>): JSX.El
             <small>/100</small>
           </strong>
           <progress max="100" value={score().value} aria-label={props.label} />
+          <small class="consumer-score-confirmed">{props.confirmed}</small>
         </div>
       )}
     </Show>
@@ -106,12 +110,12 @@ function CriteriaChart(
   return (
     <div class="criteria-chart">
       <For each={props.axes}>
-        {(axis) => {
+        {(axis, index) => {
           const score = props.product.axes.find((entry) => entry.id === axis.id)?.score ?? null;
           const value = props.product.consumerInformation.specs[axis.id];
           const unit = props.fields.find((field) => field.id === axis.id)?.unit ?? "";
           return (
-            <div class="criterion">
+            <div classList={{ criterion: true, "consumer-criterion-teal": index() >= 2 }}>
               <span>
                 {fieldLabels[axis.label] ?? axis.label}
                 <Show when={typeof value === "number" ? { value } : undefined}>
@@ -147,6 +151,10 @@ function CriteriaChart(
           );
         }}
       </For>
+      <div class="chart-scale">
+        <span>0</span>
+        <span>100</span>
+      </div>
     </div>
   );
 }
@@ -169,6 +177,7 @@ function SpecificationRows(
   props: Readonly<{
     fields: ConsumerComparison["categoryDefinition"]["fields"];
     products: ConsumerComparison["products"];
+    emphasized: (product: Product) => boolean;
   }>,
 ): JSX.Element {
   return (
@@ -183,7 +192,7 @@ function SpecificationRows(
           </th>
           <For each={props.products}>
             {(product) => (
-              <td classList={{ "best-product": product.rank === 1 }}>
+              <td classList={{ "best-product": props.emphasized(product) }}>
                 <Show
                   when={specificationText(product, field.id).length > 60}
                   fallback={specificationText(product, field.id)}
@@ -213,9 +222,10 @@ const observedTime = new Intl.DateTimeFormat("ja-JP", {
 const previewColumns = ["入力した商品", "候補1", "候補2", "候補3", "候補4", "候補5"];
 const previewRows = [
   { label: "商品", kind: "image" },
-  { label: "価格", kind: "price" },
   { label: "おすすめ度", kind: "score" },
+  { label: "掲載価格", kind: "price" },
   { label: "仕様", kind: "specs" },
+  { label: "評価の内訳", kind: "criteria" },
 ] as const;
 
 function ResultPreview(props: Readonly<{ loading: boolean }>): JSX.Element {
@@ -225,20 +235,18 @@ function ResultPreview(props: Readonly<{ loading: boolean }>): JSX.Element {
       aria-labelledby="result-preview-heading"
     >
       <div class="results-title">
-        <h2 id="result-preview-heading">比較結果</h2>
+        <h2 id="result-preview-heading">
+          {props.loading ? "比較しています" : "比較結果はここに表示されます"}
+        </h2>
         <p role={props.loading ? "status" : undefined}>
           {props.loading
             ? "商品情報と類似候補を取得しています…"
-            : "入力した商品と類似候補（最大5件）をこの表に並べます。商品情報や候補を取得できない場合は比較できないことがあります。"}
+            : "入力した商品と類似候補（最大5件）を並べます。商品情報や候補を取得できない場合は比較できないことがあります。"}
         </p>
       </div>
       <div class="result-preview-grid" aria-hidden="true">
         <span class="preview-corner" />
-        <For each={previewColumns}>
-          {(column, index) => (
-            <span classList={{ "preview-column": true, "is-source": index() === 0 }}>{column}</span>
-          )}
-        </For>
+        <For each={previewColumns}>{(column) => <span class="preview-column">{column}</span>}</For>
         <For each={previewRows}>
           {(row) => (
             <>
@@ -292,48 +300,60 @@ function ConsumerResults(
   });
   const data = props.result.data;
   const layout = comparisonDetailLayout(data.categoryDefinition, data.products);
-  const primarySpecifications =
-    data.categorySelectionStatus === undefined && layout.primaryAxes.length > 0
-      ? []
-      : layout.specificationFields.slice(0, 6);
+  const primarySpecifications = layout.specificationFields.slice(0, 6);
   const detailSpecifications = layout.specificationFields.slice(primarySpecifications.length);
   const [detailsOpen, setDetailsOpen] = createSignal(false);
   const hasDetails = layout.detailAxes.length > 0 || detailSpecifications.length > 0;
-  const emphasized = (product: ConsumerComparison["products"][number]): boolean =>
-    product.rank === 1;
-  const isSource = (product: ConsumerComparison["products"][number]): boolean =>
+  const isSource = (product: Product): boolean =>
     product.provider === data.source.provider && product.listingId === data.source.listingId;
   const source = data.products.find(isSource);
   const hasRanking = data.products.some((product) => product.rank !== null);
+  const scoredAxes = [...layout.primaryAxes, ...layout.detailAxes];
   const [priceOrder, setPriceOrder] = createSignal(data.sort === "price");
-  // The input product stays in the first column; ordering only changes the candidate columns.
-  const products = createMemo(() => {
-    const candidates = data.products.filter((product) => !isSource(product));
-    return [
-      ...data.products.filter(isSource),
-      ...(priceOrder()
-        ? candidates.toSorted((left, right) => left.price.minimum - right.price.minimum)
-        : candidates),
-    ];
-  });
+  const priceRank = (product: Product): number =>
+    1 + data.products.filter((other) => other.price.minimum < product.price.minimum).length;
+  const emphasized = (product: Product): boolean =>
+    priceOrder() ? priceRank(product) === 1 : product.rank === 1;
+  // Every column follows the selected order, so position and rank never disagree.
+  const products = createMemo(() =>
+    priceOrder()
+      ? data.products.toSorted((left, right) => left.price.minimum - right.price.minimum)
+      : hasRanking
+        ? data.products.toSorted(
+            (left, right) =>
+              (left.rank ?? Number.POSITIVE_INFINITY) - (right.rank ?? Number.POSITIVE_INFINITY),
+          )
+        : data.products,
+  );
+  const position = (product: Product): number | null =>
+    priceOrder() ? priceRank(product) : product.rank;
+  const confirmedAxes = (product: Product): string => {
+    const confirmed = scoredAxes.filter((axis) =>
+      product.axes.some((entry) => entry.id === axis.id && entry.score !== null),
+    ).length;
+    return `確認 ${confirmed}/${scoredAxes.length}項目`;
+  };
   return (
     <section class="consumer-results" aria-labelledby="consumer-results-heading">
       <header class="results-head">
         <div class="results-title">
-          <h2 id="consumer-results-heading">比較結果</h2>
+          <h2 id="consumer-results-heading">
+            {hasRanking ? "類似商品のおすすめランキング" : "類似商品の比較"}
+          </h2>
           <p>
             {data.categoryDefinition.label}・新品 {data.products.length}件
           </p>
         </div>
         <Show when={data.products.length > 2}>
-          <div class="results-order" role="group" aria-label="候補の並び順">
-            <button type="button" aria-pressed={!priceOrder()} onClick={() => setPriceOrder(false)}>
-              {hasRanking ? "おすすめ順" : "標準"}
-            </button>
-            <button type="button" aria-pressed={priceOrder()} onClick={() => setPriceOrder(true)}>
-              価格の安い順
-            </button>
-          </div>
+          <select
+            class="results-order"
+            aria-label="商品の並び順"
+            value={priceOrder() ? "price" : "default"}
+            onChange={(event) => setPriceOrder(event.currentTarget.value === "price")}
+          >
+            <option value="default">{hasRanking ? "おすすめ順" : "標準"}</option>
+            <option value="price">価格の安い順</option>
+          </select>
         </Show>
       </header>
       <Show when={data.status === "no_match"}>
@@ -360,7 +380,7 @@ function ConsumerResults(
           <thead>
             <tr>
               <th class="row-label" scope="col">
-                商品
+                <span class="sr-only">商品</span>
               </th>
               <For each={products()}>
                 {(product) => (
@@ -373,19 +393,22 @@ function ConsumerResults(
                     scope="col"
                   >
                     <div class="rank-line">
-                      <Show when={product.rank}>
+                      <Show when={position(product)}>
                         {(rank) => (
                           <span class="rank-badge">
                             <span class={`medal medal-${rank() <= 3 ? rank() : "other"}`}>
                               {rank()}
                             </span>
-                            {data.products.filter((other) => other.rank === rank()).length > 1
-                              ? "同率"
-                              : ""}
-                            {rank()}位
+                            {priceOrder()
+                              ? "安い順"
+                              : data.products.filter((other) => other.rank === rank()).length > 1
+                                ? `同率${rank()}位`
+                                : `${rank()}位`}
                           </span>
                         )}
                       </Show>
+                    </div>
+                    <div class="source-line">
                       <Show when={isSource(product)}>
                         <span class="source-tag">入力した商品</span>
                       </Show>
@@ -412,6 +435,37 @@ function ConsumerResults(
                       <p>{product.title}</p>
                     </details>
                     <span class="consumer-shop-tag">{product.shopName}</span>
+                  </th>
+                )}
+              </For>
+            </tr>
+          </thead>
+          <tbody>
+            <Show when={data.products.some((product) => product.recommendationPercent !== null)}>
+              <tr class="recommendation-row">
+                <th class="row-label" scope="row">
+                  おすすめ度<small>今回の候補内の相対評価</small>
+                </th>
+                <For each={products()}>
+                  {(product) => (
+                    <td classList={{ "best-product": emphasized(product) }}>
+                      <Score
+                        value={product.recommendationPercent}
+                        label={product.title + "・総合"}
+                        confirmed={confirmedAxes(product)}
+                      />
+                    </td>
+                  )}
+                </For>
+              </tr>
+            </Show>
+            <tr class="price-row">
+              <th class="row-label" scope="row">
+                掲載価格<small>送料等を含みません</small>
+              </th>
+              <For each={products()}>
+                {(product) => (
+                  <td classList={{ "best-product": emphasized(product) }}>
                     <div class="consumer-price">
                       <span class="consumer-price-value">
                         ¥{product.price.minimum.toLocaleString("ja-JP")}
@@ -422,6 +476,12 @@ function ConsumerResults(
                         </span>
                       </Show>
                     </div>
+                    <Show when={product.price.maximum !== product.price.minimum}>
+                      <p class="consumer-price-note">構成により変わります</p>
+                    </Show>
+                    <Show when={data.products.length > 1 && priceRank(product) === 1}>
+                      <span class="consumer-lowest">この中で最安</span>
+                    </Show>
                     <Show when={isSource(product) ? null : priceDifference(product, source)}>
                       {(difference) => <p class="consumer-price-difference">{difference()}</p>}
                     </Show>
@@ -434,42 +494,19 @@ function ConsumerResults(
                         <span class="consumer-stock-status">売り切れ</span>
                       </Show>
                     </p>
-                    <a
-                      class="purchase-button"
-                      href={product.affiliateUrl}
-                      target="_blank"
-                      rel="sponsored nofollow noopener noreferrer"
-                    >
-                      商品を見る
-                      <span class="sr-only">（楽天市場・新しいタブで開く）</span>
-                    </a>
-                  </th>
+                  </td>
                 )}
               </For>
             </tr>
-          </thead>
-          <tbody>
-            <Show when={data.products.some((product) => product.recommendationPercent !== null)}>
-              <tr class="recommendation-row">
-                <th class="row-label" scope="row">
-                  おすすめ度<small>100点満点</small>
-                </th>
-                <For each={products()}>
-                  {(product) => (
-                    <td classList={{ "best-product": emphasized(product) }}>
-                      <Score
-                        value={product.recommendationPercent}
-                        label={product.title + "・総合"}
-                      />
-                    </td>
-                  )}
-                </For>
-              </tr>
-            </Show>
+            <SpecificationRows
+              fields={primarySpecifications}
+              products={products()}
+              emphasized={emphasized}
+            />
             <Show when={layout.primaryAxes.length > 0}>
               <tr class="criteria-row">
                 <th class="row-label" scope="row">
-                  評価の内訳<small>100点満点</small>
+                  評価の内訳<small>今回の候補内の相対評価</small>
                 </th>
                 <For each={products()}>
                   {(product) => (
@@ -484,14 +521,13 @@ function ConsumerResults(
                 </For>
               </tr>
             </Show>
-            <SpecificationRows fields={primarySpecifications} products={products()} />
           </tbody>
           <Show when={hasDetails}>
             <tbody id="consumer-comparison-details" hidden={!detailsOpen()}>
               <Show when={layout.detailAxes.length > 0}>
                 <tr class="criteria-row consumer-detail-criteria">
                   <th class="row-label" scope="row">
-                    詳細評価<small>100点満点</small>
+                    詳細評価<small>今回の候補内の相対評価</small>
                   </th>
                   <For each={products()}>
                     {(product) => (
@@ -506,9 +542,38 @@ function ConsumerResults(
                   </For>
                 </tr>
               </Show>
-              <SpecificationRows fields={detailSpecifications} products={products()} />
+              <SpecificationRows
+                fields={detailSpecifications}
+                products={products()}
+                emphasized={emphasized}
+              />
             </tbody>
           </Show>
+          <tfoot>
+            <tr class="purchase-row">
+              <th class="row-label" scope="row">
+                <span class="sr-only">販売ページ</span>
+              </th>
+              <For each={products()}>
+                {(product) => (
+                  <td classList={{ "best-product": emphasized(product) }}>
+                    <a
+                      class="purchase-button"
+                      href={product.affiliateUrl}
+                      target="_blank"
+                      rel="sponsored nofollow noopener noreferrer"
+                    >
+                      商品を見る
+                      <svg viewBox="0 0 12 12" aria-hidden="true">
+                        <path d="M3 9l6-6M4.5 3H9v4.5" />
+                      </svg>
+                      <span class="sr-only">（楽天市場・新しいタブで開く）</span>
+                    </a>
+                  </td>
+                )}
+              </For>
+            </tr>
+          </tfoot>
         </table>
       </div>
       <Show when={hasDetails}>
@@ -524,37 +589,39 @@ function ConsumerResults(
             : `詳細項目を表示（${layout.detailAxes.length + detailSpecifications.length}項目）`}
         </button>
       </Show>
-      <p class="results-source">
-        情報元：楽天市場。価格は確認時点の掲載価格で、送料・ポイント・クーポンを含みません。「商品を見る」は広告リンクです。
-      </p>
-      <details class="consumer-method">
-        <summary>比較条件と点数の見方</summary>
-        <ul>
-          <li>
-            候補は、入力した商品の情報をもとに楽天市場の新品から探した類似商品です。容量・構成・セット内容が入力した商品と同じとは限りません。
-          </li>
-          <li>価格は確認時点の掲載価格です。送料・ポイント・クーポンは含みません。</li>
-          <li>
-            おすすめ度と評価の内訳は、今回の候補で確認できた値を相対的に点数化した目安です。候補が変われば点数も変わり、実測の性能や満足度を示すものではありません。
-          </li>
-          <Show when={data.scoreBasis !== undefined && data.scoreBasis.length > 0}>
+      <div class="results-foot">
+        <p class="results-source">
+          情報元：楽天市場。価格は確認時点の掲載価格で、送料・ポイント・クーポンを含みません。「商品を見る」は広告リンクです。
+        </p>
+        <details class="consumer-method">
+          <summary>比較条件と点数の見方</summary>
+          <ul>
             <li>
-              採点項目：
-              {data.categoryDefinition.axes
-                .filter((axis) => data.scoreBasis?.includes(axis.id) === true)
-                .map((axis) => axis.label)
-                .join("・")}
+              候補は、入力した商品の情報をもとに楽天市場の新品から探した類似商品です。容量・構成・セット内容が入力した商品と同じとは限りません。
             </li>
-          </Show>
-          <li>「—」は値を確認できなかった項目です。0点や機能なしを意味しません。</li>
-          <li>
-            商品情報の整理に自動抽出やAIの補助を使う場合があります。購入前に販売ページで型番と仕様を確認してください。
-          </li>
-          <li>
-            「商品を見る」はアフィリエイト広告のリンクです。報酬を点数や順位の計算に使うことはありません。
-          </li>
-        </ul>
-      </details>
+            <li>価格は確認時点の掲載価格です。送料・ポイント・クーポンは含みません。</li>
+            <li>
+              おすすめ度と評価の内訳は、今回の候補で確認できた値を相対的に点数化した目安です。候補が変われば点数も変わり、実測の性能や満足度を示すものではありません。
+            </li>
+            <Show when={data.scoreBasis !== undefined && data.scoreBasis.length > 0}>
+              <li>
+                採点項目：
+                {data.categoryDefinition.axes
+                  .filter((axis) => data.scoreBasis?.includes(axis.id) === true)
+                  .map((axis) => axis.label)
+                  .join("・")}
+              </li>
+            </Show>
+            <li>「—」は値を確認できなかった項目です。0点や機能なしを意味しません。</li>
+            <li>
+              商品情報の整理に自動抽出やAIの補助を使う場合があります。購入前に販売ページで型番と仕様を確認してください。
+            </li>
+            <li>
+              「商品を見る」はアフィリエイト広告のリンクです。報酬を点数や順位の計算に使うことはありません。
+            </li>
+          </ul>
+        </details>
+      </div>
     </section>
   );
 }
