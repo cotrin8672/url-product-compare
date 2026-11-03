@@ -225,8 +225,8 @@ function ResultLoading(props: Readonly<{ message: string; delayed: boolean }>): 
       <div class="loading-status" role="status" aria-live="polite">
         <span class="loading-spinner" aria-hidden="true" />
         <div>
-          <h2 id="loading-heading">比較しています</h2>
-          <p>{props.message}</p>
+          <h2 id="loading-heading">比較中</h2>
+          <p class="sr-only">{props.message}</p>
           <Show when={props.delayed}>
             <p>処理に時間がかかっています。このままお待ちください。</p>
           </Show>
@@ -965,8 +965,8 @@ export function ConsumerApp(): JSX.Element {
             }
           }}
         >
-          <label class="url-field-label" for="consumer-url">
-            楽天市場の商品URL
+          <label class="sr-only" for="consumer-url">
+            商品URL
           </label>
           <div class="search">
             <div class="url-input-wrap">
@@ -987,7 +987,7 @@ export function ConsumerApp(): JSX.Element {
                 autocapitalize="off"
                 spellcheck={false}
                 required
-                aria-label="楽天市場の商品URL"
+                aria-label="商品URL"
                 aria-invalid={recovery() === "edit"}
                 aria-describedby={error().length > 0 ? "consumer-error" : undefined}
                 maxLength={2048}
@@ -1033,12 +1033,6 @@ export function ConsumerApp(): JSX.Element {
                     : "比較する"}
             </button>
           </div>
-          <ul class="url-input-notes">
-            <li>楽天市場の新品商品に対応（Amazon・Yahoo!ショッピングは未対応）</li>
-            <li>注文履歴など個人情報を含むURLは入力不可</li>
-            <li>比較結果の商品リンクは広告です</li>
-            <li>商品によっては比較できない場合があります</li>
-          </ul>
           <Show when={keywordVisible()}>
             <div class="consumer-recovery-field">
               <label for="consumer-keyword">商品名</label>

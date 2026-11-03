@@ -7,27 +7,6 @@
 .compare-tool {
   padding-bottom: 8px;
 }
-/* The static heading and the hydrated form read as one bordered panel. */
-.compare-band,
-.product-site .consumer-main .url-panel,
-.product-site #app:empty,
-.compare-noscript {
-  border: 1px solid #0781ff;
-  background: linear-gradient(105deg, #eef8ff, #e7f4ff);
-}
-.compare-band {
-  margin: 16px var(--page-inset) 0;
-  padding: 12px 20px 0;
-  border-bottom: 0;
-  border-radius: 6px 6px 0 0;
-}
-.compare-band h1 {
-  margin: 0;
-  color: #102043;
-  font-size: 19px;
-  font-weight: 750;
-  line-height: 1.4;
-}
 .compare-noscript {
   margin: 0 var(--page-inset);
   padding: 12px 20px;
@@ -35,10 +14,8 @@
   border-radius: 0 0 6px 6px;
 }
 .product-site #app:empty {
-  min-height: 180px;
-  margin: 0 var(--page-inset);
-  border-top: 0;
-  border-radius: 0 0 6px 6px;
+  min-height: 56px;
+  margin: 16px var(--page-inset);
 }
 .product-site .consumer-main {
   max-width: none;
@@ -47,10 +24,10 @@
   color: #102043;
 }
 .product-site .consumer-main .url-panel {
-  margin: 0 var(--page-inset);
-  padding: 8px 20px 12px;
-  border-top: 0;
-  border-radius: 0 0 6px 6px;
+  margin: 16px var(--page-inset) 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
 }
 .product-site .consumer-main .search {
   gap: 12px;
@@ -82,17 +59,6 @@
 }
 .product-site .consumer-main .compare-button:hover:not(:disabled) {
   background: #0067d6;
-}
-.url-input-notes {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px 18px;
-  margin: 8px 0 0;
-  padding: 0;
-  color: #41567f;
-  font-size: 12px;
-  line-height: 1.6;
-  list-style: none;
 }
 .consumer-recovery-field {
   margin-top: 12px;
@@ -137,36 +103,6 @@
   font-size: 13px;
 }
 
-/* Until a comparison starts, the URL form is the main element of the first view. */
-.compare-page:not(:has(.consumer-results, .result-loading)) {
-  --form-pad: clamp(20px, 5vw, 64px);
-}
-.compare-page:not(:has(.consumer-results, .result-loading)) .compare-band {
-  margin-top: 28px;
-  padding: 36px var(--form-pad) 0;
-}
-.compare-page:not(:has(.consumer-results, .result-loading)) .compare-band h1 {
-  font-size: clamp(22px, 3vw, 30px);
-}
-.product-site .compare-page:not(:has(.consumer-results, .result-loading)) .url-panel {
-  padding: 16px var(--form-pad) 36px;
-}
-.product-site .compare-page:not(:has(.consumer-results, .result-loading)) .url-input-wrap {
-  border-width: 3px;
-}
-.product-site .compare-page:not(:has(.consumer-results, .result-loading)) .url-input-wrap input {
-  height: 68px;
-  font-size: 20px;
-}
-.product-site .compare-page:not(:has(.consumer-results, .result-loading)) .compare-button {
-  min-height: 68px;
-  font-size: 22px;
-}
-.compare-page:not(:has(.consumer-results, .result-loading)) .url-input-notes {
-  margin-top: 14px;
-  font-size: 13px;
-}
-
 /* The running state and results share the same frame. */
 .consumer-results {
   padding: 16px var(--page-inset) 0;
@@ -177,24 +113,21 @@
 .loading-status {
   display: flex;
   align-items: center;
-  gap: 18px;
-  padding: 20px;
-  border: 1px solid #b8d7f5;
-  border-radius: 6px;
-  background: #eef7ff;
+  gap: 10px;
+  min-height: 28px;
 }
 .loading-spinner {
-  width: 36px;
-  height: 36px;
+  width: 24px;
+  height: 24px;
   flex-shrink: 0;
-  border: 4px solid #c4ddf7;
+  border: 3px solid #c4ddf7;
   border-top-color: #0876ee;
   border-radius: 50%;
   animation: loading-spin 0.9s linear infinite;
 }
 .loading-status h2 {
   margin: 0;
-  font-size: 22px;
+  font-size: 16px;
 }
 .loading-status p {
   margin: 6px 0 0;
@@ -243,12 +176,6 @@
   .skeleton {
     animation: none;
   }
-}
-.url-field-label {
-  display: block;
-  margin-bottom: 8px;
-  font-size: 13px;
-  font-weight: 600;
 }
 .results-head {
   display: flex;
@@ -608,16 +535,6 @@
   .compare-page {
     --page-inset: 12px;
   }
-  .compare-band {
-    margin-top: 10px;
-    padding: 10px 12px 0;
-  }
-  .compare-band h1 {
-    font-size: 16px;
-  }
-  .product-site .consumer-main .url-panel {
-    padding: 8px 12px 12px;
-  }
   .product-site .consumer-main .search {
     flex-direction: column;
     gap: 8px;
@@ -639,10 +556,6 @@
     width: 100%;
     min-height: 46px;
     font-size: 16px;
-  }
-  .url-input-notes {
-    display: block;
-    font-size: 11px;
   }
   .results-title h2 {
     font-size: 17px;
@@ -693,25 +606,5 @@
   }
   .consumer-method summary {
     margin-left: 0;
-  }
-}
-@media (max-width: 700px) {
-  .compare-page:not(:has(.consumer-results, .result-loading)) .compare-band {
-    margin-top: 14px;
-    padding-top: 20px;
-  }
-  .product-site .compare-page:not(:has(.consumer-results, .result-loading)) .url-panel {
-    padding-bottom: 20px;
-  }
-  .product-site .compare-page:not(:has(.consumer-results, .result-loading)) .url-input-wrap input {
-    height: 56px;
-    font-size: 16px;
-  }
-  .product-site .compare-page:not(:has(.consumer-results, .result-loading)) .compare-button {
-    min-height: 56px;
-    font-size: 18px;
-  }
-  .compare-page:not(:has(.consumer-results, .result-loading)) .url-input-notes {
-    font-size: 12px;
   }
 }
