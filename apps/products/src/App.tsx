@@ -20,6 +20,7 @@ import type {
 } from "@app/api-client";
 
 import { ConsumerApp } from "./ConsumerApp.js";
+import { productImageUrl } from "./product-image.js";
 
 type ComparisonMode = "price" | "performance" | "ai";
 type ViewResult<T> = Readonly<{ tag: "ok"; value: T }> | Readonly<{ tag: "err"; message: string }>;
@@ -267,7 +268,9 @@ function ProductTable(
                     style={
                       product.imageUrl === null
                         ? {}
-                        : { "background-image": `url(${JSON.stringify(product.imageUrl)})` }
+                        : {
+                            "background-image": `url(${JSON.stringify(productImageUrl(product.imageUrl))})`,
+                          }
                     }
                   >
                     <Show when={product.imageUrl === null}>

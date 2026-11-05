@@ -190,29 +190,7 @@
   border-color: #acb5c0;
   box-shadow: 0 3px 14px #1420362b;
 }
-.discovery-play {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  min-height: 28px;
-  padding: 2px 0 2px 12px;
-  border: 0;
-  border-left: 1px solid #e5e8ec;
-  border-radius: 0;
-  background: transparent;
-  color: #687483;
-  font-size: 12px;
-  cursor: pointer;
-}
-.discovery-play svg {
-  width: 16px;
-  height: 16px;
-}
-.discovery-play:hover {
-  color: #1266bb;
-}
 .discovery-arrow:focus-visible,
-.discovery-play:focus-visible,
 .discovery-product:focus-visible {
   outline: 2px solid #0876ee;
   outline-offset: -3px;

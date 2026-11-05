@@ -44,6 +44,7 @@ import type {
   StoredComparisonSession,
 } from "@app/api-client";
 
+import { productImageUrl } from "./product-image.js";
 import { ProductDiscovery } from "./ProductDiscovery.js";
 
 type Product = ConsumerComparison["products"][number];
@@ -458,7 +459,10 @@ function ConsumerResults(
                       style={
                         product.imageUrl === null
                           ? {}
-                          : { "background-image": "url(" + JSON.stringify(product.imageUrl) + ")" }
+                          : {
+                              "background-image":
+                                "url(" + JSON.stringify(productImageUrl(product.imageUrl)) + ")",
+                            }
                       }
                     >
                       <Show when={product.imageUrl === null}>画像なし</Show>

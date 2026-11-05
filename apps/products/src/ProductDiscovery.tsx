@@ -13,13 +13,15 @@ import type { JSX } from "solid-js";
 import { createComparisonRequestScope, fetchCommerceListings } from "@app/api-client";
 import type { CommerceListing, CommerceRequest } from "@app/api-client";
 
+import { productImageUrl } from "./product-image.js";
+
 function displayRemainingMs(items: readonly CommerceListing[]): number {
   return Math.max(0, Math.min(...items.map((item) => Date.parse(item.expiresAt))) - Date.now());
 }
 
 function ProductShowcase(props: Readonly<{ children: JSX.Element }>): JSX.Element {
   const [track, setTrack] = createSignal<HTMLDivElement>();
-  const [paused, setPaused] = createSignal(false);
+  const [reducedMotion, setReducedMotion] = createSignal(false);
   const [hovered, setHovered] = createSignal(false);
   const [focused, setFocused] = createSignal(false);
   const [visible, setVisible] = createSignal(false);
@@ -75,11 +77,9 @@ function ProductShowcase(props: Readonly<{ children: JSX.Element }>): JSX.Elemen
       return;
     }
     const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setPaused(motion.matches);
+    setReducedMotion(motion.matches);
     const motionChanged = (): void => {
-      if (motion.matches) {
-        setPaused(true);
-      }
+      setReducedMotion(motion.matches);
     };
     const visibilityChanged = (): void => {
       setPageVisible(!document.hidden);
@@ -105,7 +105,14 @@ function ProductShowcase(props: Readonly<{ children: JSX.Element }>): JSX.Elemen
   });
 
   createEffect(() => {
-    if (paused() || hovered() || focused() || !visible() || !pageVisible() || !overflowing()) {
+    if (
+      reducedMotion() ||
+      hovered() ||
+      focused() ||
+      !visible() ||
+      !pageVisible() ||
+      !overflowing()
+    ) {
       return;
     }
     const timer = setInterval(() => {
@@ -124,11 +131,7 @@ function ProductShowcase(props: Readonly<{ children: JSX.Element }>): JSX.Elemen
       aria-label="商品一覧"
       onPointerEnter={() => setHovered(true)}
       onPointerLeave={() => setHovered(false)}
-      onFocusIn={(event) =>
-        setFocused(
-          event.target instanceof Element && event.target.closest(".discovery-track") !== null,
-        )
-      }
+      onFocusIn={() => setFocused(true)}
       onFocusOut={(event) => {
         if (
           !(
@@ -144,8 +147,6 @@ function ProductShowcase(props: Readonly<{ children: JSX.Element }>): JSX.Elemen
         ref={(element) => {
           setTrack(element);
         }}
-        onPointerDown={() => setPaused(true)}
-        onWheel={() => setPaused(true)}
         onScroll={updatePosition}
       >
         {props.children}
@@ -157,7 +158,6 @@ function ProductShowcase(props: Readonly<{ children: JSX.Element }>): JSX.Elemen
             class="discovery-arrow discovery-previous"
             aria-label="前の商品を表示"
             onClick={() => {
-              setPaused(true);
               move(-1);
             }}
           >
@@ -176,7 +176,6 @@ function ProductShowcase(props: Readonly<{ children: JSX.Element }>): JSX.Elemen
             class="discovery-arrow discovery-next"
             aria-label="次の商品を表示"
             onClick={() => {
-              setPaused(true);
               move(1);
             }}
           >
@@ -198,26 +197,6 @@ function ProductShowcase(props: Readonly<{ children: JSX.Element }>): JSX.Elemen
               {position().first}–{position().last}
               <span> / {position().total}</span>
             </span>
-            <button
-              type="button"
-              class="discovery-play"
-              aria-label={paused() ? "商品の自動送りを再開" : "商品の自動送りを停止"}
-              aria-pressed={!paused()}
-              title={paused() ? "自動送りを再開" : "自動送りを停止"}
-              onClick={() => setPaused(!paused())}
-            >
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <Show
-                  when={paused()}
-                  fallback={
-                    <path d="M8 6v12M16 6v12" fill="none" stroke="currentColor" stroke-width="2" />
-                  }
-                >
-                  <path d="m9 5 10 7-10 7Z" fill="currentColor" />
-                </Show>
-              </svg>
-              <span>自動送り</span>
-            </button>
           </div>
         </>
       </Show>
@@ -349,7 +328,10 @@ export function ProductDiscovery(
                         style={
                           item.imageUrl === null
                             ? {}
-                            : { "background-image": "url(" + JSON.stringify(item.imageUrl) + ")" }
+                            : {
+                                "background-image":
+                                  "url(" + JSON.stringify(productImageUrl(item.imageUrl)) + ")",
+                              }
                         }
                       >
                         <Show when={item.imageUrl === null}>画像なし</Show>
