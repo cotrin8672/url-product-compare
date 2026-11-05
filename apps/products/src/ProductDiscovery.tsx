@@ -364,23 +364,7 @@ export function ProductDiscovery(
                 </For>
               </ProductShowcase>
               <footer class="discovery-foot">
-                <p>
-                  掲載価格（送料・ポイントを含みません）。
-                  <Show when={products()?.[0]}>
-                    {(item) => (
-                      <time dateTime={item().observedAt}>
-                        {new Intl.DateTimeFormat("ja-JP", {
-                          timeZone: "Asia/Tokyo",
-                          month: "numeric",
-                          day: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        }).format(new Date(item().observedAt))}
-                        取得
-                      </time>
-                    )}
-                  </Show>
-                </p>
+                <p>掲載価格（送料・ポイントを含みません）。</p>
                 <nav aria-label="商品のページ">
                   <button
                     type="button"
