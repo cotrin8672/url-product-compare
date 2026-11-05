@@ -1,7 +1,6 @@
 ---
 import site from "../../.generated/site.json";
 import ProductLayout from "../layouts/ProductLayout.astro";
-import GuideArtwork from "../components/GuideArtwork.astro";
 import GuideIndex from "../components/GuideIndex.astro";
 import GuideArticle from "../components/GuideArticle.astro";
 import { guides } from "../content/editorial.js";
@@ -112,30 +111,6 @@ const faq = [
         </noscript>
       </div>
       <script src="../index.tsx"></script>
-      <section class="home-features" aria-labelledby="features-heading">
-        <div class="home-section-head">
-          <h2 id="features-heading">買う前に読んでおきたい</h2>
-          <a href="/guides/">
-            すべて見る <span aria-hidden="true">→</span>
-          </a>
-        </div>
-        <div class="feature-grid">
-          {guides.map((entry) => (
-            <a class={`feature-card feature-card--${entry.slug}`} href={`/guides/${entry.slug}/`}>
-              <div class="feature-art">
-                <GuideArtwork topic={entry.slug} />
-              </div>
-              <div class="feature-copy">
-                <span>{entry.topicLabel}</span>
-                <h3>{entry.title.split("｜")[0]}</h3>
-                <span class="feature-arrow" aria-hidden="true">
-                  ↗
-                </span>
-              </div>
-            </a>
-          ))}
-        </div>
-      </section>
       <div class="home-info">
         <section id="faq" class="home-faq" aria-labelledby="faq-heading">
           <h2 id="faq-heading">よくある質問</h2>

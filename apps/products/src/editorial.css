@@ -90,6 +90,125 @@
 }
 
 /* Secondary content under the comparison tool. */
+.product-discovery {
+  max-width: 1120px;
+  margin: 28px auto 36px;
+}
+.discovery-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.discovery-head h2 {
+  margin: 0;
+  font-size: 20px;
+}
+.discovery-search {
+  display: flex;
+  gap: 8px;
+}
+.discovery-search input {
+  width: 270px;
+  padding: 10px 12px;
+  border: 1px solid #bdcbd9;
+  border-radius: 4px;
+  font-size: 14px;
+}
+.discovery-search button,
+.discovery-foot button {
+  padding: 8px 16px;
+  border: 1px solid #bdcbd9;
+  border-radius: 4px;
+  background: white;
+  color: #174d87;
+  cursor: pointer;
+}
+.discovery-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 20px;
+}
+.discovery-product {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid #e0e6ec;
+  border-radius: 6px;
+  background: white;
+  color: #243a54;
+  text-align: left;
+  cursor: pointer;
+}
+.discovery-product:hover:not(:disabled) {
+  border-color: #0876ee;
+  box-shadow: 0 3px 12px #1020430d;
+}
+.discovery-image {
+  display: grid;
+  place-items: center;
+  height: 136px;
+  margin-bottom: 16px;
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+.discovery-name {
+  display: -webkit-box;
+  height: 63px;
+  overflow: hidden;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.discovery-price {
+  margin: 12px 0;
+  font-size: 20px;
+  font-weight: 700;
+}
+.discovery-action {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 12px;
+  border-top: 1px solid #edf0f3;
+  color: #1266bb;
+  font-size: 13px;
+  font-weight: 600;
+}
+.discovery-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 18px;
+}
+.discovery-foot p {
+  margin: 0;
+  color: #52647a;
+  font-size: 12px;
+}
+.discovery-foot nav {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.discovery-foot button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+@media (max-width: 1180px) {
+  .product-discovery {
+    margin-left: 24px;
+    margin-right: 24px;
+  }
+}
 .home-info {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -99,84 +218,12 @@
   background: #f5f8fc;
 }
 .compare-page:not(:has(.consumer-results)) .compare-tool {
-  display: grid;
-  align-items: center;
-  min-height: 240px;
-  border-bottom: 1px solid #edf0f3;
+  display: block;
 }
 .compare-page:not(:has(.consumer-results)) .url-panel {
   width: calc(100% - 48px);
   max-width: 960px;
-  margin: 0 auto;
-}
-.home-features {
-  max-width: 1120px;
-  margin: 24px auto 32px;
-}
-.home-section-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
-}
-.home-section-head h2 {
-  margin: 0;
-  font-size: 18px;
-}
-.home-section-head > a {
-  color: #2466a7;
-  font-size: 13px;
-  text-decoration: none;
-}
-.feature-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 22px;
-}
-.feature-card {
-  overflow: hidden;
-  border: 1px solid #e0e6eb;
-  border-radius: 9px;
-  color: #243a54;
-  text-decoration: none;
-}
-.feature-card:hover {
-  border-color: #7e9fbd;
-}
-.feature-art {
-  height: 128px;
-  background: #eaf1fc;
-}
-.feature-card--total-cost .feature-art {
-  background: #faf1df;
-}
-.feature-card--before-purchase .feature-art {
-  background: #e7f2ed;
-}
-.feature-art .guide-artwork {
-  width: 100%;
-  height: 100%;
-}
-.feature-copy {
-  position: relative;
-  padding: 16px 36px 18px 18px;
-}
-.feature-copy > span:first-child {
-  color: #62778a;
-  font-size: 11px;
-}
-.feature-copy h3 {
-  margin: 6px 0 0;
-  font-size: 16px;
-  line-height: 1.5;
-}
-.feature-arrow {
-  position: absolute;
-  right: 16px;
-  top: 34px;
-}
-.compare-page:has(.consumer-results) .home-features {
-  display: none;
+  margin: 84px auto 100px;
 }
 .home-faq {
   display: grid;
@@ -188,12 +235,6 @@
 }
 .home-faq h2 {
   grid-column: 1 / -1;
-}
-@media (max-width: 1180px) {
-  .home-features {
-    margin-left: 24px;
-    margin-right: 24px;
-  }
 }
 .home-faq,
 .home-guides {
@@ -394,31 +435,39 @@
 }
 
 @media (max-width: 700px) {
+  .product-discovery {
+    margin: 24px 12px;
+  }
+  .discovery-head {
+    align-items: stretch;
+  }
+  .discovery-search {
+    width: 100%;
+  }
+  .discovery-search input {
+    width: 100%;
+    min-width: 0;
+  }
+  .discovery-search button {
+    flex-shrink: 0;
+  }
+  .discovery-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .discovery-product {
+    padding: 12px;
+  }
+  .discovery-name {
+    font-size: 13px;
+    height: 59px;
+  }
   .compare-page:not(:has(.consumer-results)) .compare-tool {
-    min-height: 200px;
+    min-height: 0;
   }
   .compare-page:not(:has(.consumer-results)) .url-panel {
     width: calc(100% - 24px);
-    margin: 0 auto;
-  }
-  .home-features {
-    margin: 24px 12px;
-  }
-  .feature-grid {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 12px;
-  }
-  .feature-card {
-    display: grid;
-    grid-template-columns: 110px minmax(0, 1fr);
-    align-items: stretch;
-  }
-  .feature-art {
-    height: 100%;
-    min-height: 100px;
-  }
-  .feature-copy h3 {
-    font-size: 14px;
+    margin: 36px auto;
   }
   .home-faq {
     grid-template-columns: minmax(0, 1fr);

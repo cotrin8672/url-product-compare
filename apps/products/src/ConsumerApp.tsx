@@ -44,6 +44,8 @@ import type {
   StoredComparisonSession,
 } from "@app/api-client";
 
+import { ProductDiscovery } from "./ProductDiscovery.js";
+
 type Product = ConsumerComparison["products"][number];
 type DisplayResult = Readonly<{ data: ConsumerComparison; expiresAt: string }>;
 type PendingOperation = Readonly<{
@@ -1101,6 +1103,21 @@ export function ConsumerApp(): JSX.Element {
             />
           )}
         </Show>
+        <div hidden={busy() || result() !== undefined}>
+          <ProductDiscovery
+            disabled={catalog.loading || catalog() === undefined}
+            onSelect={(selectedUrl) => {
+              batch(() => {
+                setUrl(selectedUrl);
+                setKeyword("");
+                setKeywordVisible(false);
+                setPending(undefined);
+              });
+              start().catch(() => setError("比較できませんでした。"));
+              document.getElementById("consumer-form")?.scrollIntoView({ block: "start" });
+            }}
+          />
+        </div>
       </div>
     </>
   );
