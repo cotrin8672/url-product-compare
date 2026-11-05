@@ -47,7 +47,11 @@ assert.equal(
   "Editorial route collision",
 );
 if (target === "products") {
-  assert.equal(guides.length, 3, "Missing buying guides");
+  assert.deepEqual(
+    guides.map((guide) => guide.slug),
+    ["total-cost", "before-purchase"],
+    "Unexpected buying guide routes",
+  );
   assert.equal(informationPages.length, 4, "Missing permanent information pages");
 }
 assert.equal(
