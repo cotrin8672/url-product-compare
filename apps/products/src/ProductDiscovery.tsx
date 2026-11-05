@@ -1,5 +1,13 @@
 /** @jsxImportSource solid-js */
-import { createEffect, createResource, createSignal, For, onCleanup, Show } from "solid-js";
+import {
+  createEffect,
+  createResource,
+  createSignal,
+  For,
+  onCleanup,
+  onMount,
+  Show,
+} from "solid-js";
 import type { JSX } from "solid-js";
 
 import { createComparisonRequestScope, fetchCommerceListings } from "@app/api-client";
@@ -7,6 +15,154 @@ import type { CommerceListing, CommerceRequest } from "@app/api-client";
 
 function displayRemainingMs(items: readonly CommerceListing[]): number {
   return Math.max(0, Math.min(...items.map((item) => Date.parse(item.expiresAt))) - Date.now());
+}
+
+function ProductShowcase(props: Readonly<{ children: JSX.Element }>): JSX.Element {
+  const [track, setTrack] = createSignal<HTMLDivElement>();
+  const [paused, setPaused] = createSignal(false);
+  const [hovered, setHovered] = createSignal(false);
+  const [focused, setFocused] = createSignal(false);
+  const [visible, setVisible] = createSignal(false);
+  const [pageVisible, setPageVisible] = createSignal(!document.hidden);
+  const [overflowing, setOverflowing] = createSignal(false);
+
+  const move = (direction: -1 | 1): void => {
+    const element = track();
+    const card = element?.firstElementChild;
+    if (element === undefined || !(card instanceof HTMLElement)) {
+      return;
+    }
+    const maximum = element.scrollWidth - element.clientWidth;
+    const step = card.getBoundingClientRect().width + parseFloat(getComputedStyle(element).gap);
+    const left = Math.max(0, Math.min(maximum, element.scrollLeft));
+    const destination =
+      direction === 1
+        ? left >= maximum - 2
+          ? 0
+          : Math.min(maximum, left + step)
+        : left <= 2
+          ? maximum
+          : Math.max(0, left - step);
+    element.scrollTo({
+      left: destination,
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+    });
+  };
+
+  onMount(() => {
+    const element = track();
+    if (element === undefined) {
+      return;
+    }
+    const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    setPaused(motion.matches);
+    const motionChanged = (): void => {
+      if (motion.matches) {
+        setPaused(true);
+      }
+    };
+    const visibilityChanged = (): void => {
+      setPageVisible(!document.hidden);
+    };
+    const resize = new ResizeObserver(() => {
+      setOverflowing(element.scrollWidth > element.clientWidth + 1);
+    });
+    const intersection = new IntersectionObserver(
+      (entries) => setVisible(entries.some((entry) => entry.isIntersecting)),
+      { threshold: 0.5 },
+    );
+    resize.observe(element);
+    intersection.observe(element);
+    motion.addEventListener("change", motionChanged);
+    document.addEventListener("visibilitychange", visibilityChanged);
+    onCleanup(() => {
+      resize.disconnect();
+      intersection.disconnect();
+      motion.removeEventListener("change", motionChanged);
+      document.removeEventListener("visibilitychange", visibilityChanged);
+    });
+  });
+
+  createEffect(() => {
+    if (paused() || hovered() || focused() || !visible() || !pageVisible() || !overflowing()) {
+      return;
+    }
+    const timer = setInterval(() => {
+      move(1);
+    }, 4500);
+    onCleanup(() => {
+      clearInterval(timer);
+    });
+  });
+
+  return (
+    <div
+      class="discovery-showcase"
+      role="group"
+      aria-roledescription="カルーセル"
+      aria-label="商品一覧"
+      onPointerEnter={() => setHovered(true)}
+      onPointerLeave={() => setHovered(false)}
+      onFocusIn={(event) =>
+        setFocused(
+          event.target instanceof Element && event.target.closest(".discovery-track") !== null,
+        )
+      }
+      onFocusOut={(event) => {
+        if (
+          !(
+            event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)
+          )
+        ) {
+          setFocused(false);
+        }
+      }}
+    >
+      <div
+        class="discovery-track"
+        ref={(element) => {
+          setTrack(element);
+        }}
+        onPointerDown={() => setPaused(true)}
+        onWheel={() => setPaused(true)}
+      >
+        {props.children}
+      </div>
+      <Show when={overflowing()}>
+        <div class="discovery-controls">
+          <button
+            type="button"
+            aria-label="前の商品を表示"
+            onClick={() => {
+              setPaused(true);
+              move(-1);
+            }}
+          >
+            <span aria-hidden="true">‹</span>
+          </button>
+          <button
+            type="button"
+            class="discovery-play"
+            aria-label={paused() ? "商品の自動送りを再開" : "商品の自動送りを停止"}
+            aria-pressed={!paused()}
+            onClick={() => setPaused(!paused())}
+          >
+            <span aria-hidden="true">{paused() ? "▶" : "Ⅱ"}</span>
+          </button>
+          <button
+            type="button"
+            aria-label="次の商品を表示"
+            onClick={() => {
+              setPaused(true);
+              move(1);
+            }}
+          >
+            <span aria-hidden="true">›</span>
+          </button>
+        </div>
+      </Show>
+    </div>
+  );
 }
 
 export function ProductDiscovery(
@@ -111,7 +267,7 @@ export function ProductDiscovery(
               <Show when={(products()?.length ?? 0) === 0}>
                 <p role="status">比較できる新品商品が見つかりませんでした。</p>
               </Show>
-              <div class="discovery-grid">
+              <ProductShowcase>
                 <For each={products()}>
                   {(item) => (
                     <button
@@ -155,7 +311,7 @@ export function ProductDiscovery(
                     </button>
                   )}
                 </For>
-              </div>
+              </ProductShowcase>
               <footer class="discovery-foot">
                 <p>
                   掲載価格（送料・ポイントを含みません）。
@@ -180,7 +336,7 @@ export function ProductDiscovery(
                     disabled={(request().page ?? 1) <= 1}
                     onClick={() => setRequest({ ...request(), page: (request().page ?? 1) - 1 })}
                   >
-                    前へ
+                    前の一覧
                   </button>
                   <span>{request().page ?? 1}</span>
                   <button
@@ -188,7 +344,7 @@ export function ProductDiscovery(
                     disabled={!hasNext()}
                     onClick={() => setRequest({ ...request(), page: (request().page ?? 1) + 1 })}
                   >
-                    次へ
+                    次の一覧
                   </button>
                 </nav>
               </footer>

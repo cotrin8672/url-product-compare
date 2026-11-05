@@ -126,13 +126,50 @@
   color: #174d87;
   cursor: pointer;
 }
-.discovery-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+.discovery-track {
+  display: flex;
   gap: 20px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: thin;
+  scrollbar-color: #c9d5e2 transparent;
+  padding: 4px 0 10px;
+}
+.discovery-controls {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+.discovery-controls button {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid #d9e2ec;
+  border-radius: 50%;
+  background: white;
+  color: #174d87;
+  font-size: 26px;
+  cursor: pointer;
+}
+.discovery-controls .discovery-play {
+  font-size: 13px;
+}
+.discovery-controls button:hover {
+  background: #f0f6ff;
+  border-color: #0876ee;
+}
+.discovery-controls button:focus-visible,
+.discovery-product:focus-visible {
+  outline: 2px solid #0876ee;
+  outline-offset: -3px;
 }
 .discovery-product {
   display: flex;
+  flex: 0 0 calc((100% - 60px) / 4);
   flex-direction: column;
   align-items: stretch;
   min-width: 0;
@@ -143,6 +180,7 @@
   color: #243a54;
   text-align: left;
   cursor: pointer;
+  scroll-snap-align: start;
 }
 .discovery-product:hover:not(:disabled) {
   border-color: #0876ee;
@@ -451,11 +489,11 @@
   .discovery-search button {
     flex-shrink: 0;
   }
-  .discovery-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .discovery-track {
     gap: 12px;
   }
   .discovery-product {
+    flex-basis: min(78%, 280px);
     padding: 12px;
   }
   .discovery-name {
