@@ -25,6 +25,26 @@ function ProductShowcase(props: Readonly<{ children: JSX.Element }>): JSX.Elemen
   const [visible, setVisible] = createSignal(false);
   const [pageVisible, setPageVisible] = createSignal(!document.hidden);
   const [overflowing, setOverflowing] = createSignal(false);
+  const [position, setPosition] = createSignal<
+    Readonly<{ first: number; last: number; total: number }>
+  >({ first: 1, last: 1, total: 1 });
+
+  const updatePosition = (): void => {
+    const element = track();
+    const card = element?.firstElementChild;
+    if (element === undefined || !(card instanceof HTMLElement)) {
+      return;
+    }
+    const gap = parseFloat(getComputedStyle(element).gap);
+    const step = card.getBoundingClientRect().width + gap;
+    const first = Math.round(element.scrollLeft / step) + 1;
+    const count = Math.max(1, Math.floor((element.clientWidth + gap) / step));
+    setPosition({
+      first,
+      last: Math.min(element.children.length, first + count - 1),
+      total: element.children.length,
+    });
+  };
 
   const move = (direction: -1 | 1): void => {
     const element = track();
@@ -66,6 +86,7 @@ function ProductShowcase(props: Readonly<{ children: JSX.Element }>): JSX.Elemen
     };
     const resize = new ResizeObserver(() => {
       setOverflowing(element.scrollWidth > element.clientWidth + 1);
+      updatePosition();
     });
     const intersection = new IntersectionObserver(
       (entries) => setVisible(entries.some((entry) => entry.isIntersecting)),
@@ -125,41 +146,80 @@ function ProductShowcase(props: Readonly<{ children: JSX.Element }>): JSX.Elemen
         }}
         onPointerDown={() => setPaused(true)}
         onWheel={() => setPaused(true)}
+        onScroll={updatePosition}
       >
         {props.children}
       </div>
       <Show when={overflowing()}>
-        <div class="discovery-controls">
+        <>
           <button
             type="button"
+            class="discovery-arrow discovery-previous"
             aria-label="前の商品を表示"
             onClick={() => {
               setPaused(true);
               move(-1);
             }}
           >
-            <span aria-hidden="true">‹</span>
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              aria-hidden="true"
+            >
+              <path d="m14 5-7 7 7 7" />
+            </svg>
           </button>
           <button
             type="button"
-            class="discovery-play"
-            aria-label={paused() ? "商品の自動送りを再開" : "商品の自動送りを停止"}
-            aria-pressed={!paused()}
-            onClick={() => setPaused(!paused())}
-          >
-            <span aria-hidden="true">{paused() ? "▶" : "Ⅱ"}</span>
-          </button>
-          <button
-            type="button"
+            class="discovery-arrow discovery-next"
             aria-label="次の商品を表示"
             onClick={() => {
               setPaused(true);
               move(1);
             }}
           >
-            <span aria-hidden="true">›</span>
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              aria-hidden="true"
+            >
+              <path d="m10 5 7 7-7 7" />
+            </svg>
           </button>
-        </div>
+          <div class="discovery-status">
+            <span
+              class="discovery-position"
+              aria-label={`${position().first}から${position().last}件目、全${position().total}件`}
+            >
+              {position().first}–{position().last}
+              <span> / {position().total}</span>
+            </span>
+            <button
+              type="button"
+              class="discovery-play"
+              aria-label={paused() ? "商品の自動送りを再開" : "商品の自動送りを停止"}
+              aria-pressed={!paused()}
+              title={paused() ? "自動送りを再開" : "自動送りを停止"}
+              onClick={() => setPaused(!paused())}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <Show
+                  when={paused()}
+                  fallback={
+                    <path d="M8 6v12M16 6v12" fill="none" stroke="currentColor" stroke-width="2" />
+                  }
+                >
+                  <path d="m9 5 10 7-10 7Z" fill="currentColor" />
+                </Show>
+              </svg>
+              <span>自動送り</span>
+            </button>
+          </div>
+        </>
       </Show>
     </div>
   );
@@ -306,7 +366,16 @@ export function ProductDiscovery(
                         </Show>
                       </span>
                       <span class="discovery-action">
-                        この商品から比較 <span aria-hidden="true">→</span>
+                        比較する{" "}
+                        <svg
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.8"
+                          aria-hidden="true"
+                        >
+                          <path d="M4 12h15m-5-5 5 5-5 5" />
+                        </svg>
                       </span>
                     </button>
                   )}

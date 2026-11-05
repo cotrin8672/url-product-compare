@@ -126,43 +126,93 @@
   color: #174d87;
   cursor: pointer;
 }
+.discovery-showcase {
+  position: relative;
+}
 .discovery-track {
   display: flex;
   gap: 20px;
   overflow-x: auto;
   overscroll-behavior-x: contain;
   scroll-snap-type: x mandatory;
-  scrollbar-width: thin;
-  scrollbar-color: #c9d5e2 transparent;
-  padding: 4px 0 10px;
+  scrollbar-width: none;
+  padding: 4px 0;
 }
-.discovery-controls {
+.discovery-track::-webkit-scrollbar {
+  display: none;
+}
+.discovery-status {
   display: flex;
-  justify-content: center;
-  gap: 10px;
-  margin-top: 10px;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+  margin-top: 16px;
+  color: #687483;
+  font-size: 12px;
 }
-.discovery-controls button {
+.discovery-position {
+  font-variant-numeric: tabular-nums;
+  color: #344050;
+}
+.discovery-position span {
+  color: #8a929d;
+}
+.discovery-arrow {
+  position: absolute;
+  top: 84px;
+  z-index: 1;
   display: grid;
   place-items: center;
-  width: 36px;
-  height: 36px;
+  width: 46px;
+  height: 46px;
   padding: 0;
-  border: 1px solid #d9e2ec;
+  border: 1px solid #e8eaed;
   border-radius: 50%;
   background: white;
-  color: #174d87;
-  font-size: 26px;
+  box-shadow: 0 2px 10px #1420361a;
+  color: #344050;
+  cursor: pointer;
+  transition:
+    box-shadow 150ms,
+    border-color 150ms;
+}
+.discovery-arrow svg {
+  width: 20px;
+  height: 20px;
+}
+.discovery-previous {
+  left: -23px;
+}
+.discovery-next {
+  right: -23px;
+}
+.discovery-arrow:hover {
+  border-color: #acb5c0;
+  box-shadow: 0 3px 14px #1420362b;
+}
+.discovery-play {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 28px;
+  padding: 2px 0 2px 12px;
+  border: 0;
+  border-left: 1px solid #e5e8ec;
+  border-radius: 0;
+  background: transparent;
+  color: #687483;
+  font-size: 12px;
   cursor: pointer;
 }
-.discovery-controls .discovery-play {
-  font-size: 13px;
+.discovery-play svg {
+  width: 16px;
+  height: 16px;
 }
-.discovery-controls button:hover {
-  background: #f0f6ff;
-  border-color: #0876ee;
+.discovery-play:hover {
+  color: #1266bb;
 }
-.discovery-controls button:focus-visible,
+.discovery-arrow:focus-visible,
+.discovery-play:focus-visible,
 .discovery-product:focus-visible {
   outline: 2px solid #0876ee;
   outline-offset: -3px;
@@ -173,9 +223,9 @@
   flex-direction: column;
   align-items: stretch;
   min-width: 0;
-  padding: 18px;
-  border: 1px solid #e0e6ec;
-  border-radius: 6px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
   background: white;
   color: #243a54;
   text-align: left;
@@ -183,13 +233,15 @@
   scroll-snap-align: start;
 }
 .discovery-product:hover:not(:disabled) {
-  border-color: #0876ee;
-  box-shadow: 0 3px 12px #1020430d;
+  color: #1266bb;
+}
+.discovery-product:hover:not(:disabled) .discovery-name {
+  text-decoration: underline;
 }
 .discovery-image {
   display: grid;
   place-items: center;
-  height: 136px;
+  height: 208px;
   margin-bottom: 16px;
   background-size: contain;
   background-position: center;
@@ -197,9 +249,9 @@
 }
 .discovery-name {
   display: -webkit-box;
-  height: 63px;
+  height: 42px;
   overflow: hidden;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   font-size: 14px;
   line-height: 1.5;
@@ -211,13 +263,24 @@
 }
 .discovery-action {
   display: flex;
-  justify-content: space-between;
+  gap: 6px;
   align-items: center;
-  padding-top: 12px;
-  border-top: 1px solid #edf0f3;
   color: #1266bb;
   font-size: 13px;
   font-weight: 600;
+}
+.discovery-action svg {
+  width: 16px;
+  height: 16px;
+}
+.discovery-foot button {
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  font-size: 12px;
+}
+.discovery-foot button:hover:not(:disabled) {
+  text-decoration: underline;
 }
 .discovery-foot {
   display: flex;
@@ -494,11 +557,21 @@
   }
   .discovery-product {
     flex-basis: min(78%, 280px);
-    padding: 12px;
   }
   .discovery-name {
     font-size: 13px;
-    height: 59px;
+    height: 39px;
+  }
+  .discovery-arrow {
+    width: 38px;
+    height: 38px;
+    top: 89px;
+  }
+  .discovery-previous {
+    left: -7px;
+  }
+  .discovery-next {
+    right: -7px;
   }
   .compare-page:not(:has(.consumer-results)) .compare-tool {
     min-height: 0;
